@@ -1,0 +1,69 @@
+export type ArticleCategory = 'Toutes' | 'Technologie' | 'Monde' | 'Culture' | 'Économie' | 'Style de vie';
+
+export interface Article {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: ArticleCategory;
+  imageUrl: string;
+  source: 'www.franceinfo.fr' | 'www.lessentiel.lu';
+  author: {
+    name: string;
+    avatar: string;
+  };
+  publishedAt: string;
+  readTime: string;
+  likes: number;
+  commentsCount: number;
+  featured?: boolean;
+}
+
+export interface HourlyForecast {
+  time: string;
+  temp: number;
+  condition: string;
+  pop: number; // probability of precipitation
+}
+
+export interface DailyForecast {
+  day: string;
+  date: string;
+  tempMin: number;
+  tempMax: number;
+  condition: string;
+  precipitation: number;
+  uvIndex: number;
+}
+
+export interface ActivitySuitability {
+  fitness: { ideal: boolean; score: number; label: string };
+  cycling: { ideal: boolean; score: number; label: string };
+  running: { ideal: boolean; score: number; label: string };
+}
+
+export interface AirQuality {
+  aqi: number; // 1-500
+  status: 'Bon' | 'Modéré' | 'Mauvais pour groupes sensibles' | 'Médiocre';
+  pm25: number;
+  pm10: number;
+}
+
+export interface WeatherData {
+  city: string;
+  country: string;
+  temperature: number;
+  condition: string;
+  humidity: number;
+  windSpeed: number;
+  pressure: number;
+  uvIndex: number;
+  visibility: number;
+  icon: string;
+  airQuality: AirQuality;
+  activities: ActivitySuitability;
+  hourly: HourlyForecast[];
+  forecast: DailyForecast[];
+}
+
+export type PageView = 'home' | 'weather-detail' | 'sources-news';
