@@ -25,7 +25,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   onOpenSettings
 }) => {
   const [activeMetric, setActiveMetric] = useState<ChartMetric>('hourly');
-  const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false); // Replié par défaut
+  const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
 
   if (!currentWeather) {
     return (
@@ -35,7 +35,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     );
   }
 
-  // Conversion Celsius / Fahrenheit
   const formatTemp = (tempC: number) => {
     if (unit === 'F') {
       return `${Math.round((tempC * 9) / 5 + 32)}°F`;
@@ -49,7 +48,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     return { label: 'Médiocre', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' };
   };
 
-  // Icônes feu (>32°C) et gel (<4°C)
   const renderTempBadge = (tempC: number) => {
     if (tempC > 32) return <span className="text-xs animate-pulse" title="Chaleur extrême (>32°C)">🔥</span>;
     if (tempC < 4) return <span className="text-xs animate-pulse" title="Risque de gel (<4°C)">❄️</span>;
@@ -287,8 +285,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-3 animate-fade-in pb-10 text-xs">
       
-      {/* 1. SWITCHER DE VILLE EN HAUT + BOUTON PARAMÈTRES FIXE À DROITE */}
-      <div className="bg-[#161923] border border-gray-800 rounded-xl p-2 shadow-md flex items-center justify-between gap-2">
+      {/* 1. BARRE DE NAVIGATION STICKY : RESTE FIXÉE EN HAUT AU SCROLL */}
+      <div className="sticky top-0 z-30 bg-[#161923]/95 backdrop-blur-md border border-gray-800/90 rounded-xl p-2 shadow-xl flex items-center justify-between gap-2">
         <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none flex-1">
           <div className="flex items-center space-x-1.5 text-indigo-400 px-2 flex-shrink-0">
             <Building2 className="w-3.5 h-3.5" />
@@ -314,7 +312,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         </div>
 
-        {/* Bouton Paramètres (⚙️) */}
         <button
           onClick={onOpenSettings}
           className="p-2 bg-[#11131c] border border-gray-800 text-gray-300 hover:text-white hover:bg-indigo-600 hover:border-indigo-500 rounded-lg transition-all flex-shrink-0 shadow-sm cursor-pointer"
@@ -324,7 +321,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </button>
       </div>
 
-      {/* 2. EN-TÊTE COMPACT */}
+      {/* 2. EN-TÊTE DE VILLE COMPACT */}
       <div className="bg-gradient-to-r from-[#181b26] via-[#141722] to-[#11131c] border border-gray-800/90 rounded-xl px-3.5 py-2 shadow-md flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
@@ -416,7 +413,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {renderBarChart()}
       </div>
 
-      {/* 4. SECTION FOLDABLE (FOLDED BY DEFAULT) */}
+      {/* 4. SECTION DÉPLIABLE (REPLIÉE PAR DÉFAUT) */}
       <div className="border border-gray-800 rounded-2xl bg-[#161923] overflow-hidden shadow-lg transition-all">
         <button
           onClick={() => setIsDetailsOpen(prev => !prev)}
