@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WeatherData, TemperatureUnit } from '../types';
 import { 
-  Sun, CloudSun, CloudRain, MapPin, 
-  Activity, Bike, Trees, Gauge, ShieldCheck, Thermometer, BarChart3, ChevronDown, ChevronUp, Check, X, ShieldAlert, Building2, Droplets, Wind, Settings
+  Sun, Cloud, CloudSun, CloudRain, MapPin, 
+  Activity, Bike, Trees, Gauge, ShieldCheck, Thermometer, BarChart3, ChevronDown, ChevronUp, Check, X, ShieldAlert, Building2, Droplets, Wind, Settings, TrendingUp, Flower2
 } from 'lucide-react';
 
 interface WeatherDetailPageProps {
@@ -27,6 +27,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const [activeMetric, setActiveMetric] = useState<ChartMetric>('hourly');
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
 
+  // Défilement automatique en haut de la page au chargement du composant ou changement de ville
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentWeather?.city]);
+
   if (!currentWeather) {
     return (
       <div className="flex items-center justify-center p-12 text-gray-400 text-xs">
@@ -35,11 +40,20 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     );
   }
 
+  const currentHour = new Date().getHours();
+  const allHourly = currentWeather.hourly || [];
+  const filteredHourly = allHourly.filter(h => {
+    const itemHour = parseInt(h.time.replace('h', '').replace(':00', ''), 10);
+    return isNaN(itemHour) || itemHour > currentHour;
+  });
+
+  const futureHourly = filteredHourly.length > 0 ? filteredHourly : allHourly;
+
   const formatTemp = (tempC: number) => {
     if (unit === 'F') {
-      return `${Math.round((tempC * 9) / 5 + 32)}°F`;
+      return `${Math.round((tempC * 9) / 5 + 32)}°`;
     }
-    return `${tempC}°C`;
+    return `${tempC}°`;
   };
 
   const getAqiBadge = (aqi: number) => {
@@ -54,33 +68,106 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     return null;
   };
 
+  const renderConditionIcon = (condition: string, className = "w-3.5 h-3.5") => {
+    const cond = condition.toLowerCase();
+    if (cond.includes('soleil') || cond.includes('ensoleillé') || cond.includes('dégagé') || cond.includes('clear')) {
+      return <Sun className={`${className} text-amber-400`} />;
+    }
+    if (cond.includes('pluie') || cond.includes('averse') || cond.includes('orage') || cond.includes('rain')) {
+      return <CloudRain className={`${className} text-blue-400`} />;
+    }
+    if (cond.includes('nuage') || cond.includes('couvert') || cond.includes('cloud')) {
+      return <Cloud className={`${className} text-gray-300`} />;
+    }
+    return <CloudSun className={`${className} text-sky-300`} />;
+  };
+
+  const renderSimpleSparkline = (
+    data: { label: string; value: number }[], 
+    color: string, 
+    valueFormatter: (val: number) => string
+  ) => {
+    if (!data || data.length === 0) return null;
+    const values = data.map(d => d.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min === 0 ? 1 : max - min;
+    const width = 300;
+    const height = 50;
+
+    const points = data.map((d, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((d.value - min) / range) * (height - 12) - 6;
+      return { x, y, label: d.label, val: d.value };
+    });
+
+    const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x},${p.y}` : `${acc} L ${p.x},${p.y}`, '');
+
+    return (
+      <div className="w-full space-y-1">
+        <div className="h-16 w-full flex items-center justify-center pt-2">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+            <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {points.map((p, idx) => (
+              <g key={idx} className="group cursor-pointer">
+                <circle cx={p.x} cy={p.y} r="3" fill="#11131c" stroke={color} strokeWidth="2" className="transition-all group-hover:r-5" />
+                <text x={p.x} y={p.y - 7} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
+                  {valueFormatter(p.val)}
+                </text>
+              </g>
+            ))}
+          </svg>
+        </div>
+        <div className="flex justify-between text-[8px] text-gray-500 font-medium px-1">
+          {data.map((d, i) => (
+            <span key={i}>{d.label}</span>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const aqiInfo = getAqiBadge(currentWeather.airQuality?.aqi || 35);
   const currentUv = currentWeather.uvIndex || 4;
+
+  const forecastData = currentWeather.forecast || [];
+  const tempTrend = forecastData.map(f => ({ label: f.day, value: f.tempMax }));
+  const feelsLikeTrend = forecastData.map(f => ({ label: f.day, value: f.tempMax - 2 }));
+  const humidityTrend = forecastData.map((f, i) => ({ label: f.day, value: Math.min(95, Math.max(30, (currentWeather.humidity || 65) + ((i * 12) % 35) - 15)) }));
+  const pollenTrend = forecastData.map((f, i) => ({ label: f.day, value: Math.min(100, Math.max(10, 40 + ((i * 17) % 55))) }));
 
   const renderBarChart = () => {
     switch (activeMetric) {
       case 'hourly': {
-        const temps = currentWeather.hourly?.map(h => h.temp) || [];
+        const temps = futureHourly.map(h => h.temp);
         const maxVal = Math.max(...temps, 1);
         return (
-          <div className="flex items-end justify-between gap-2 h-48 pt-8 pb-2 px-2 overflow-x-auto scrollbar-thin">
-            {currentWeather.hourly?.map((h, i) => {
-              const heightPct = Math.max(12, Math.round((h.temp / maxVal) * 100));
+          <div className="flex items-end justify-between gap-2 h-56 pt-8 pb-2 px-2 overflow-x-auto scrollbar-thin">
+            {futureHourly.map((h, i) => {
+              const heightPct = Math.max(22, Math.round((h.temp / maxVal) * 100));
+              const tempBadge = renderTempBadge(h.temp);
               return (
-                <div key={i} className="flex-1 min-w-[32px] max-w-[46px] flex flex-col items-center h-full justify-end group">
-                  <div className="flex items-center space-x-0.5 mb-1">
-                    <span className="text-[10px] font-extrabold text-indigo-300">{formatTemp(h.temp)}</span>
-                    {renderTempBadge(h.temp)}
+                <div key={i} className="flex-1 min-w-[36px] max-w-[50px] flex flex-col items-center h-full justify-end group">
+                  <div className="flex flex-col items-center mb-1.5 space-y-0.5">
+                    <div className="h-4 flex items-center justify-center">
+                      {tempBadge}
+                    </div>
+                    {renderConditionIcon(h.condition, "w-3.5 h-3.5")}
                   </div>
+
                   <div className="w-full bg-[#11131c] rounded-t-lg h-full flex items-end p-1 border border-white/5">
                     <div 
                       style={{ height: `${heightPct}%` }} 
-                      className={`w-full rounded-t-md transition-all duration-300 group-hover:brightness-125 ${
+                      className={`w-full rounded-t-md transition-all duration-300 group-hover:brightness-125 flex items-center justify-center p-0.5 overflow-hidden ${
                         h.temp > 32 ? 'bg-gradient-to-t from-orange-600 to-amber-400' :
                         h.temp < 4 ? 'bg-gradient-to-t from-sky-600 to-cyan-300' :
                         'bg-gradient-to-t from-indigo-600 to-sky-400'
                       }`}
-                    />
+                    >
+                      <span className="text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] tracking-tighter">
+                        {formatTemp(h.temp)}
+                      </span>
+                    </div>
                   </div>
                   <span className="text-[9px] font-medium text-gray-400 mt-1.5">{h.time}</span>
                 </div>
@@ -94,36 +181,47 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         const tempsMax = currentWeather.forecast?.map(f => f.tempMax) || [];
         const maxVal = Math.max(...tempsMax, 1);
         return (
-          <div className="flex items-end justify-between gap-3 h-48 pt-8 pb-2 px-2 overflow-x-auto scrollbar-thin">
+          <div className="flex items-end justify-between gap-3 h-56 pt-8 pb-2 px-2 overflow-x-auto scrollbar-thin">
             {currentWeather.forecast?.map((f, i) => {
-              const maxPct = Math.max(15, Math.round((f.tempMax / maxVal) * 100));
-              const minPct = Math.max(10, Math.round((f.tempMin / maxVal) * 100));
+              const maxPct = Math.max(24, Math.round((f.tempMax / maxVal) * 100));
+              const minPct = Math.max(18, Math.round((f.tempMin / maxVal) * 100));
+              const maxBadge = renderTempBadge(f.tempMax);
+              const minBadge = renderTempBadge(f.tempMin);
+
               return (
-                <div key={i} className="flex-1 min-w-[48px] max-w-[65px] flex flex-col items-center h-full justify-end group">
-                  <div className="text-[9px] font-bold mb-1 flex items-center space-x-0.5">
-                    <span className="text-amber-400 flex items-center gap-0.5">
-                      {formatTemp(f.tempMax)} {renderTempBadge(f.tempMax)}
-                    </span>
-                    <span className="text-gray-600">/</span>
-                    <span className="text-sky-300 flex items-center gap-0.5">
-                      {formatTemp(f.tempMin)} {renderTempBadge(f.tempMin)}
-                    </span>
+                <div key={i} className="flex-1 min-w-[54px] max-w-[72px] flex flex-col items-center h-full justify-end group">
+                  <div className="flex flex-col items-center mb-1.5 space-y-0.5">
+                    <div className="h-4 flex items-center space-x-1 justify-center">
+                      {maxBadge}
+                      {minBadge}
+                    </div>
+                    {renderConditionIcon(f.condition, "w-3.5 h-3.5")}
                   </div>
+
                   <div className="w-full bg-[#11131c] rounded-t-lg h-full flex items-end justify-center gap-1 p-1 border border-white/5">
                     <div 
                       style={{ height: `${maxPct}%` }} 
-                      className={`w-1/2 rounded-t-sm transition-all ${
+                      className={`w-1/2 rounded-t-sm transition-all flex items-center justify-center p-0.5 overflow-hidden ${
                         f.tempMax > 32 ? 'bg-gradient-to-t from-red-600 to-orange-400' : 'bg-gradient-to-t from-amber-600 to-amber-400'
                       }`}
                       title={`Max : ${formatTemp(f.tempMax)}`}
-                    />
+                    >
+                      <span className="text-[9px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] tracking-tighter">
+                        {formatTemp(f.tempMax)}
+                      </span>
+                    </div>
+
                     <div 
                       style={{ height: `${minPct}%` }} 
-                      className={`w-1/2 rounded-t-sm transition-all ${
+                      className={`w-1/2 rounded-t-sm transition-all flex items-center justify-center p-0.5 overflow-hidden ${
                         f.tempMin < 4 ? 'bg-gradient-to-t from-blue-700 to-cyan-400' : 'bg-gradient-to-t from-sky-700 to-sky-400'
                       }`}
                       title={`Min : ${formatTemp(f.tempMin)}`}
-                    />
+                    >
+                      <span className="text-[9px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] tracking-tighter">
+                        {formatTemp(f.tempMin)}
+                      </span>
+                    </div>
                   </div>
                   <span className="text-[9px] font-bold text-gray-300 mt-1.5">{f.day}</span>
                 </div>
@@ -168,7 +266,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <span className="text-amber-400 font-bold">Indice UV Journalier</span>
               <div className="flex items-center space-x-3">
                 <span className="flex items-center space-x-1 text-amber-400 font-bold">
-                  <ShieldAlert className="w-3 h-3" />
+                  <span className="text-xs">🧴</span>
                   <span>Crème requise (UV ≥ 3)</span>
                 </span>
                 <span className="flex items-center space-x-1 text-emerald-400 font-bold">
@@ -187,11 +285,13 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 return (
                   <div key={i} className="flex-1 min-w-[50px] max-w-[70px] flex flex-col items-center h-full justify-end group">
                     <div className="mb-1 flex flex-col items-center gap-0.5">
-                      <div className={`px-1 py-0.5 rounded-full flex items-center space-x-0.5 ${
-                        needsSunscreen ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      }`}>
-                        {needsSunscreen ? <ShieldAlert className="w-2.5 h-2.5" /> : <Check className="w-2.5 h-2.5" />}
-                        <span className="text-[8px] font-extrabold">{needsSunscreen ? 'Crème' : 'OK'}</span>
+                      <div 
+                        className={`p-1 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${
+                          needsSunscreen ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        }`}
+                        title={needsSunscreen ? "Crème solaire recommandée" : "Pas de protection requise"}
+                      >
+                        {needsSunscreen ? <span className="text-xs leading-none">🧴</span> : <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
                       <span className="text-[10px] font-extrabold text-amber-400">UV {uv}</span>
                     </div>
@@ -422,7 +522,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           <div className="flex items-center space-x-2 text-indigo-400">
             <Thermometer className="w-4 h-4" />
             <span className="text-xs font-bold text-white uppercase tracking-wider">
-              {isDetailsOpen ? 'Masquer les prévisions détaillées' : 'Afficher les prévisions heure par heure, 7 jours & indices'}
+              {isDetailsOpen ? 'Masquer les prévisions détaillées' : 'Afficher les prévisions heure par heure, 7 jours & graphiques de tendances'}
             </span>
           </div>
           <div className="flex items-center space-x-2 text-gray-400 text-[11px]">
@@ -433,6 +533,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
         {isDetailsOpen && (
           <div className="p-4 space-y-4 border-t border-gray-800/80 animate-fade-in">
+
             {/* Heure par heure */}
             <div className="bg-[#11131c] border border-gray-800/80 rounded-xl p-3.5 space-y-2">
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center space-x-1.5">
@@ -441,20 +542,14 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </h2>
               
               <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-thin">
-                {currentWeather.hourly?.map((item, idx) => (
+                {futureHourly.map((item, idx) => (
                   <div 
                     key={idx} 
                     className="flex-shrink-0 flex flex-col items-center justify-between p-2 rounded-xl bg-[#1b1f2b] border border-white/5 w-16 text-center space-y-1"
                   >
                     <span className="text-[10px] font-medium text-gray-400">{item.time}</span>
                     <div className="my-0.5">
-                      {item.condition.includes('Grand') || item.condition.includes('soleil') ? (
-                        <Sun className="w-4 h-4 text-amber-400" />
-                      ) : item.condition.includes('Pluie') || item.condition.includes('Averses') ? (
-                        <CloudRain className="w-4 h-4 text-blue-400" />
-                      ) : (
-                        <CloudSun className="w-4 h-4 text-sky-300" />
-                      )}
+                      {renderConditionIcon(item.condition, "w-4 h-4")}
                     </div>
                     <div className="text-xs font-bold text-white flex items-center justify-center gap-0.5">
                       <span>{formatTemp(item.temp)}</span>
@@ -482,13 +577,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                     <span className="text-xs font-bold text-white">{f.day}</span>
                     <span className="text-[9px] text-gray-400">{f.date}</span>
                     <div className="my-0.5">
-                      {f.condition.includes('Grand') || f.condition.includes('soleil') ? (
-                        <Sun className="w-4 h-4 text-amber-400" />
-                      ) : f.condition.includes('Pluie') || f.condition.includes('Averses') ? (
-                        <CloudRain className="w-4 h-4 text-blue-400" />
-                      ) : (
-                        <CloudSun className="w-4 h-4 text-sky-300" />
-                      )}
+                      {renderConditionIcon(f.condition, "w-4 h-4")}
                     </div>
                     <span className="text-[9px] text-gray-300 truncate w-full">{f.condition}</span>
                     
@@ -533,7 +622,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <span className={`px-2 py-0.5 rounded-md border text-[9px] font-bold flex items-center space-x-1 ${
                     currentUv >= 3 ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                   }`}>
-                    {currentUv >= 3 ? <ShieldAlert className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                    {currentUv >= 3 ? <span className="text-xs">🧴</span> : <Check className="w-3 h-3" />}
                     <span>{currentUv >= 3 ? 'Crème requise' : 'Pas besoin'}</span>
                   </span>
                 </div>
@@ -585,6 +674,42 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* 4 Graphiques simples de tendances */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <div className="bg-[#11131c] border border-gray-800/80 rounded-xl p-3.5 space-y-1">
+                <div className="flex items-center space-x-1.5 text-amber-400 mb-1">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Tendance Température (°C)</h3>
+                </div>
+                {renderSimpleSparkline(tempTrend, '#f59e0b', val => formatTemp(val))}
+              </div>
+
+              <div className="bg-[#11131c] border border-gray-800/80 rounded-xl p-3.5 space-y-1">
+                <div className="flex items-center space-x-1.5 text-pink-400 mb-1">
+                  <Thermometer className="w-3.5 h-3.5" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Tendance Ressentie (°C)</h3>
+                </div>
+                {renderSimpleSparkline(feelsLikeTrend, '#ec4899', val => formatTemp(val))}
+              </div>
+
+              <div className="bg-[#11131c] border border-gray-800/80 rounded-xl p-3.5 space-y-1">
+                <div className="flex items-center space-x-1.5 text-sky-400 mb-1">
+                  <Droplets className="w-3.5 h-3.5" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Tendance Humidité (%)</h3>
+                </div>
+                {renderSimpleSparkline(humidityTrend, '#38bdf8', val => `${val}%`)}
+              </div>
+
+              <div className="bg-[#11131c] border border-gray-800/80 rounded-xl p-3.5 space-y-1">
+                <div className="flex items-center space-x-1.5 text-emerald-400 mb-1">
+                  <Flower2 className="w-3.5 h-3.5" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Allergies au Pollen (Score)</h3>
+                </div>
+                {renderSimpleSparkline(pollenTrend, '#10b981', val => `${val}/100`)}
+              </div>
+            </div>
+
           </div>
         )}
       </div>

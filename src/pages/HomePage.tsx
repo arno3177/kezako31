@@ -1,9 +1,8 @@
 import React from 'react';
 import { Article, WeatherData } from '../types';
 import { WeatherWidget } from '../components/WeatherWidget';
-import { CitySearchAutocomplete } from '../components/CitySearchAutocomplete';
 import { 
-  Sparkles, Globe, Bookmark, Radio, ShieldCheck, ChevronRight 
+  Globe, Bookmark, Radio, ShieldCheck, ChevronRight, CloudSun
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -25,8 +24,6 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({
   articles = [],
   currentWeather,
-  weatherDataMap,
-  setWeatherDataMap,
   activeCity,
   setActiveCity,
   searchQuery,
@@ -59,39 +56,24 @@ export const HomePage: React.FC<HomePageProps> = ({
     <div className="space-y-10 animate-fade-in pb-16">
       
       {/* Immersive Editorial Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1e2a] via-[#151821] to-[#11131c] border border-gray-800 p-6 md:p-10 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1e2a] via-[#151821] to-[#11131c] border border-gray-800 p-6 md:p-8 shadow-2xl">
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          
-          <div className="lg:col-span-7 space-y-5">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Journalisme d'excellence & Météo Live</span>
+        
+        <div className="relative z-10 space-y-3">
+          {/* Nouveau Titre Météo */}
+          <div className="flex items-center space-x-3 pb-1 border-b border-gray-800/60">
+            <div className="p-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+              <CloudSun className="w-4 h-4" />
             </div>
-            <h1 className="font-['Playfair_Display'] text-3xl md:text-5xl font-extrabold text-white leading-tight">
-              L'information éclairée, <br />
-              <span className="bg-gradient-to-r from-indigo-400 via-sky-300 to-pink-400 bg-clip-text text-transparent">
-                la météo mondiale en direct.
-              </span>
-            </h1>
-            <p className="text-xs md:text-sm text-gray-300 max-w-xl leading-relaxed">
-              Sélection officielle des 5 premiers articles de nos sources partenaires (France Info et L'Essentiel), combinée aux prévisions météo en temps réel.
-            </p>
-            <div className="pt-1">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-                Recherche libre et instantanée de ville :
-              </label>
-              <CitySearchAutocomplete
-                weatherDataMap={weatherDataMap}
-                setWeatherDataMap={setWeatherDataMap}
-                activeCity={activeCity}
-                setActiveCity={setActiveCity}
-              />
+            <div>
+              <h2 className="text-sm font-bold text-white">Météo & Prévisions Directes</h2>
+              <p className="text-[11px] text-gray-400">Conditions actuelles et aperçu à court terme</p>
             </div>
           </div>
 
-          <div className="lg:col-span-5">
+          {/* Widget Météo */}
+          <div>
             <WeatherWidget
               weather={currentWeather}
               activeCity={activeCity}
@@ -99,7 +81,6 @@ export const HomePage: React.FC<HomePageProps> = ({
               onViewDetail={onViewWeatherDetail}
             />
           </div>
-
         </div>
       </div>
 
