@@ -1,4 +1,4 @@
- import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Search, MapPin, X, Loader2, Plus } from 'lucide-react';
 
 interface AddCityModalProps {

@@ -1,4 +1,4 @@
- import { WeatherData } from '../types';
+import { WeatherData } from '../types';
 
 const CITIES_COORDS: Record<string, { lat: number; lon: number; country: string }> = {
   'Paris': { lat: 48.8566, lon: 2.3522, country: 'France' },

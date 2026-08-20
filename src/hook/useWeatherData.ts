@@ -1,4 +1,4 @@
- import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { WeatherData } from '../types';
 import { fetchRealWeatherData } from '../service/weatherService';
 import { mockWeatherData } from '../data/mockData';

@@ -1,4 +1,4 @@
- import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Building2, Plus, Trash2, ArrowLeft, Thermometer, Check } from 'lucide-react';
 import { TemperatureUnit } from '../types';
 

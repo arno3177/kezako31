@@ -285,7 +285,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-3 animate-fade-in pb-10 text-xs">
       
-      {/* 1. BARRE DE NAVIGATION STICKY : RESTE FIXÉE EN HAUT AU SCROLL */}
+      {/* 1. BARRE DE NAVIGATION STICKY */}
       <div className="sticky top-0 z-30 bg-[#161923]/95 backdrop-blur-md border border-gray-800/90 rounded-xl p-2 shadow-xl flex items-center justify-between gap-2">
         <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none flex-1">
           <div className="flex items-center space-x-1.5 text-indigo-400 px-2 flex-shrink-0">
@@ -413,7 +413,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {renderBarChart()}
       </div>
 
-      {/* 4. SECTION DÉPLIABLE (REPLIÉE PAR DÉFAUT) */}
+      {/* 4. SECTION DÉPLIABLE */}
       <div className="border border-gray-800 rounded-2xl bg-[#161923] overflow-hidden shadow-lg transition-all">
         <button
           onClick={() => setIsDetailsOpen(prev => !prev)}
