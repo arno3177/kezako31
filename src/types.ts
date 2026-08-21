@@ -40,6 +40,8 @@ export interface ActivitySuitability {
   fitness: { ideal: boolean; score: number; label: string };
   cycling: { ideal: boolean; score: number; label: string };
   running: { ideal: boolean; score: number; label: string };
+  tennis: { ideal: boolean; score: number; label: string };
+  forestWalk: { ideal: boolean; score: number; label: string };
 }
 
 export interface AirQuality {

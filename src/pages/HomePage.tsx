@@ -4,7 +4,8 @@ import {
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
   Droplets, Wind, ArrowRight, Bookmark, Search,
   Newspaper, ExternalLink, Calendar, ChevronRight,
-  Car, Bus, Navigation, Loader2, CloudLightning
+  Car, Bus, Navigation, Loader2, CloudLightning, Clock,
+  Sunrise, Sunset, Sparkles
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -123,62 +124,131 @@ export const HomePage: React.FC<HomePageProps> = ({
     return <CloudSun className={`${className} text-indigo-300`} />;
   };
 
+  // Calcul dynamique des heures (+3h et +6h)
+  const currentHour = new Date().getHours();
+  const plus3hTime = `${(currentHour + 3) % 24}:00`;
+  const plus6hTime = `${(currentHour + 6) % 24}:00`;
+
+  // Extrait la température en parant aux variations de typage TypeScript
+  const getTemp = (item: any, defaultVal: number) => {
+    if (!item) return defaultVal;
+    if (typeof item.temperature === 'number') return item.temperature;
+    if (typeof item.temp === 'number') return item.temp;
+    if (typeof item.tempMax === 'number') return item.tempMax;
+    return defaultVal;
+  };
+
+  const forecast3h = currentWeather?.forecast?.[0];
+  const forecast6h = currentWeather?.forecast?.[1];
+
+  const temp3h = getTemp(forecast3h, (currentWeather?.temperature || 18) + 1);
+  const temp6h = getTemp(forecast6h, (currentWeather?.temperature || 18) - 1);
+
+  const cond3h = forecast3h?.condition || currentWeather?.condition || 'Nuageux';
+  const cond6h = forecast6h?.condition || currentWeather?.condition || 'Ensoleillé';
+
   const originQuery = encodeURIComponent(mainTrip?.origin || 'Kopstal');
   const destQuery = encodeURIComponent(mainTrip?.destination || 'Luxembourg');
 
   return (
     <div className="space-y-6 animate-fade-in text-xs">
 
-      {/* 1. SECTION MÉTÉO - DESIGN AMBIANT VIOLET/INDIGO */}
+      {/* 1. SECTION MÉTÉO COMPLÈTE SUR UNE SEULE LIGNE */}
       {currentWeather && (
-        <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-4 shadow-xl shadow-indigo-950/20 space-y-3">
-          {/* Titre de la Section Météo */}
-          <div className="flex items-center justify-between border-b border-indigo-900/40 pb-2">
-            <div className="flex items-center space-x-2 text-indigo-400">
-              <CloudLightning className="w-4 h-4" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-100">
-                Météo en Direct
-              </h2>
-            </div>
-            <span className="text-[10px] text-indigo-300/60 font-medium">Ville active</span>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 pt-1">
-            <div className="flex items-center space-x-3.5">
-              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0 shadow-inner">
-                {renderConditionIcon(currentWeather.condition, "w-6 h-6")}
+        <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-3.5 shadow-xl shadow-indigo-950/20">
+          <div className="flex flex-nowrap items-center justify-between gap-3 overflow-x-auto scrollbar-none">
+            
+            {/* 1. VILLE ET CONDITIONS */}
+            <div className="flex items-center space-x-2.5 flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                {renderConditionIcon(currentWeather.condition, "w-5 h-5")}
               </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                  <h1 className="text-base font-extrabold text-white tracking-tight">{currentWeather.city}</h1>
-                  <span className="text-[10px] text-indigo-200/80 font-semibold bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-500/30">
-                    {currentWeather.country}
-                  </span>
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                <h1 className="text-sm font-extrabold text-white tracking-tight whitespace-nowrap">{currentWeather.city}</h1>
+                <span className="text-[10px] text-indigo-200/80 font-semibold bg-indigo-950 px-2 py-0.5 rounded border border-indigo-500/30 whitespace-nowrap">
+                  {currentWeather.country}
+                </span>
+                <span className="text-xs text-indigo-300/70 font-medium capitalize whitespace-nowrap hidden sm:inline">• {currentWeather.condition}</span>
+              </div>
+            </div>
+
+            {/* 2. SAINT DU JOUR */}
+            <div className="flex items-center space-x-1.5 bg-indigo-950/80 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-amber-300 font-semibold text-[10px] flex-shrink-0 whitespace-nowrap">
+              <Sparkles className="w-3 h-3 text-amber-400 flex-shrink-0" />
+              <span>Saint : <strong className="text-white">St Christophe</strong></span>
+            </div>
+
+            {/* 3. PRÉVISIONS +3H, +6H ET SOLEIL */}
+            <div className="flex items-center space-x-2 bg-[#0d0e1a]/80 px-3 py-1 rounded-xl border border-indigo-500/15 flex-shrink-0">
+              {/* +3h */}
+              <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-indigo-950/50 border border-indigo-500/20">
+                <div className="text-right">
+                  <div className="flex items-center space-x-1 text-[9px] font-bold text-indigo-300 whitespace-nowrap">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span>+3h ({plus3hTime})</span>
+                  </div>
+                  <span className="text-xs font-black text-white">{temp3h}°C</span>
                 </div>
-                <p className="text-xs text-indigo-300/70 font-medium capitalize mt-0.5">{currentWeather.condition}</p>
+                {renderConditionIcon(cond3h, "w-3.5 h-3.5")}
+              </div>
+
+              <span className="text-indigo-900 font-light">|</span>
+
+              {/* +6h */}
+              <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-indigo-950/50 border border-indigo-500/20">
+                <div className="text-right">
+                  <div className="flex items-center space-x-1 text-[9px] font-bold text-indigo-300 whitespace-nowrap">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span>+6h ({plus6hTime})</span>
+                  </div>
+                  <span className="text-xs font-black text-white">{temp6h}°C</span>
+                </div>
+                {renderConditionIcon(cond6h, "w-3.5 h-3.5")}
+              </div>
+
+              <span className="text-indigo-900 font-light">|</span>
+
+              {/* Lever / Coucher */}
+              <div className="flex items-center space-x-2 bg-indigo-950/40 px-2 py-1 rounded-lg border border-indigo-500/20 text-slate-200">
+                <div className="flex items-center space-x-1" title="Lever">
+                  <Sunrise className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-[10px] font-extrabold text-slate-200">06:34</span>
+                </div>
+                <span className="text-indigo-800 text-[10px]">/</span>
+                <div className="flex items-center space-x-1" title="Coucher">
+                  <Sunset className="w-3.5 h-3.5 text-orange-400" />
+                  <span className="text-[10px] font-extrabold text-slate-200">20:48</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-indigo-900/40 pt-3 md:pt-0">
-              <div className="flex items-center space-x-4 text-slate-300 bg-[#0d0e1a]/70 px-3.5 py-1.5 rounded-xl border border-indigo-500/10">
-                <div className="flex items-center space-x-1.5"><Droplets className="w-3.5 h-3.5 text-sky-400" /><span className="font-semibold text-slate-200">{currentWeather.humidity}%</span></div>
+            {/* 4. HUMIDITÉ / VENT ET TEMPÉRATURE ACTUELLE */}
+            <div className="flex items-center space-x-2.5 flex-shrink-0">
+              <div className="flex items-center space-x-2 text-slate-300 bg-[#0d0e1a]/70 px-2.5 py-1 rounded-xl border border-indigo-500/10">
+                <div className="flex items-center space-x-1" title="Humidité">
+                  <Droplets className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="font-semibold text-slate-200 text-[11px]">{currentWeather.humidity}%</span>
+                </div>
                 <span className="text-indigo-900">|</span>
-                <div className="flex items-center space-x-1.5"><Wind className="w-3.5 h-3.5 text-indigo-400" /><span className="font-semibold text-slate-200">{currentWeather.windSpeed} km/h</span></div>
+                <div className="flex items-center space-x-1" title="Vent">
+                  <Wind className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="font-semibold text-slate-200 text-[11px]">{currentWeather.windSpeed} km/h</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2.5">
-                <span className="text-2xl font-black text-white tracking-tight">{currentWeather.temperature}°C</span>
-                <button onClick={onViewWeatherDetail} className="p-2 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white rounded-xl border border-indigo-400/30 transition-all cursor-pointer flex items-center space-x-1 shadow-sm">
-                  <span className="text-[11px] font-bold pl-1 hidden sm:inline">Détails</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+
+              <span className="text-xl font-black text-white tracking-tight">{currentWeather.temperature}°C</span>
+
+              <button onClick={onViewWeatherDetail} className="p-1.5 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white rounded-xl border border-indigo-400/30 transition-all cursor-pointer">
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* 2. SECTION TRAJET PRINCIPAL - PALETTE ÉMERAUDE / TÉRON */}
+      {/* 2. SECTION TRAJET PRINCIPAL */}
       {mainTrip && (
         <div className="bg-gradient-to-r from-[#111e25] via-[#13222a] to-[#0f171c] border border-emerald-500/20 rounded-2xl p-4 shadow-xl shadow-emerald-950/10 space-y-3">
           <div className="flex items-center justify-between border-b border-emerald-900/30 pb-2.5">
@@ -279,7 +349,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 3. SECTION ACTUALITÉS - DESIGN ARDOISE / ANTHRACITE BLEUTÉ */}
+      {/* 3. SECTION ACTUALITÉS */}
       <div className="space-y-4">
         
         {/* Titre de la Section Actualités */}

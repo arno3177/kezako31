@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { WeatherData, TemperatureUnit } from '../types';
-import { RoutePlanner } from '../components/RoutePlanner';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
   Activity, Bike, Trees, Gauge, ShieldCheck, Thermometer, BarChart3, ChevronDown, ChevronUp, Check, X, Building2, Droplets, Wind, Settings, TrendingUp, Flower2
@@ -475,8 +474,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       </div>
 
-      {/* ➔ SECTION TEMPS DE NAVIGATION ET TRAJETS HABITUELS (SOUS L'INFORMATION VILLE) */}
-      <RoutePlanner />
+
 
       {/* 3. DIAGRAMME À BARRES */}
       <div className="bg-[#161923] border border-gray-800 rounded-2xl p-4 shadow-lg space-y-3">
