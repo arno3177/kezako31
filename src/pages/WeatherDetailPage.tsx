@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { WeatherData, TemperatureUnit } from '../types';
+import { RoutePlanner } from '../components/RoutePlanner';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
-  Activity, Bike, Trees, Gauge, ShieldCheck, Thermometer, BarChart3, ChevronDown, ChevronUp, Check, X, ShieldAlert, Building2, Droplets, Wind, Settings, TrendingUp, Flower2
+  Activity, Bike, Trees, Gauge, ShieldCheck, Thermometer, BarChart3, ChevronDown, ChevronUp, Check, X, Building2, Droplets, Wind, Settings, TrendingUp, Flower2
 } from 'lucide-react';
 
 interface WeatherDetailPageProps {
@@ -27,7 +28,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const [activeMetric, setActiveMetric] = useState<ChartMetric>('hourly');
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
 
-  // Défilement automatique en haut de la page au chargement du composant ou changement de ville
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [currentWeather?.city]);
@@ -48,7 +48,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     const targetHour = (currentHour + i) % 24;
     const timeLabel = `${targetHour.toString().padStart(2, '0')}h00`;
 
-    // Cherche si la donnée existe déjà pour cette heure
     const existing = allHourly.find(h => {
       const itemHour = parseInt(h.time.replace('h', '').replace(':00', ''), 10);
       return itemHour === targetHour;
@@ -58,7 +57,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
       return { ...existing, time: timeLabel };
     }
 
-    // Valeur de repli si l'heure n'est pas présente dans l'index
     const baseTemp = currentWeather.temperature || 20;
     return {
       time: timeLabel,
@@ -440,7 +438,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </button>
       </div>
 
-      {/* 2. EN-TÊTE DE VILLE COMPACT */}
+      {/* 2. EN-TÊTE DE VILLE COMPACT (Section Information) */}
       <div className="bg-gradient-to-r from-[#181b26] via-[#141722] to-[#11131c] border border-gray-800/90 rounded-xl px-3.5 py-2 shadow-md flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 flex-shrink-0">
@@ -476,6 +474,9 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           {renderTempBadge(currentWeather.temperature)}
         </div>
       </div>
+
+      {/* ➔ SECTION TEMPS DE NAVIGATION ET TRAJETS HABITUELS (SOUS L'INFORMATION VILLE) */}
+      <RoutePlanner />
 
       {/* 3. DIAGRAMME À BARRES */}
       <div className="bg-[#161923] border border-gray-800 rounded-2xl p-4 shadow-lg space-y-3">
