@@ -39,7 +39,6 @@ export function App() {
     return localStorage.getItem(ACTIVE_CITY_STORAGE_KEY) || 'Paris';
   });
 
-  // État des paramètres généraux (Pays, Langue, API Bus)
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (saved) {
@@ -130,7 +129,7 @@ export function App() {
   const savedArticles = articles.filter(a => savedArticleIds.includes(a.id));
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden">
       <Header
         currentView={activeTab}
         setCurrentView={setActiveTab}
@@ -144,7 +143,7 @@ export function App() {
         language={settings.language}
       />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+      <main className="flex-1 w-full max-w-full px-3 sm:px-6 py-4 mx-auto overflow-x-hidden">
         {activeTab === 'sources-news' ? (
           <SourcesNewsPage
             articles={articles}

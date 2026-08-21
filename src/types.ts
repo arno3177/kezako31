@@ -39,7 +39,6 @@ export interface DailyForecast {
 export interface ActivitySuitability {
   fitness: { ideal: boolean; score: number; label: string };
   cycling: { ideal: boolean; score: number; label: string };
-  running: { ideal: boolean; score: number; label: string };
   tennis: { ideal: boolean; score: number; label: string };
   forestWalk: { ideal: boolean; score: number; label: string };
 }
@@ -83,3 +82,16 @@ export type TemperatureUnit = 'C' | 'F';
 
 // Ajout des vues 'trips' et 'settings' pour la navigation complète
 export type PageView = 'home' | 'weather-detail' | 'sources-news' | 'trips' | 'settings';
+
+export interface AppSettings {
+  temperatureUnit: TemperatureUnit;
+  defaultCity: string;
+  favoriteCities: string[];
+  notifications: boolean;
+  autoRefresh: boolean;
+  refreshInterval: number; // en minutes
+  // Vos nouveaux paramètres généraux :
+  country: string;
+  language: 'fr' | 'en' | 'de' | 'es';
+  busApi: 'maps' | 'mobiliteit' | 'default';
+}
