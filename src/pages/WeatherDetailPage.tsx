@@ -271,7 +271,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 </span>
                 <span className="flex items-center space-x-1 text-emerald-400 font-bold">
                   <Check className="w-3 h-3" />
-                  <span>Pas besoin (UV &lt; 3)</span>
+                 <span>Pas besoin (UV &lt; 3)</span>
                 </span>
               </div>
             </div>
@@ -327,8 +327,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 <span className="flex items-center space-x-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span><span>Forêt</span></span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="flex items-center space-x-0.5 text-emerald-400 font-bold"><Check className="w-3 h-3" /><span>Bon (≥70%)</span></span>
-                <span className="flex items-center space-x-0.5 text-rose-400 font-bold"><X className="w-3 h-3" /><span>Pas bon (&lt;70%)</span></span>
+                <span className="flex items-center space-x-0.5 text-emerald-400 font-bold"><Check className="w-3 h-3" /><span>Bon (&ge;70%)</span></span>
+               <span className="flex items-center space-x-0.5 text-rose-400 font-bold"><X className="w-3 h-3" /><span>Pas bon (&lt;70%)</span></span>
               </div>
             </div>
 
