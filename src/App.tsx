@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { TripsPage } from './pages/TripsPage';
 import { AddCityModal } from './components/AddCityModal';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -145,6 +146,8 @@ export function App() {
             onSelectCity={handleSelectCity}
             onOpenSettings={() => setActiveTab('settings')}
           />
+        ) : activeTab === 'trips' ? (
+          <TripsPage />
         ) : (
           <HomePage
             articles={articles}
