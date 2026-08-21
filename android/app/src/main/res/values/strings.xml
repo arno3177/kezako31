@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MeteoApp</string>
+    <string name="title_activity_main">MeteoApp</string>
+    <string name="package_name">com.monapp.meteo</string>
+    <string name="custom_url_scheme">com.monapp.meteo</string>
+</resources>

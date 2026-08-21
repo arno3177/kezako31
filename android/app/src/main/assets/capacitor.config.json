@@ -1,0 +1,5 @@
+{
+	"appId": "com.monapp.meteo",
+	"appName": "MeteoApp",
+	"webDir": "dist"
+}
