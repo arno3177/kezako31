@@ -40,14 +40,33 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     );
   }
 
+  // --- GÉNÉRATION EXACTE DES 13 CRÉNEAUX (H à H+12) ---
   const currentHour = new Date().getHours();
   const allHourly = currentWeather.hourly || [];
-  const filteredHourly = allHourly.filter(h => {
-    const itemHour = parseInt(h.time.replace('h', '').replace(':00', ''), 10);
-    return isNaN(itemHour) || itemHour > currentHour;
-  });
 
-  const futureHourly = filteredHourly.length > 0 ? filteredHourly : allHourly;
+  const futureHourly = Array.from({ length: 13 }, (_, i) => {
+    const targetHour = (currentHour + i) % 24;
+    const timeLabel = `${targetHour.toString().padStart(2, '0')}h00`;
+
+    // Cherche si la donnée existe déjà pour cette heure
+    const existing = allHourly.find(h => {
+      const itemHour = parseInt(h.time.replace('h', '').replace(':00', ''), 10);
+      return itemHour === targetHour;
+    });
+
+    if (existing) {
+      return { ...existing, time: timeLabel };
+    }
+
+    // Valeur de repli si l'heure n'est pas présente dans l'index
+    const baseTemp = currentWeather.temperature || 20;
+    return {
+      time: timeLabel,
+      temp: baseTemp + Math.round(Math.sin((targetHour - 6) / 3) * 3),
+      condition: currentWeather.condition || 'Ensoleillé',
+      pop: Math.max(0, Math.min(100, (currentWeather.humidity || 50) - 20))
+    };
+  });
 
   const formatTemp = (tempC: number) => {
     if (unit === 'F') {
@@ -271,7 +290,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 </span>
                 <span className="flex items-center space-x-1 text-emerald-400 font-bold">
                   <Check className="w-3 h-3" />
-                 <span>Pas besoin (UV &lt; 3)</span>
+                  <span>Pas besoin (UV &lt; 3)</span>
                 </span>
               </div>
             </div>
@@ -328,7 +347,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
               <div className="flex items-center space-x-2">
                 <span className="flex items-center space-x-0.5 text-emerald-400 font-bold"><Check className="w-3 h-3" /><span>Bon (&ge;70%)</span></span>
-               <span className="flex items-center space-x-0.5 text-rose-400 font-bold"><X className="w-3 h-3" /><span>Pas bon (&lt;70%)</span></span>
+                <span className="flex items-center space-x-0.5 text-rose-400 font-bold"><X className="w-3 h-3" /><span>Pas bon (&lt;70%)</span></span>
               </div>
             </div>
 
