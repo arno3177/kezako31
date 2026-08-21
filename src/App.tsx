@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNewsFetcher } from './hook/useNewsFetcher';
 import { useWeatherData } from './hook/useWeatherData';
 import { fetchRealWeatherData } from './service/weatherService';
-import { Article, PageView, TemperatureUnit } from './types';
+import { Article, PageView, TemperatureUnit, AppSettings } from './types';
 import { HomePage } from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
@@ -18,6 +18,7 @@ import { NewsletterModal } from './components/NewsletterModal';
 const CITIES_STORAGE_KEY = 'mon_journal_cities';
 const ACTIVE_CITY_STORAGE_KEY = 'mon_journal_active_city';
 const UNIT_STORAGE_KEY = 'mon_journal_unit';
+const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
@@ -36,6 +37,19 @@ export function App() {
 
   const [activeCity, setActiveCity] = useState<string>(() => {
     return localStorage.getItem(ACTIVE_CITY_STORAGE_KEY) || 'Paris';
+  });
+
+  // État des paramètres généraux (Pays, Langue, API Bus)
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return {
+      country: 'LU',
+      language: 'en',
+      busApi: 'mobiliteit'
+    };
   });
 
   const [isAddCityOpen, setIsAddCityOpen] = useState<boolean>(false);
@@ -59,6 +73,14 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(UNIT_STORAGE_KEY, unit);
   }, [unit]);
+
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  }, [settings]);
+
+  const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
+    setSettings(prev => ({ ...prev, ...newSettings }));
+  };
 
   const handleSelectCity = async (cityName: string) => {
     setActiveCity(cityName);
@@ -99,7 +121,6 @@ export function App() {
     );
   };
 
-  // Gestion de la redirection explicite vers la page des trajets
   const handleViewTrips = (mode?: 'car' | 'bus') => {
     if (mode) setSelectedTripMode(mode);
     setActiveTab('trips');
@@ -120,6 +141,7 @@ export function App() {
         savedCount={savedArticleIds.length}
         onOpenSaved={() => setIsSavedModalOpen(true)}
         onOpenNewsletter={() => setIsNewsletterOpen(true)}
+        language={settings.language}
       />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
@@ -130,16 +152,19 @@ export function App() {
             onToggleSave={handleToggleSave}
             onReadArticle={setSelectedArticle}
             onBackToHome={() => setActiveTab('home')}
+            language={settings.language}
           />
         ) : activeTab === 'settings' ? (
           <SettingsPage
             citiesList={citiesList}
             activeCity={activeCity}
             unit={unit}
+            settings={settings}
             onAddCity={handleAddCity}
             onRemoveCity={handleRemoveCity}
             onSelectCity={handleSelectCity}
             onToggleUnit={setUnit}
+            onUpdateSettings={handleUpdateSettings}
             onBack={() => setActiveTab('weather-detail')}
           />
         ) : activeTab === 'weather-detail' ? (
@@ -150,9 +175,14 @@ export function App() {
             unit={unit}
             onSelectCity={handleSelectCity}
             onOpenSettings={() => setActiveTab('settings')}
+            language={settings.language}
           />
         ) : activeTab === 'trips' ? (
-          <TripsPage initialMode={selectedTripMode} />
+          <TripsPage 
+            initialMode={selectedTripMode} 
+            busApi={settings.busApi} 
+            language={settings.language}
+          />
         ) : (
           <HomePage
             articles={articles}
@@ -169,6 +199,7 @@ export function App() {
             onViewTrips={handleViewTrips}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            language={settings.language}
           />
         )}
       </main>

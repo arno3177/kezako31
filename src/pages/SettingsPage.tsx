@@ -1,161 +1,200 @@
-import React, { useState } from 'react';
-import { Building2, Plus, Trash2, ArrowLeft, Thermometer, Check } from 'lucide-react';
-import { TemperatureUnit } from '../types';
+import React from 'react';
+import { AppSettings, TemperatureUnit } from '../types';
+import { getTranslation } from '../utils/translations';
+import { 
+  Settings, Globe, Languages, Bus, CheckCircle2, 
+  Thermometer, MapPin, Trash2, ArrowLeft 
+} from 'lucide-react';
 
 interface SettingsPageProps {
   citiesList: string[];
   activeCity: string;
   unit: TemperatureUnit;
+  settings: AppSettings;
   onAddCity: (city: string) => void;
   onRemoveCity: (city: string) => void;
   onSelectCity: (city: string) => void;
   onToggleUnit: (unit: TemperatureUnit) => void;
-  onBack: () => void;
+  onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
+  onBack?: () => void;
 }
+
+const COUNTRIES = [
+  { code: 'LU', name: 'Luxembourg' },
+  { code: 'FR', name: 'France' },
+  { code: 'BE', name: 'Belgique' },
+  { code: 'DE', name: 'Allemagne' },
+  { code: 'ES', name: 'España' }
+];
+
+const LANGUAGES = [
+  { code: 'fr', label: 'Français' },
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'es', label: 'Español' }
+];
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
   citiesList,
   activeCity,
   unit,
-  onAddCity,
+  settings,
   onRemoveCity,
   onSelectCity,
   onToggleUnit,
+  onUpdateSettings,
   onBack
 }) => {
-  const [newCityInput, setNewCityInput] = useState('');
+  const t = getTranslation(settings.language);
+  const isLuxembourg = settings.country === 'LU' || settings.country === 'Luxembourg';
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newCityInput.trim()) {
-      onAddCity(newCityInput.trim());
-      setNewCityInput('');
-    }
+  const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCountry = e.target.value;
+    const isLux = newCountry === 'LU' || newCountry === 'Luxembourg';
+
+    onUpdateSettings({
+      country: newCountry,
+      busApi: isLux ? 'mobiliteit' : 'maps'
+    });
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 animate-fade-in pb-10 text-xs">
+    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in text-xs text-slate-200 pb-10">
       
-      {/* En-tête avec bouton retour */}
-      <div className="flex items-center justify-between bg-[#161923] border border-gray-800 rounded-xl p-3 shadow-md">
-        <button
-          onClick={onBack}
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-bold">Retour météo</span>
-        </button>
-        <h1 className="text-sm font-extrabold text-white uppercase tracking-wider">Paramètres & Villes</h1>
+      {/* EN-TÊTE */}
+      <div className="flex items-center justify-between bg-[#16182a] border border-indigo-500/20 rounded-2xl p-4 shadow-xl">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+            <Settings className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-extrabold text-white tracking-tight">{t.settingsTitle}</h1>
+          </div>
+        </div>
+        {onBack && (
+          <button onClick={onBack} className="p-2 rounded-xl bg-[#0d0f17] border border-slate-800 hover:text-white text-slate-400 flex items-center space-x-1.5 transition-colors cursor-pointer">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* Unité de température */}
-      <div className="bg-[#161923] border border-gray-800 rounded-2xl p-4 shadow-lg space-y-3">
-        <div className="flex items-center space-x-2 text-indigo-400 border-b border-gray-800 pb-2">
-          <Thermometer className="w-4 h-4" />
-          <h2 className="text-xs font-bold uppercase text-white">Unité de Température</h2>
+      <div className="space-y-4">
+        <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1 pt-2">
+          {t.generalSettings}
         </div>
 
-        <div className="flex space-x-2">
-          <button
-            onClick={() => onToggleUnit('C')}
-            className={`flex-1 py-2.5 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
-              unit === 'C'
-                ? 'bg-gradient-to-r from-indigo-600 to-sky-500 text-white shadow-md'
-                : 'bg-[#11131c] text-gray-400 border border-gray-800 hover:text-white'
-            }`}
+        {/* PAYS */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Globe className="w-4 h-4" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">{t.residenceCountry}</h2>
+          </div>
+          <select
+            value={settings.country || 'LU'}
+            onChange={handleCountryChange}
+            className="w-full bg-[#0d0f17] text-white font-bold p-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
           >
-            <span>Celsius (°C)</span>
-            {unit === 'C' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-          </button>
-
-          <button
-            onClick={() => onToggleUnit('F')}
-            className={`flex-1 py-2.5 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${
-              unit === 'F'
-                ? 'bg-gradient-to-r from-indigo-600 to-sky-500 text-white shadow-md'
-                : 'bg-[#11131c] text-gray-400 border border-gray-800 hover:text-white'
-            }`}
-          >
-            <span>Fahrenheit (°F)</span>
-            {unit === 'F' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Gestion des villes */}
-      <div className="bg-[#161923] border border-gray-800 rounded-2xl p-4 shadow-lg space-y-4">
-        <div className="flex items-center space-x-2 text-indigo-400 border-b border-gray-800 pb-2">
-          <Building2 className="w-4 h-4" />
-          <h2 className="text-xs font-bold uppercase text-white">Gestion des Villes</h2>
+            {COUNTRIES.map(c => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Ajouter une ville */}
-        <form onSubmit={handleAdd} className="flex gap-2">
-          <input
-            type="text"
-            value={newCityInput}
-            onChange={(e) => setNewCityInput(e.target.value)}
-            placeholder="Ajouter une ville (ex: Lyon, Bruxelles)..."
-            className="flex-1 bg-[#11131c] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-          />
-          <button
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl flex items-center space-x-1 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Ajouter</span>
-          </button>
-        </form>
+        {/* LANGUE */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Languages className="w-4 h-4" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">{t.preferredLanguage}</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+            {LANGUAGES.map(lang => {
+              const isSelected = (settings.language || 'fr') === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  onClick={() => onUpdateSettings({ language: lang.code as any })}
+                  className={`p-2.5 rounded-xl border text-center font-bold transition-all cursor-pointer flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-md'
+                      : 'bg-[#0d0f17] border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>{lang.label}</span>
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* Liste des villes */}
-        <div className="space-y-2 pt-2">
-          {citiesList.map((city, idx) => {
-            const isActive = city.toLowerCase() === activeCity.toLowerCase();
-
-            return (
-              <div
-                key={idx}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  isActive
-                    ? 'bg-indigo-600/10 border-indigo-500/40 text-white'
-                    : 'bg-[#11131c] border-gray-800/80 text-gray-300'
+        {/* API BUS */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Bus className="w-4 h-4" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">{t.busApiTitle}</h2>
+          </div>
+          {isLuxembourg ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                onClick={() => onUpdateSettings({ busApi: 'mobiliteit' })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  settings.busApi === 'mobiliteit'
+                    ? 'bg-emerald-950/30 border-emerald-500 text-white'
+                    : 'bg-[#0d0f17] border-slate-800 text-slate-400'
                 }`}
               >
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-xs">{city}</span>
-                  {isActive && (
-                    <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md font-bold">
-                      Active
-                    </span>
-                  )}
-                </div>
+                <div className="font-extrabold text-white">Mobiliteit.lu</div>
+              </button>
 
-                <div className="flex items-center space-x-2">
-                  {!isActive && (
-                    <button
-                      onClick={() => onSelectCity(city)}
-                      className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded-lg font-bold"
-                    >
-                      Définir active
-                    </button>
-                  )}
-
-                  {citiesList.length > 1 && (
-                    <button
-                      onClick={() => onRemoveCity(city)}
-                      className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                      title="Supprimer la ville"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              <button
+                onClick={() => onUpdateSettings({ busApi: 'maps' })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  settings.busApi === 'maps'
+                    ? 'bg-indigo-950/30 border-indigo-500 text-white'
+                    : 'bg-[#0d0f17] border-slate-800 text-slate-400'
+                }`}
+              >
+                <div className="font-extrabold text-white">Google Maps API</div>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-[#0d0f17] border border-slate-800 text-slate-300">
+              <div className="font-bold text-indigo-400">Google Maps API</div>
+            </div>
+          )}
         </div>
-      </div>
 
+        <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1 pt-4">
+          {t.weatherSettings}
+        </div>
+
+        {/* UNITÉ */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Thermometer className="w-4 h-4" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">{t.temperatureUnit}</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button
+              onClick={() => onToggleUnit('C')}
+              className={`p-3 rounded-xl border font-extrabold transition-all cursor-pointer text-center ${
+                unit === 'C' ? 'bg-indigo-600/20 border-indigo-500 text-white' : 'bg-[#0d0f17] border-slate-800 text-slate-400'
+              }`}
+            >
+              Celsius (°C)
+            </button>
+            <button
+              onClick={() => onToggleUnit('F')}
+              className={`p-3 rounded-xl border font-extrabold transition-all cursor-pointer text-center ${
+                unit === 'F' ? 'bg-indigo-600/20 border-indigo-500 text-white' : 'bg-[#0d0f17] border-slate-800 text-slate-400'
+              }`}
+            >
+              Fahrenheit (°F)
+            </button>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };
