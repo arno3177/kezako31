@@ -22,14 +22,13 @@ const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'Ne
 
 export function App() {
   const [activeTab, setActiveTab] = useState<PageView>('home');
+  const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Gestion de l'unité de température (°C / °F)
   const [unit, setUnit] = useState<TemperatureUnit>(() => {
     return (localStorage.getItem(UNIT_STORAGE_KEY) as TemperatureUnit) || 'C';
   });
 
-  // Stockage persistant des villes
   const [citiesList, setCitiesList] = useState<string[]>(() => {
     const saved = localStorage.getItem(CITIES_STORAGE_KEY);
     return saved ? JSON.parse(saved) : DEFAULT_CITIES;
@@ -100,6 +99,12 @@ export function App() {
     );
   };
 
+  // Gestion de la redirection explicite vers la page des trajets
+  const handleViewTrips = (mode?: 'car' | 'bus') => {
+    if (mode) setSelectedTripMode(mode);
+    setActiveTab('trips');
+  };
+
   const currentWeather = weatherDataMap[activeCity] || weatherDataMap['Paris'] || Object.values(weatherDataMap)[0];
   const savedArticles = articles.filter(a => savedArticleIds.includes(a.id));
 
@@ -147,7 +152,7 @@ export function App() {
             onOpenSettings={() => setActiveTab('settings')}
           />
         ) : activeTab === 'trips' ? (
-          <TripsPage />
+          <TripsPage initialMode={selectedTripMode} />
         ) : (
           <HomePage
             articles={articles}
@@ -161,6 +166,7 @@ export function App() {
             onReadArticle={setSelectedArticle}
             onViewWeatherDetail={() => setActiveTab('weather-detail')}
             onViewSourcesNews={() => setActiveTab('sources-news')}
+            onViewTrips={handleViewTrips}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
           />

@@ -66,4 +66,18 @@ export interface WeatherData {
   forecast: DailyForecast[];
 }
 
-export type PageView = 'home' | 'weather-detail' | 'sources-news';
+// Interface pour la gestion des trajets Voiture / Bus
+export interface RouteTrip {
+  id: string;
+  name: string;
+  origin: string;
+  destination: string;
+  carDuration: string;
+  busDuration: string;
+  distance: string;
+}
+
+export type TemperatureUnit = 'C' | 'F';
+
+// Ajout des vues 'trips' et 'settings' pour la navigation complète
+export type PageView = 'home' | 'weather-detail' | 'sources-news' | 'trips' | 'settings';
