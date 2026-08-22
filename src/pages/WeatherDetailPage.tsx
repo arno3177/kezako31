@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WeatherData, TemperatureUnit, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { 
   CloudSun, Sun, Cloud, CloudRain, Droplets, Wind, 
   Settings, Calendar, ChevronDown, ChevronUp, 
   BarChart3, Activity, Bike, Dumbbell, Trees, Trophy, Gauge, SunMedium, Sparkles, CheckCircle2, AlertTriangle,
-  Thermometer, Umbrella, Compass, Flower2, Flame, Snowflake, Clock, X, Plus
+  Thermometer, Umbrella, Compass, Flower2, Flame, Snowflake, Clock, X, Plus, Trash2
 } from 'lucide-react';
 
 interface WeatherDetailPageProps {
@@ -21,6 +21,8 @@ interface WeatherDetailPageProps {
 }
 
 type WeatherTab = 'temp' | 'aqi' | 'uv' | 'activities';
+
+const STORAGE_KEY = 'weather_saved_cities';
 
 const getWeatherIcon = (condition: string = '') => {
   const c = condition.toLowerCase();
@@ -52,14 +54,69 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const [selectedActivity, setSelectedActivity] = useState<'fitness' | 'tennis' | 'cycling' | 'forestWalk'>('fitness');
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
 
-  // État local direct pour forcer l'affichage de la modale
+  const currentLocalCity = currentWeather?.city || 'Paris';
+
+  const [cities, setCities] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Erreur de lecture du localStorage", e);
+    }
+    if (citiesList && citiesList.length > 0) {
+      return citiesList;
+    }
+    return [currentLocalCity];
+  });
+
+  useEffect(() => {
+    try {
+      if (cities.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cities));
+      }
+    } catch (e) {
+      console.error("Erreur d'écriture dans le localStorage", e);
+    }
+  }, [cities]);
+
+  useEffect(() => {
+    if (currentLocalCity && !cities.includes(currentLocalCity)) {
+      setCities(prev => [...prev, currentLocalCity]);
+    }
+  }, [currentLocalCity]);
+
   const [showCitySettings, setShowCitySettings] = useState<boolean>(false);
   const [newCityInput, setNewCityInput] = useState<string>('');
 
-  const handleAdd = () => {
-    if (newCityInput.trim() && onAddCity) {
-      onAddCity(newCityInput.trim());
-      setNewCityInput('');
+  const handleAdd = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newCityInput.trim();
+    if (!trimmed) return;
+
+    const exists = cities.some(c => c.toLowerCase() === trimmed.toLowerCase());
+    if (!exists) {
+      const updated = [...cities, trimmed];
+      setCities(updated);
+      if (onAddCity) onAddCity(trimmed);
+    }
+    setNewCityInput('');
+  };
+
+  const handleRemove = (e: React.MouseEvent, cityToRemove: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const updated = cities.filter(c => c.toLowerCase() !== cityToRemove.toLowerCase());
+    setCities(updated);
+    if (onRemoveCity) onRemoveCity(cityToRemove);
+
+    if (activeCity.toLowerCase() === cityToRemove.toLowerCase() && updated.length > 0) {
+      onSelectCity(updated[0]);
     }
   };
 
@@ -154,7 +211,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <p className="text-[10px] text-sky-300/70 capitalize truncate">{translateCondition(currentWeather.condition || '', language)}</p>
             </div>
           </div>
-          {/* Bouton Paramètres sécurisé avec stopPropagation */}
           <button 
             type="button"
             onClick={(e) => {
@@ -168,11 +224,12 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </button>
         </div>
 
-        {citiesList.length > 0 && (
+        {cities.length > 0 && (
           <div className="flex space-x-1.5 overflow-x-auto scrollbar-none py-1">
-            {citiesList.map(city => (
+            {cities.map(city => (
               <button
                 key={city}
+                type="button"
                 onClick={() => onSelectCity(city)}
                 className={`px-2.5 py-1 rounded-lg border font-bold text-[10px] transition-all flex-shrink-0 cursor-pointer ${
                   activeCity.toLowerCase() === city.toLowerCase()
@@ -203,7 +260,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 <div className="flex flex-col items-center h-7 justify-end mb-1" title={item.condition || 'Météo'}>
                   {getWeatherIcon(item.condition)}
                 </div>
-                <span className="text-[8px] font-bold text-indigo-300">{item.temp}°</span>
+                {/* Température augmentée de 1 point (text-[9px] au lieu de text-[8px]) */}
+                <span className="text-[9px] font-bold text-indigo-300">{item.temp}°</span>
                 <div style={{ height: `${h}%` }} className="w-full max-w-[16px] bg-gradient-to-t from-cyan-500 via-indigo-500 to-blue-600 rounded-t-lg shadow-sm" />
                 <span className="text-[8px] text-slate-400 pt-1">{item.time}</span>
               </div>
@@ -233,21 +291,21 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
       {/* Onglets de catégorie */}
       <div className="grid grid-cols-4 gap-1.5 bg-[#12141f] p-1.5 rounded-xl border border-slate-800">
-        <button onClick={() => setActiveTab('temp')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'temp' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+        <button type="button" onClick={() => setActiveTab('temp')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'temp' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
           <Calendar className="w-3.5 h-3.5" /><span className="truncate">Températures</span>
         </button>
-        <button onClick={() => setActiveTab('aqi')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'aqi' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+        <button type="button" onClick={() => setActiveTab('aqi')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'aqi' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
           <Gauge className="w-3.5 h-3.5" /><span className="truncate">Air (AQI)</span>
         </button>
-        <button onClick={() => setActiveTab('uv')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'uv' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+        <button type="button" onClick={() => setActiveTab('uv')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'uv' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
           <SunMedium className="w-3.5 h-3.5" /><span className="truncate">Indice UV</span>
         </button>
-        <button onClick={() => setActiveTab('activities')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'activities' ? 'bg-pink-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+        <button type="button" onClick={() => setActiveTab('activities')} className={`py-2 px-1 rounded-lg font-bold text-[10px] flex items-center justify-center space-x-1 transition-all cursor-pointer ${activeTab === 'activities' ? 'bg-pink-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
           <Activity className="w-3.5 h-3.5" /><span className="truncate">Activités</span>
         </button>
       </div>
 
-      {/* 4. DIAGRAMME PRINCIPAL VERTICAL AVEC ICÔNES ALIGNÉES */}
+      {/* 4. DIAGRAMME PRINCIPAL VERTICAL */}
       <div className="bg-[#151824] border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <h2 className="text-[11px] font-bold uppercase text-indigo-400 flex items-center gap-2">
@@ -268,6 +326,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
             {(Object.keys(activityMeta) as Array<keyof typeof activityMeta>).map((actKey) => (
               <button
                 key={actKey}
+                type="button"
                 onClick={() => setSelectedActivity(actKey)}
                 className={`px-2.5 py-1 rounded-lg text-[9px] font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
                   selectedActivity === actKey ? 'bg-pink-500/25 text-pink-300 border-pink-500 shadow-sm' : 'bg-[#0d0f17] text-slate-400 border-slate-800'
@@ -280,7 +339,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE TEMPÉRATURES */}
+        {/* VUE TEMPÉRATURES (AVEC ICÔNES MÉTÉO ET FONT AUGMENTÉE) */}
         {activeTab === 'temp' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -297,12 +356,14 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <div className="flex items-end justify-center gap-0 w-full h-full">
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
                       <div className="mb-1.5" title={`Matin: ${day.mornCondition}`}>{getWeatherIcon(day.mornCondition)}</div>
-                      <span className="text-[7px] font-bold text-sky-300 mb-1">{day.mornTemp}°</span>
+                      {/* Température Matin augmentée de 1 point (text-[8px] au lieu de text-[7px]) */}
+                      <span className="text-[8px] font-bold text-sky-300 mb-1">{day.mornTemp}°</span>
                       <div style={{ height: `${mornHeight}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-sky-600 to-cyan-400 rounded-l-md shadow-md"></div>
                     </div>
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
                       <div className="mb-1.5" title={`Soir: ${day.eveCondition}`}>{getWeatherIcon(day.eveCondition)}</div>
-                      <span className="text-[7px] font-bold text-rose-300 mb-1">{day.eveTemp}°</span>
+                      {/* Température Soir augmentée de 1 point (text-[8px] au lieu de text-[7px]) */}
+                      <span className="text-[8px] font-bold text-rose-300 mb-1">{day.eveTemp}°</span>
                       <div style={{ height: `${eveHeight}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-amber-500 to-rose-600 rounded-r-md shadow-md"></div>
                     </div>
                   </div>
@@ -313,7 +374,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE AQI */}
+        {/* VUE AQI (SANS ICÔNES MÉTÉO) */}
         {activeTab === 'aqi' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -324,12 +385,12 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <div className="h-4"></div>
                   <div className="flex items-end justify-center gap-0 w-full h-full">
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
-                      <div className="mb-1.5" title={`Matin: ${day.mornCondition}`}>{getWeatherIcon(day.mornCondition)}</div>
+                      <div className="h-4 mb-1.5"></div>
                       <span className="text-[7px] font-bold text-sky-300 mb-1">{day.aqiMorn}</span>
                       <div style={{ height: `${mornH}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-emerald-600 to-teal-400 rounded-l-md shadow-md"></div>
                     </div>
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
-                      <div className="mb-1.5" title={`Soir: ${day.eveCondition}`}>{getWeatherIcon(day.eveCondition)}</div>
+                      <div className="h-4 mb-1.5"></div>
                       <span className="text-[7px] font-bold text-rose-300 mb-1">{day.aqiEve}</span>
                       <div style={{ height: `${eveH}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-teal-500 to-amber-500 rounded-r-md shadow-md"></div>
                     </div>
@@ -341,7 +402,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE UV */}
+        {/* VUE UV (SANS ICÔNES MÉTÉO) */}
         {activeTab === 'uv' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -352,12 +413,12 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <div className="h-4"></div>
                   <div className="flex items-end justify-center gap-0 w-full h-full">
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
-                      <div className="mb-1.5" title={`Matin: ${day.mornCondition}`}>{getWeatherIcon(day.mornCondition)}</div>
+                      <div className="h-4 mb-1.5"></div>
                       <span className="text-[7px] font-bold text-sky-300 mb-1">{day.uvMorn}</span>
                       <div style={{ height: `${Math.max(20, mornH)}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-amber-400 to-orange-500 rounded-l-md shadow-md"></div>
                     </div>
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
-                      <div className="mb-1.5" title={`Soir: ${day.eveCondition}`}>{getWeatherIcon(day.eveCondition)}</div>
+                      <div className="h-4 mb-1.5"></div>
                       <span className="text-[7px] font-bold text-rose-300 mb-1">{day.uvEve}</span>
                       <div style={{ height: `${Math.max(20, eveH)}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-orange-500 to-purple-600 rounded-r-md shadow-md"></div>
                     </div>
@@ -369,7 +430,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE ACTIVITÉS */}
+        {/* VUE ACTIVITÉS (SANS ICÔNES MÉTÉO) */}
         {activeTab === 'activities' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -380,12 +441,12 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <div className="h-4"></div>
                   <div className="flex items-end justify-center gap-0 w-full h-full">
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
-                      <div className="mb-1.5" title={`Matin: ${day.mornCondition}`}>{getWeatherIcon(day.mornCondition)}</div>
+                      <div className="h-4 mb-1.5"></div>
                       <span className="text-[7px] font-bold text-sky-300 mb-1">{mornS}%</span>
                       <div style={{ height: `${mornS}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-emerald-600 to-teal-400 rounded-l-md shadow-md"></div>
                     </div>
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
-                      <div className="mb-1.5" title={`Soir: ${day.eveCondition}`}>{getWeatherIcon(day.eveCondition)}</div>
+                      <div className="h-4 mb-1.5"></div>
                       <span className="text-[7px] font-bold text-rose-300 mb-1">{eveS}%</span>
                       <div style={{ height: `${eveS}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-teal-500 to-emerald-400 rounded-r-md shadow-md"></div>
                     </div>
@@ -401,6 +462,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
       {/* 5. SECTION REPLIABLE : DÉTAILS AVANCÉS */}
       <div className="bg-[#151824] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <button
+          type="button"
           onClick={() => setIsDetailsOpen(!isDetailsOpen)}
           className="w-full flex items-center justify-between p-3.5 bg-[#181b28] hover:bg-[#1c1f30] transition-colors cursor-pointer text-left"
         >
@@ -414,7 +476,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {isDetailsOpen && (
           <div className="p-4 border-t border-slate-800 space-y-6 animate-fade-in">
             
-            {/* A. Température Ressentie */}
+            {/* A. Température Ressentie (Font augmentée de 1 point -> text-[8px]) */}
             <div className="space-y-2 bg-[#0d0f17] p-3.5 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
@@ -430,11 +492,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                     <div key={idx} className="flex-1 min-w-[46px] flex flex-col items-center gap-1.5 h-full justify-end border border-indigo-500/15 rounded-lg p-0.5 bg-[#121420]/40">
                       <div className="flex items-end justify-center gap-0 w-full h-full">
                         <div className="flex flex-col items-center justify-end h-full w-1/2">
-                          <span className="text-[7px] font-bold text-sky-300 mb-1">{day.feelsMorn}°</span>
+                          <span className="text-[8px] font-bold text-sky-300 mb-1">{day.feelsMorn}°</span>
                           <div style={{ height: `${mornH}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-blue-500 to-amber-500 rounded-l-md shadow-sm"></div>
                         </div>
                         <div className="flex flex-col items-center justify-end h-full w-1/2">
-                          <span className="text-[7px] font-bold text-rose-300 mb-1">{day.feelsEve}°</span>
+                          <span className="text-[8px] font-bold text-rose-300 mb-1">{day.feelsEve}°</span>
                           <div style={{ height: `${eveH}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-amber-500 to-rose-500 rounded-r-md shadow-sm"></div>
                         </div>
                       </div>
@@ -573,7 +635,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         )}
       </div>
 
-      {/* MODAL DE GESTION DES VILLES (GARANTI AU PREMIER PLAN) */}
+      {/* MODAL DE GESTION DES VILLES */}
       {showCitySettings && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-[#16182a] border border-indigo-500/50 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
@@ -591,7 +653,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </button>
             </div>
 
-            {/* Ajouter une ville */}
             <div className="space-y-2">
               <label className="text-[10px] text-slate-300 font-semibold block">Ajouter une ville</label>
               <div className="flex gap-2">
@@ -600,12 +661,16 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   placeholder="Nom de la ville..."
                   value={newCityInput}
                   onChange={(e) => setNewCityInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAdd(e);
+                    }
+                  }}
                   className="flex-1 bg-[#0d0f17] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 />
                 <button
                   type="button"
-                  onClick={handleAdd}
+                  onClick={(e) => handleAdd(e)}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" /> Ajouter
@@ -613,29 +678,27 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
             </div>
 
-            {/* Liste des villes et suppression */}
             <div className="space-y-2 pt-2">
-              <label className="text-[10px] text-slate-300 font-semibold block">Villes enregistrées ({citiesList.length})</label>
+              <label className="text-[10px] text-slate-300 font-semibold block">Villes enregistrées ({cities.length})</label>
               <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                {citiesList.length === 0 ? (
+                {cities.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic py-2 text-center">Aucune ville dans la liste.</p>
                 ) : (
-                  citiesList.map((city) => (
+                  cities.map((city) => (
                     <div 
                       key={city} 
                       className="flex items-center justify-between bg-[#0d0f17] border border-slate-800 px-3 py-2 rounded-xl"
                     >
                       <span className="font-semibold text-white">{city}</span>
-                      {onRemoveCity && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveCity(city)}
-                          className="text-rose-400 hover:text-rose-300 p-1 bg-rose-500/10 border border-rose-500/20 rounded-lg cursor-pointer transition-all"
-                          title="Supprimer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemove(e, city)}
+                        className="text-rose-400 hover:text-rose-300 p-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg cursor-pointer transition-all flex items-center gap-1"
+                        title="Supprimer cette ville"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="text-[9px]">Supprimer</span>
+                      </button>
                     </div>
                   ))
                 )}
