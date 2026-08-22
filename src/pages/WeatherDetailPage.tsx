@@ -56,28 +56,60 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
   const currentLocalCity = currentWeather?.city || 'Paris';
 
+  // Gestion de la liste des villes avec déduplication stricte (insensible à la casse)
   const [cities, setCities] = useState<string[]>(() => {
+    let initialList: string[] = [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          initialList = parsed;
         }
       }
     } catch (e) {
       console.error("Erreur de lecture du localStorage", e);
     }
-    if (citiesList && citiesList.length > 0) {
-      return citiesList;
+
+    if (initialList.length === 0) {
+      if (citiesList && citiesList.length > 0) {
+        initialList = citiesList;
+      } else {
+        initialList = [currentLocalCity];
+      }
     }
-    return [currentLocalCity];
+
+    // Déduplication pour s'assurer qu'il n'y a pas de doublons
+    const uniqueMap = new Map<string, string>();
+    initialList.forEach(c => {
+      if (c && typeof c === 'string') {
+        const trimmed = c.trim();
+        const lower = trimmed.toLowerCase();
+        if (!uniqueMap.has(lower)) {
+          uniqueMap.set(lower, trimmed);
+        }
+      }
+    });
+    return Array.from(uniqueMap.values());
   });
 
+  // Synchronisation et sauvegarde dans le localStorage avec déduplication
   useEffect(() => {
     try {
-      if (cities.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cities));
+      const uniqueMap = new Map<string, string>();
+      cities.forEach(c => {
+        if (c && typeof c === 'string') {
+          const trimmed = c.trim();
+          const lower = trimmed.toLowerCase();
+          if (!uniqueMap.has(lower)) {
+            uniqueMap.set(lower, trimmed);
+          }
+        }
+      });
+      const cleanList = Array.from(uniqueMap.values());
+      
+      if (cleanList.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanList));
       }
     } catch (e) {
       console.error("Erreur d'écriture dans le localStorage", e);
@@ -85,8 +117,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   }, [cities]);
 
   useEffect(() => {
-    if (currentLocalCity && !cities.includes(currentLocalCity)) {
-      setCities(prev => [...prev, currentLocalCity]);
+    if (currentLocalCity) {
+      const exists = cities.some(c => c.toLowerCase() === currentLocalCity.toLowerCase());
+      if (!exists) {
+        setCities(prev => [...prev, currentLocalCity]);
+      }
     }
   }, [currentLocalCity]);
 
@@ -260,7 +295,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 <div className="flex flex-col items-center h-7 justify-end mb-1" title={item.condition || 'Météo'}>
                   {getWeatherIcon(item.condition)}
                 </div>
-                {/* Température augmentée de 1 point (text-[9px] au lieu de text-[8px]) */}
                 <span className="text-[9px] font-bold text-indigo-300">{item.temp}°</span>
                 <div style={{ height: `${h}%` }} className="w-full max-w-[16px] bg-gradient-to-t from-cyan-500 via-indigo-500 to-blue-600 rounded-t-lg shadow-sm" />
                 <span className="text-[8px] text-slate-400 pt-1">{item.time}</span>
@@ -339,7 +373,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE TEMPÉRATURES (AVEC ICÔNES MÉTÉO ET FONT AUGMENTÉE) */}
+        {/* VUE TEMPÉRATURES */}
         {activeTab === 'temp' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -356,13 +390,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <div className="flex items-end justify-center gap-0 w-full h-full">
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
                       <div className="mb-1.5" title={`Matin: ${day.mornCondition}`}>{getWeatherIcon(day.mornCondition)}</div>
-                      {/* Température Matin augmentée de 1 point (text-[8px] au lieu de text-[7px]) */}
                       <span className="text-[8px] font-bold text-sky-300 mb-1">{day.mornTemp}°</span>
                       <div style={{ height: `${mornHeight}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-sky-600 to-cyan-400 rounded-l-md shadow-md"></div>
                     </div>
                     <div className="flex flex-col items-center justify-end h-full w-1/2">
                       <div className="mb-1.5" title={`Soir: ${day.eveCondition}`}>{getWeatherIcon(day.eveCondition)}</div>
-                      {/* Température Soir augmentée de 1 point (text-[8px] au lieu de text-[7px]) */}
                       <span className="text-[8px] font-bold text-rose-300 mb-1">{day.eveTemp}°</span>
                       <div style={{ height: `${eveHeight}%` }} className="w-full max-w-[20px] bg-gradient-to-t from-amber-500 to-rose-600 rounded-r-md shadow-md"></div>
                     </div>
@@ -374,7 +406,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE AQI (SANS ICÔNES MÉTÉO) */}
+        {/* VUE AQI */}
         {activeTab === 'aqi' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -402,7 +434,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE UV (SANS ICÔNES MÉTÉO) */}
+        {/* VUE UV */}
         {activeTab === 'uv' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -430,7 +462,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        {/* VUE ACTIVITÉS (SANS ICÔNES MÉTÉO) */}
+        {/* VUE ACTIVITÉS */}
         {activeTab === 'activities' && (
           <div className="h-52 flex items-end justify-between gap-1.5 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
             {tenDaysData.map((day, idx) => {
@@ -476,7 +508,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {isDetailsOpen && (
           <div className="p-4 border-t border-slate-800 space-y-6 animate-fade-in">
             
-            {/* A. Température Ressentie (Font augmentée de 1 point -> text-[8px]) */}
+            {/* A. Température Ressentie */}
             <div className="space-y-2 bg-[#0d0f17] p-3.5 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">

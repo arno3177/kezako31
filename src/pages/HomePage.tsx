@@ -30,7 +30,6 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({
   articles,
   currentWeather,
-  savedArticleIds,
   onToggleSave,
   onReadArticle,
   onViewWeatherDetail,
@@ -82,13 +81,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="space-y-4 animate-fade-in text-xs w-full max-w-full overflow-x-hidden">
-
-      {/* 1. MÉTÉO - CARTE COMPACTE POUR MOBILE */}
       {currentWeather && (
         <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-3.5 shadow-xl w-full">
           <div className="flex flex-col gap-3">
-            
-            {/* VILLE & TEMPÉRATURE */}
             <div className="flex items-center justify-between border-b border-indigo-500/15 pb-2.5">
               <div className="flex items-center space-x-2 min-w-0">
                 <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex-shrink-0">
@@ -102,16 +97,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <p className="text-[10px] text-indigo-300/80 truncate">{translateCondition(currentWeather.condition, language)}</p>
                 </div>
               </div>
-
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <span className="text-2xl font-black text-white">{currentWeather.temperature}°C</span>
-                <button onClick={onViewWeatherDetail} className="p-2 bg-indigo-600/30 text-indigo-200 rounded-xl border border-indigo-400/30">
+                <button onClick={onViewWeatherDetail} className="p-2 bg-indigo-600/30 text-indigo-200 rounded-xl border border-indigo-400/30 cursor-pointer">
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* ÉPHÉMÉRIDE ET MÉTÉO DÉTAILLÉE */}
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div className="bg-[#0d0e1a]/80 p-2 rounded-xl border border-indigo-500/15 flex items-center justify-between">
                 <span className="text-slate-400 flex items-center gap-1"><Droplets className="w-3 h-3 text-sky-400" /> {t.humidity}</span>
@@ -134,12 +127,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <span className="flex items-center gap-0.5"><Sunset className="w-3 h-3 text-orange-400" /> 20:48</span>
               </div>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* 2. TRAJET PRINCIPAL */}
       {mainTrip && (
         <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
           <div className="flex items-center justify-between border-b border-emerald-900/30 pb-2">
@@ -149,30 +140,27 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {t.detailedRoute}
               </h2>
             </div>
-            
             {onViewTrips && (
-              <button onClick={() => onViewTrips(activeMapMode)} className="text-[11px] font-bold text-emerald-400 flex items-center space-x-1 flex-shrink-0">
+              <button onClick={() => onViewTrips(activeMapMode)} className="text-[11px] font-bold text-emerald-400 flex items-center space-x-1 flex-shrink-0 cursor-pointer">
                 <span>{t.details}</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
             )}
           </div>
 
-          {/* Sélection Mode Mobile */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setActiveMapMode('car')}
-              className={`p-2 rounded-xl border font-bold flex items-center justify-center space-x-1.5 ${
+              className={`p-2 rounded-xl border font-bold flex items-center justify-center space-x-1.5 cursor-pointer transition-all ${
                 activeMapMode === 'car' ? 'bg-[#1b2621] border-amber-500 text-amber-400' : 'bg-[#0a1217] border-slate-800 text-slate-400'
               }`}
             >
               <Car className="w-4 h-4" />
               <span>{t.byCar}</span>
             </button>
-
             <button
               onClick={() => setActiveMapMode('bus')}
-              className={`p-2 rounded-xl border font-bold flex items-center justify-center space-x-1.5 ${
+              className={`p-2 rounded-xl border font-bold flex items-center justify-center space-x-1.5 cursor-pointer transition-all ${
                 activeMapMode === 'bus' ? 'bg-[#132733] border-sky-400 text-sky-400' : 'bg-[#0a1217] border-slate-800 text-slate-400'
               }`}
             >
@@ -186,12 +174,41 @@ export const HomePage: React.FC<HomePageProps> = ({
             <p className="text-slate-300 font-medium truncate"><span className="text-slate-500">{t.arrival}:</span> {mainTrip.destination}</p>
           </div>
 
-          {/* Carte adaptative */}
-          <div className="h-48 rounded-xl overflow-hidden border border-emerald-800/40 w-full relative">
+          {activeMapMode === 'bus' && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold text-sky-400 uppercase tracking-wide">Ligne officielle RGTR :</p>
+                <a 
+                  href="https://www.mobiliteit.lu/fr/ligne/bus-921-rgtr/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-sky-300 hover:underline flex items-center gap-1"
+                >
+                  <span>Horaires en temps réel</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+              <div className="bg-[#0a1217] p-2.5 rounded-xl border border-sky-900/40 flex items-center justify-between text-[11px]">
+                <div className="flex items-center space-x-2.5">
+                  <span className="font-extrabold px-2 py-0.5 bg-sky-950 text-sky-300 rounded-md border border-sky-800">Bus 921</span>
+                  <div>
+                    <p className="text-white font-medium">Kopstal ➔ Luxembourg (Stäreplaz)</p>
+                    <p className="text-[10px] text-slate-400">Réseau RGTR</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-1 rounded-md border border-emerald-800/50">
+                  Actif
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="h-48 rounded-xl overflow-hidden border border-emerald-800/40 w-full relative shadow-inner">
             <iframe
               key={activeMapMode}
-              title="Carte Mobile Trajet"
-              width="100%" height="100%"
+              title="Carte interactive du trajet"
+              width="100%"
+              height="100%"
               style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg)' }}
               loading="lazy"
               src={`https://maps.google.com/maps?saddr=${originQuery}&daddr=${destQuery}&dirflg=${activeMapMode === 'bus' ? 'r' : 'd'}&output=embed`}
@@ -200,14 +217,13 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 3. ACTUALITÉS ACCUEIL */}
       <div className="space-y-3 w-full">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <div className="flex items-center space-x-2 text-indigo-400">
             <Newspaper className="w-4 h-4" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">{t.liveNews}</h2>
           </div>
-          <button onClick={onViewSourcesNews} className="text-[10px] text-indigo-400 font-bold">{t.allSources}</button>
+          <button onClick={onViewSourcesNews} className="text-[10px] text-indigo-400 font-bold cursor-pointer">{t.allSources}</button>
         </div>
 
         {mainFeaturedArticle && (
@@ -219,18 +235,17 @@ export const HomePage: React.FC<HomePageProps> = ({
               {mainFeaturedArticle.title}
             </h2>
             <div className="flex items-center justify-between pt-1">
-              <button onClick={() => onReadArticle(mainFeaturedArticle)} className="text-indigo-400 font-bold flex items-center space-x-1 text-[11px]">
+              <button onClick={() => onReadArticle(mainFeaturedArticle)} className="text-indigo-400 font-bold flex items-center space-x-1 text-[11px] cursor-pointer">
                 <span>{t.readArticle}</span>
                 <ExternalLink className="w-3 h-3" />
               </button>
-              <button onClick={() => onToggleSave(mainFeaturedArticle.id)} className="p-1.5 rounded-lg bg-[#0d0f17] text-slate-400">
+              <button onClick={() => onToggleSave(mainFeaturedArticle.id)} className="p-1.5 rounded-lg bg-[#0d0f17] text-slate-400 cursor-pointer">
                 <Bookmark className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         )}
 
-        {/* Dernières publications empilées */}
         <div className="space-y-2">
           {sideArticles.map((art) => (
             <div key={art.id} onClick={() => onReadArticle(art)} className="bg-[#151824] border border-slate-800 rounded-xl p-2.5 flex space-x-2.5 items-center cursor-pointer">
@@ -240,7 +255,6 @@ export const HomePage: React.FC<HomePageProps> = ({
           ))}
         </div>
       </div>
-
     </div>
   );
 };
