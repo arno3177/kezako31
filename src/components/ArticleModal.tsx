@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
-import { Article, Comment } from '../types';
-import { X, Heart, MessageSquare, Bookmark, Share2, Send, Clock, User, Check, Sparkles } from 'lucide-react';
+import { Article } from '../types';
+import { X, Heart, MessageSquare, Bookmark, Share2, Send, Check } from 'lucide-react';
+
+// Définition locale de l'interface Comment pour éviter toute erreur d'importation
+export interface Comment {
+  id: string;
+  author: string;
+  avatar: string;
+  content: string;
+  createdAt: string;
+}
 
 interface ArticleModalProps {
   article: Article | null;
@@ -152,12 +161,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             </button>
           </div>
 
-          {/* Featured Image */}
-          <div className="rounded-3xl overflow-hidden mb-8 aspect-[16/9] shadow-2xl border border-gray-800">
-            <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover" />
-          </div>
-
-          {/* Article Content */}
+          {/* Article Content (Sans image) */}
           <div className="prose prose-invert max-w-none text-gray-300 space-y-6 text-base md:text-lg leading-relaxed">
             <p className="font-medium text-indigo-200 text-lg md:text-xl leading-relaxed p-4 rounded-2xl bg-indigo-500/10 border-l-4 border-indigo-500">
               {article.excerpt}

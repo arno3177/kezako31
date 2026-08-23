@@ -1,20 +1,70 @@
 import { Article, ArticleCategory } from '../types';
 
-// Curated pool of high quality Pexels images for live articles that lack media enclosures
 const liveImagesPool = [
   'https://images.pexels.com/photos/518543/pexels-photo-518543.jpeg?auto=compress&cs=tinysrgb&w=800',
   'https://images.pexels.com/photos/1591056/pexels-photo-1591056.jpeg?auto=compress&cs=tinysrgb&w=800',
   'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800',
-  'https://images.pexels.com/photos/373543/pexels-photo-373543.jpeg?auto=compress&cs=tinysrgb&w=800',
-  'https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=800',
-  'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=800',
-  'https://images.pexels.com/photos/3771089/pexels-photo-3771089.jpeg?auto=compress&cs=tinysrgb&w=800',
-  'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=800'
+  'https://images.pexels.com/photos/373543/pexels-photo-373543.jpeg?auto=compress&cs=tinysrgb&w=800'
 ];
+
+function decodeEntities(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&#xE8;/g, 'è').replace(/&#xE9;/g, 'é').replace(/&#xEA;/g, 'ê')
+    .replace(/&#xEB;/g, 'ë').replace(/&#xE0;/g, 'à').replace(/&#xE1;/g, 'á')
+    .replace(/&#xE2;/g, 'â').replace(/&#xE4;/g, 'ä').replace(/&#xE7;/g, 'ç')
+    .replace(/&#xEE;/g, 'î').replace(/&#xEF;/g, 'ï')
+    .replace(/&#xF4;/g, 'ô').replace(/&#xF6;/g, 'ö').replace(/&#xFB;/g, 'û')
+    .replace(/&#xFC;/g, 'ü').replace(/&#xF9;/g, 'ù').replace(/&#xFA;/g, 'ú')
+    .replace(/&#xE6;/g, 'æ').replace(/&#x153;/g, 'œ').replace(/&#x27;/g, "'")
+    .replace(/&#x2C6;/g, '^').replace(/&#x2019;/g, "'").replace(/&#x201C;/g, '"')
+    .replace(/&#x201D;/g, '"').replace(/&#x2026;/g, '…').replace(/&#x2014;/g, '—')
+    .replace(/&#xA0;/g, ' ').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+function parseRSSWithRegex(xml: string, sourceName: string): any[] {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  
+  while ((match = itemRegex.exec(xml)) !== null && items.length < 20) {
+    const block = match[1];
+    
+    const titleMatch = block.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title>([\s\S]*?)<\/title>/i);
+    const linkMatch = block.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i) || block.match(/<link>([\s\S]*?)<\/link>/i);
+    const descMatch = block.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description>([\s\S]*?)<\/description>/i);
+    const dateMatch = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i);
+    
+    let imageMatch = block.match(/<media:content[^>]*url="([^"]+)"/i) || block.match(/<media:thumbnail[^>]*url="([^"]+)"/i) || block.match(/<enclosure[^>]*url="([^"]+)"/i);
+    if (!imageMatch && descMatch) {
+      const imgInDesc = descMatch[1].match(/<img[^>]*src="([^"]+)"/i);
+      if (imgInDesc) imageMatch = imgInDesc;
+    }
+
+    const cleanDesc = descMatch ? decodeEntities(descMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 300)) : '';
+    const titleRaw = titleMatch ? titleMatch[1].trim() : '';
+    let titleClean = titleRaw.replace(/^<!\[CDATA\[/, '').replace(/\]\]>$/, '');
+    titleClean = decodeEntities(titleClean);
+
+    const guidMatch = block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
+    const linkRaw = linkMatch ? linkMatch[1].trim() : (guidMatch ? guidMatch[1].trim() : '');
+    const linkClean = linkRaw.replace(/^<!\[CDATA\[/, '').replace(/\]\]>$/, '');
+
+    items.push({
+      title: titleClean || 'Actualité en direct',
+      link: decodeEntities(linkClean) || (sourceName.includes('franceinfo') ? 'https://www.franceinfo.fr' : 'https://www.lessentiel.lu'),
+      description: cleanDesc,
+      image: imageMatch ? imageMatch[1].trim() : null,
+      date: dateMatch ? dateMatch[1].trim() : null
+    });
+  }
+  return items;
+}
 
 export async function fetchLiveRSSFeed(url: string, sourceName: 'www.franceinfo.fr' | 'www.lessentiel.lu'): Promise<Article[]> {
   try {
-    // Fetch via CORS proxy
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     const response = await fetch(proxyUrl);
     
@@ -29,49 +79,16 @@ export async function fetchLiveRSSFeed(url: string, sourceName: 'www.franceinfo.
       throw new Error('Empty RSS response');
     }
 
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-    
-    const items = xmlDoc.querySelectorAll('item');
+    const rawItems = parseRSSWithRegex(xmlText, sourceName);
     const articles: Article[] = [];
 
-    items.forEach((item, index) => {
-      if (index >= 20) return; // fetch up to 20 live articles per feed
-
-      const title = item.querySelector('title')?.textContent?.trim() || 'Actualité en direct';
-      const link = item.querySelector('link')?.textContent?.trim() || '#';
-      const description = item.querySelector('description')?.textContent?.trim() || '';
+    rawItems.forEach((item, index) => {
+      const imageUrl = item.image || liveImagesPool[index % liveImagesPool.length];
       
-      // Clean HTML tags from description
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = description;
-      const cleanExcerpt = tempDiv.textContent || tempDiv.innerText || description;
-
-      const pubDateStr = item.querySelector('pubDate')?.textContent?.trim() || '';
-      
-      // Try to find image in enclosure or media content
-      let imageUrl = '';
-      const enclosure = item.querySelector('enclosure');
-      if (enclosure) {
-        imageUrl = enclosure.getAttribute('url') || '';
-      }
-      
-      if (!imageUrl) {
-        const mediaContent = item.querySelector('media\\:content, content');
-        if (mediaContent) {
-          imageUrl = mediaContent.getAttribute('url') || '';
-        }
-      }
-
-      if (!imageUrl) {
-        imageUrl = liveImagesPool[index % liveImagesPool.length];
-      }
-
-      // Format published date nicely
       let publishedAt = "À l'instant";
-      if (pubDateStr) {
+      if (item.date) {
         try {
-          const date = new Date(pubDateStr);
+          const date = new Date(item.date);
           const now = new Date();
           const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
           if (diffHours < 1) publishedAt = "À l'instant";
@@ -85,16 +102,23 @@ export async function fetchLiveRSSFeed(url: string, sourceName: 'www.franceinfo.
         }
       }
 
-      const category: ArticleCategory = sourceName === 'www.franceinfo.fr' ? 'Actualité France & Monde' : 'Actualité Luxembourg & Région';
+      const category: ArticleCategory = (sourceName === 'www.franceinfo.fr' ? 'Actualité France & Monde' : 'Actualité Luxembourg & Région') as any;
+
+      const fullRichContent = `Dépêche d'actualité en direct :\n\n` +
+        `${item.description || item.title}\n\n` +
+        `--- 💡 Informations complémentaires ---\n` +
+        `Cette actualité a été publiée en continu par la rédaction de ${sourceName === 'www.franceinfo.fr' ? 'France Info' : 'L\'Essentiel'}.\n` +
+        `Pour consulter le reportage complet, vous pouvez accéder directement au site de l'éditeur via le lien officiel.`;
 
       articles.push({
         id: `${sourceName}-${index}-${Date.now()}`,
-        title: title.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1'),
-        excerpt: (cleanExcerpt || title).substring(0, 160) + '...',
-        content: `Consultez l'article complet en direct et original sur le site officiel de notre partenaire :\n\nLien direct : ${link}\n\nRésumé du flux en direct :\n${cleanExcerpt}`,
+        title: item.title,
+        excerpt: (item.description || item.title).substring(0, 160) + '...',
+        content: fullRichContent,
         category,
         imageUrl,
         source: sourceName,
+        url: item.link, // <-- Le lien direct et propre récupéré par Regex !
         author: {
           name: sourceName === 'www.franceinfo.fr' ? 'Rédaction France Info (franceinfo.fr)' : 'Rédaction L\'Essentiel (lessentiel.lu)',
           avatar: sourceName === 'www.franceinfo.fr' 
@@ -106,7 +130,7 @@ export async function fetchLiveRSSFeed(url: string, sourceName: 'www.franceinfo.
         likes: Math.floor(Math.random() * 250) + 30,
         commentsCount: Math.floor(Math.random() * 35) + 4,
         featured: index === 0
-      });
+      } as any);
     });
 
     return articles;

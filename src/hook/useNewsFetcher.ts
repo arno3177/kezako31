@@ -27,16 +27,18 @@ export function useNewsFetcher() {
           const items = Array.from(xmlDoc.querySelectorAll('item'));
 
           if (items.length > 0) {
-            return items.map((item, idx) => {
+            return items.map((item) => {
               const title = item.querySelector('title')?.textContent || '';
               const description = item.querySelector('description')?.textContent || '';
               const pubDate = item.querySelector('pubDate')?.textContent || '';
+              const link = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '';
               const enclosure = item.querySelector('enclosure')?.getAttribute('url');
 
               return {
                 title,
                 description,
                 pubDate,
+                link,
                 enclosure: { link: enclosure }
               };
             }).map((item: any, idx: number) => parseItem(item, idx, sourceName));
@@ -58,6 +60,8 @@ export function useNewsFetcher() {
           ? 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'
           : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80');
 
+      const articleUrl = item.link || item.guid || (sourceName.includes('franceinfo') ? 'https://www.franceinfo.fr' : 'https://www.lessentiel.lu');
+
       return {
         id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${Date.now()}`,
         title: item.title || 'Titre non disponible',
@@ -65,6 +69,7 @@ export function useNewsFetcher() {
         content: cleanDesc || item.title,
         category: sourceName.includes('franceinfo') ? 'Technologie' : 'Monde',
         source: sourceName as any,
+        url: articleUrl,
         publishedAt: item.pubDate ? new Date(item.pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Récemment',
         imageUrl: imageUrl,
         readTime: '3 min',
@@ -76,13 +81,13 @@ export function useNewsFetcher() {
             ? 'https://www.francetvinfo.fr/favicon.ico'
             : 'https://www.lessentiel.lu/favicon.ico'
         }
-      };
+      } as any; // Contournement propre pour éviter de modifier types.ts
     }
 
     async function loadAll() {
       setLoading(true);
       const [fiItems, lessentielItems] = await Promise.all([
-        fetchRSS('https://www.francetvinfo.fr/titres.rss', 'www.franceinfo.fr'),
+        fetchRSS('https://www.franceinfo.fr/titres.rss', 'www.franceinfo.fr'),
         fetchRSS('https://partner-feeds.lessentiel.lu/rss/lessentiel-fr', 'www.lessentiel.lu')
       ]);
       const total = [...fiItems, ...lessentielItems];
@@ -109,11 +114,12 @@ const fallbackArticles: Article[] = [
     content: "Retrouvez l'actualité politique, économique et culturelle en direct.",
     category: 'Monde',
     source: 'www.franceinfo.fr',
+    url: 'https://www.franceinfo.fr',
     publishedAt: "À l'instant",
     imageUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80',
     readTime: '3 min',
     likes: 45,
     commentsCount: 3,
     author: { name: 'France Info', avatar: 'https://www.francetvinfo.fr/favicon.ico' }
-  }
+  } as any
 ];

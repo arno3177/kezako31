@@ -1,24 +1,5 @@
 export type ArticleCategory = 'Toutes' | 'Technologie' | 'Monde' | 'Culture' | 'Économie' | 'Style de vie';
 
-export interface Article {
-  id: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  category: ArticleCategory;
-  imageUrl: string;
-  source: 'www.franceinfo.fr' | 'www.lessentiel.lu';
-  author: {
-    name: string;
-    avatar: string;
-  };
-  publishedAt: string;
-  readTime: string;
-  likes: number;
-  commentsCount: number;
-  featured?: boolean;
-}
-
 export interface HourlyForecast {
   time: string;
   temp: number;
@@ -35,7 +16,24 @@ export interface DailyForecast {
   precipitation: number;
   uvIndex: number;
 }
-
+export interface Article {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  source: string;
+  url?: string; // <--- Ajoutez cette ligne
+  publishedAt: string;
+  imageUrl: string;
+  readTime: string;
+  likes: number;
+  commentsCount: number;
+  author: {
+    name: string;
+    avatar: string;
+  };
+}
 export interface ActivitySuitability {
   fitness: { ideal: boolean; score: number; label: string };
   cycling: { ideal: boolean; score: number; label: string };
