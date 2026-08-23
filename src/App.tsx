@@ -205,6 +205,7 @@ export function App() {
             initialMode={selectedTripMode} 
             busApi={settings.busApi} 
             language={settings.language}
+            currentWeather={currentWeather}
           />
         ) : (
           <HomePage

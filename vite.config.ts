@@ -7,4 +7,13 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    proxy: {
+      '/api/mobiliteit': {
+        target: 'https://cdt.mobiliteit.lu',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/mobiliteit/, '')
+      }
+    }
+  }
 })
