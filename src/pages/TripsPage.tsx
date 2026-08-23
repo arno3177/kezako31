@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RouteTrip, AppSettings, WeatherData } from '../types';
 import { getTranslation } from '../utils/translations';
+import { fetchLuxembourgFuelPrices, FuelPrices } from '../service/fuelService.ts';
 import { 
   Car, Bus, ExternalLink, ArrowLeft, 
   Clock, AlertTriangle, CheckCircle2, Sparkles, 
-  Compass, Bookmark, CloudRain, Sun, Cloud, CloudLightning, Snowflake, ShieldAlert, Plus, Trash2
+  Compass, Bookmark, CloudRain, Sun, Cloud, CloudLightning, Snowflake, ShieldAlert, Plus, Trash2, Fuel
 } from 'lucide-react';
 
 interface TripsPageProps {
@@ -38,6 +39,20 @@ export const TripsPage: React.FC<TripsPageProps> = ({
   const [newTripName, setNewTripName] = useState('');
   const [newTripOrigin, setNewTripOrigin] = useState('');
   const [newTripDestination, setNewTripDestination] = useState('');
+
+  // États pour le service de carburant
+  const [fuelData, setFuelData] = useState<FuelPrices | null>(null);
+  const [loadingFuel, setLoadingFuel] = useState(true);
+
+  useEffect(() => {
+    const loadPrices = async () => {
+      setLoadingFuel(true);
+      const data = await fetchLuxembourgFuelPrices();
+      setFuelData(data);
+      setLoadingFuel(false);
+    };
+    loadPrices();
+  }, []);
 
   const [tripsList, setTripsList] = useState<ExtendedRouteTrip[]>(() => {
     const base = savedTrips && savedTrips.length > 0 ? savedTrips : ([
@@ -117,51 +132,21 @@ export const TripsPage: React.FC<TripsPageProps> = ({
     const cond = currentWeather.condition.toLowerCase();
 
     if (cond.includes('pluie') || cond.includes('rain') || cond.includes('shower')) {
-      return { 
-        text: "Attention : Chaussée mouillée, risque de ralentissements accrus.", 
-        color: "text-sky-400 bg-sky-950/60 border-sky-800/40", 
-        icon: CloudRain,
-        iconColor: "text-sky-400" 
-      };
+      return { text: "Attention : Chaussée mouillée, risque de ralentissements accrus.", color: "text-sky-400 bg-sky-950/60 border-sky-800/40", icon: CloudRain, iconColor: "text-sky-400" };
     }
     if (cond.includes('orage') || cond.includes('thunder')) {
-      return { 
-        text: "Attention : Orages prévus, visibilité réduite et sols glissants.", 
-        color: "text-amber-400 bg-amber-950/60 border-amber-800/40", 
-        icon: CloudLightning,
-        iconColor: "text-amber-400" 
-      };
+      return { text: "Attention : Orages prévus, visibilité réduite et sols glissants.", color: "text-amber-400 bg-amber-950/60 border-amber-800/40", icon: CloudLightning, iconColor: "text-amber-400" };
     }
     if (cond.includes('neige') || cond.includes('snow') || (currentWeather.temperature !== undefined && currentWeather.temperature <= 1)) {
-      return { 
-        text: "Risque de gel ou de neige sur les ponts et axes secondaires.", 
-        color: "text-indigo-400 bg-indigo-950/60 border-indigo-800/40", 
-        icon: Snowflake,
-        iconColor: "text-indigo-400" 
-      };
+      return { text: "Risque de gel ou de neige sur les ponts et axes secondaires.", color: "text-indigo-400 bg-indigo-950/60 border-indigo-800/40", icon: Snowflake, iconColor: "text-indigo-400" };
     }
     if (cond.includes('brouillard') || cond.includes('fog')) {
-      return { 
-        text: "Visibilité réduite : Roulez prudemment sur les axes principaux.", 
-        color: "text-slate-300 bg-slate-900/80 border-slate-700/60", 
-        icon: ShieldAlert,
-        iconColor: "text-slate-400" 
-      };
+      return { text: "Visibilité réduite : Roulez prudemment sur les axes principaux.", color: "text-slate-300 bg-slate-900/80 border-slate-700/60", icon: ShieldAlert, iconColor: "text-slate-400" };
     }
     if (cond.includes('nuage') || cond.includes('cloud')) {
-      return { 
-        text: "Temps couvert. Conditions de route normales.", 
-        color: "text-slate-300 bg-slate-900/80 border-slate-700/60", 
-        icon: Cloud,
-        iconColor: "text-slate-400" 
-      };
+      return { text: "Temps couvert. Conditions de route normales.", color: "text-slate-300 bg-slate-900/80 border-slate-700/60", icon: Cloud, iconColor: "text-slate-400" };
     }
-    return { 
-      text: "Conditions météorologiques favorables pour le trajet.", 
-      color: "text-emerald-400 bg-emerald-950/60 border-emerald-800/40", 
-      icon: Sun,
-      iconColor: "text-amber-400" 
-    };
+    return { text: "Conditions météorologiques favorables pour le trajet.", color: "text-emerald-400 bg-emerald-950/60 border-emerald-800/40", icon: Sun, iconColor: "text-amber-400" };
   };
 
   const weatherAlert = getWeatherRouteAlert();
@@ -337,10 +322,10 @@ export const TripsPage: React.FC<TripsPageProps> = ({
               </button>
             </div>
 
-            {/* Widget Météo de route harmonisé avec icône expressive */}
+            {/* Widget Météo de route */}
             {weatherAlert && (
               <div className={`p-3 rounded-xl border flex items-center space-x-3 text-[11px] ${weatherAlert.color}`}>
-                <div className={`p-2 rounded-lg bg-black/30 flex-shrink-0`}>
+                <div className="p-2 rounded-lg bg-black/30 flex-shrink-0">
                   <weatherAlert.icon className={`w-5 h-5 ${weatherAlert.iconColor}`} />
                 </div>
                 <div className="flex flex-col justify-center">
@@ -350,9 +335,49 @@ export const TripsPage: React.FC<TripsPageProps> = ({
               </div>
             )}
 
+            {/* MODE VOITURE : Trafic + Widget Carburant connecté au service */}
             {activeTab === 'car' && (
-              <div className="space-y-2 pt-1">
-                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1">
+              <div className="space-y-3 pt-1">
+                
+                <div className="bg-[#0a1217] p-3.5 rounded-xl border border-amber-500/30 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-400 uppercase text-[10px] flex items-center gap-1.5">
+                      <Fuel className="w-3.5 h-3.5" /> Barème Carburants (Luxembourg)
+                    </span>
+                    <a 
+                      href="https://mengfuels.lu" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[9px] text-sky-400 hover:underline flex items-center gap-1 font-mono"
+                    >
+                      <span>Cours officiels</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <p className="text-[9px] text-slate-400 font-bold">Super 95</p>
+                      <p className="text-white font-extrabold text-xs mt-0.5">
+                        {loadingFuel ? '...' : fuelData?.super95}
+                      </p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <p className="text-[9px] text-slate-400 font-bold">Super 98</p>
+                      <p className="text-white font-extrabold text-xs mt-0.5">
+                        {loadingFuel ? '...' : fuelData?.super98}
+                      </p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <p className="text-[9px] text-slate-400 font-bold">Diesel</p>
+                      <p className="text-white font-extrabold text-xs mt-0.5">
+                        {loadingFuel ? '...' : fuelData?.diesel}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1 pt-1">
                   <AlertTriangle className="w-3 h-3" /> État de la fluidité du trafic :
                 </p>
                 <div className="space-y-2">
@@ -366,6 +391,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({
               </div>
             )}
 
+            {/* MODE BUS */}
             {activeTab === 'bus' && (
               <div className="space-y-3 pt-1">
                 
