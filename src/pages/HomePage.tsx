@@ -7,7 +7,7 @@ import {
   Newspaper, ChevronRight,
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
-  Briefcase, Building2, ShieldAlert, Zap, Globe, X, ExternalLink
+  Briefcase, Building2, ShieldAlert, Zap, Globe
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -42,7 +42,6 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
-  const [selectedArticleModal, setSelectedArticleModal] = useState<Article | null>(null);
 
   const [mainTrip] = useState<RouteTrip | null>(() => {
     const saved = localStorage.getItem('user_saved_trips_extended');
@@ -121,9 +120,16 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* 1. MÉTÉO - CARTE COMPACTE */}
+      {/* 1. MÉTÉO - CARTE COMPACTE AVEC TITRE */}
       {currentWeather && (
-        <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-3.5 shadow-xl w-full">
+        <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-3.5 shadow-xl w-full space-y-3">
+          
+          {/* Titre de la section Météo */}
+          <div className="flex items-center space-x-2 border-b border-indigo-500/15 pb-2 text-indigo-300">
+            <Sun className="w-4 h-4 text-amber-400" />
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-100">Météo & Éphéméride</h2>
+          </div>
+
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-indigo-500/15 pb-2.5">
               <div className="flex items-center space-x-2 min-w-0">
@@ -252,7 +258,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             return (
               <div 
                 key={art.id}
-                onClick={() => setSelectedArticleModal(art)}
+                onClick={() => onReadArticle(art)}
                 className={`flex-shrink-0 w-60 border rounded-xl p-3 shadow-lg cursor-pointer transition-all duration-300 group flex flex-col justify-between ${
                   isEssentiel 
                     ? 'bg-[#151922] border-emerald-500/50 hover:border-emerald-400 shadow-indigo-950/40' 
@@ -301,77 +307,6 @@ export const HomePage: React.FC<HomePageProps> = ({
           })}
         </div>
       </div>
-
-      {/* FENÊTRE MODALE POP-UP SANS IMAGE AVEC LIEN DIRECT VERS LE SITE OFFICIEL */}
-      {selectedArticleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl p-5 space-y-4 text-xs">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <span className="px-2 py-1 bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-extrabold uppercase tracking-wider rounded-md text-[10px]">
-                {selectedArticleModal.source}
-              </span>
-              <button 
-                onClick={() => setSelectedArticleModal(null)}
-                className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <h2 className="text-sm font-extrabold text-white leading-snug">
-                {selectedArticleModal.title}
-              </h2>
-
-              <div className="text-slate-300 text-xs leading-relaxed space-y-3 pt-2 border-t border-slate-800/60">
-                <p className="whitespace-pre-line text-slate-200 leading-relaxed">
-                  {selectedArticleModal.content || selectedArticleModal.excerpt}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-3 border-t border-slate-800">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => {
-                    onReadArticle(selectedArticleModal);
-                    setSelectedArticleModal(null);
-                  }}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg"
-                >
-                  <span>Vue dédiée complète</span>
-                </button>
-
-                <button
-                  onClick={() => onToggleSave(selectedArticleModal.id)}
-                  className={`px-3 py-2.5 rounded-xl font-bold border transition-colors flex items-center gap-1.5 cursor-pointer ${
-                    savedArticleIds?.includes(selectedArticleModal.id)
-                      ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300'
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  <Bookmark className="w-3.5 h-3.5" />
-                  <span>{savedArticleIds?.includes(selectedArticleModal.id) ? 'Sauvegardé' : 'Sauvegarder'}</span>
-                </button>
-              </div>
-
-              {selectedArticleModal.url && (
-                <a
-                  href={selectedArticleModal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-400 hover:text-indigo-300 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-center"
-                >
-                  <span>Lire directement sur {selectedArticleModal.source}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

@@ -11,9 +11,9 @@ import { TripsPage } from './pages/TripsPage';
 import { AddCityModal } from './components/AddCityModal';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { ArticleModal } from './components/ArticleModal';
 import { SavedArticlesModal } from './components/SavedArticlesModal';
 import { NewsletterModal } from './components/NewsletterModal';
+import { X, Bookmark, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 const CITIES_STORAGE_KEY = 'mon_journal_cities';
 const ACTIVE_CITY_STORAGE_KEY = 'mon_journal_active_city';
@@ -60,6 +60,26 @@ export function App() {
 
   const [savedArticleIds, setSavedArticleIds] = useState<string[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+
+  const currentIndex = selectedArticle 
+    ? articles.findIndex(a => a.id === selectedArticle.id) 
+    : -1;
+
+  const handlePrevArticle = () => {
+    if (currentIndex > 0) {
+      setSelectedArticle(articles[currentIndex - 1]);
+    } else {
+      setSelectedArticle(articles[articles.length - 1]);
+    }
+  };
+
+  const handleNextArticle = () => {
+    if (currentIndex < articles.length - 1 && currentIndex !== -1) {
+      setSelectedArticle(articles[currentIndex + 1]);
+    } else {
+      setSelectedArticle(articles[0]);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem(CITIES_STORAGE_KEY, JSON.stringify(citiesList));
@@ -129,7 +149,7 @@ export function App() {
   const savedArticles = articles.filter(a => savedArticleIds.includes(a.id));
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative">
       <Header
         currentView={activeTab}
         setCurrentView={setActiveTab}
@@ -205,13 +225,94 @@ export function App() {
 
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />
 
-      <ArticleModal
-        article={selectedArticle}
-        onClose={() => setSelectedArticle(null)}
-        isSaved={selectedArticle ? savedArticleIds.includes(selectedArticle.id) : false}
-        onToggleSave={handleToggleSave}
-        onLike={() => {}}
-      />
+      {/* MODALE GLOBALE CENTRÉE - BOUTONS PRÉCÉDENT / SUIVANT DANS LE HEADER */}
+      {selectedArticle && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl p-5 space-y-4 text-xs relative my-auto flex flex-col">
+            
+            {/* EN-TÊTE DE LA MODALE AVEC LA SOURCE, LES FLÈCHES ET LE BOUTON FERMER */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-extrabold uppercase tracking-wider rounded-md text-[10px]">
+                  {selectedArticle.source}
+                </span>
+
+                {/* Boutons Précédent / Suivant fixés dans le header */}
+                <div className="flex items-center gap-1 ml-2">
+                  <button
+                    onClick={handlePrevArticle}
+                    className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg transition-colors cursor-pointer"
+                    title="Article précédent"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[10px] text-slate-400 px-1">
+                    {currentIndex + 1}/{articles.length}
+                  </span>
+                  <button
+                    onClick={handleNextArticle}
+                    className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg transition-colors cursor-pointer"
+                    title="Article suivant"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedArticle(null)}
+                className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* CONTENU DE L'ARTICLE (Défilant) */}
+            <div className="space-y-3 flex-1 overflow-y-auto">
+              <h2 className="text-sm font-extrabold text-white leading-snug">
+                {selectedArticle.title}
+              </h2>
+
+              <div className="text-slate-300 text-xs leading-relaxed space-y-3 pt-2 border-t border-slate-800/60">
+                <p className="whitespace-pre-line text-slate-200 leading-relaxed">
+                  {selectedArticle.content || selectedArticle.excerpt}
+                </p>
+              </div>
+            </div>
+
+            {/* BARRE D'ACTIONS INFÉRIEURE */}
+            <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-800 flex-shrink-0 bg-[#121622]">
+              
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={() => handleToggleSave(selectedArticle.id)}
+                  className={`px-3 py-2 rounded-xl font-bold border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    savedArticleIds?.includes(selectedArticle.id)
+                      ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300'
+                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>{savedArticleIds?.includes(selectedArticle.id) ? 'Sauvegardé' : 'Sauvegarder'}</span>
+                </button>
+              </div>
+
+              {selectedArticle.url && (
+                <a
+                  href={selectedArticle.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-center"
+                >
+                  <span>Lire directement sur {selectedArticle.source}</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
       <SavedArticlesModal
         isOpen={isSavedModalOpen}
