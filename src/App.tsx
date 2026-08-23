@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNewsFetcher } from './hook/useNewsFetcher';
 import { useWeatherData } from './hook/useWeatherData';
 import { fetchRealWeatherData } from './service/weatherService';
+import { getTranslation } from './utils/translations';
 import { Article, PageView, TemperatureUnit, AppSettings } from './types';
 import { HomePage } from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
@@ -50,6 +51,9 @@ export function App() {
       busApi: 'mobiliteit'
     };
   });
+
+  // Gestion des traductions dynamiques
+  const t = getTranslation(settings.language);
 
   const [isAddCityOpen, setIsAddCityOpen] = useState<boolean>(false);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState<boolean>(false);
@@ -225,24 +229,22 @@ export function App() {
 
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />
 
-      {/* MODALE GLOBALE CENTRÉE - BOUTONS PRÉCÉDENT / SUIVANT DANS LE HEADER */}
+      {/* MODALE GLOBALE CENTRÉE TRADUITE */}
       {selectedArticle && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
           <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl p-5 space-y-4 text-xs relative my-auto flex flex-col">
             
-            {/* EN-TÊTE DE LA MODALE AVEC LA SOURCE, LES FLÈCHES ET LE BOUTON FERMER */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-1 bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-extrabold uppercase tracking-wider rounded-md text-[10px]">
                   {selectedArticle.source}
                 </span>
 
-                {/* Boutons Précédent / Suivant fixés dans le header */}
                 <div className="flex items-center gap-1 ml-2">
                   <button
                     onClick={handlePrevArticle}
                     className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg transition-colors cursor-pointer"
-                    title="Article précédent"
+                    title={t.previous}
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
@@ -252,7 +254,7 @@ export function App() {
                   <button
                     onClick={handleNextArticle}
                     className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg transition-colors cursor-pointer"
-                    title="Article suivant"
+                    title={t.next}
                   >
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -267,7 +269,6 @@ export function App() {
               </button>
             </div>
 
-            {/* CONTENU DE L'ARTICLE (Défilant) */}
             <div className="space-y-3 flex-1 overflow-y-auto">
               <h2 className="text-sm font-extrabold text-white leading-snug">
                 {selectedArticle.title}
@@ -280,9 +281,7 @@ export function App() {
               </div>
             </div>
 
-            {/* BARRE D'ACTIONS INFÉRIEURE */}
             <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-800 flex-shrink-0 bg-[#121622]">
-              
               <div className="flex items-center justify-end">
                 <button
                   onClick={() => handleToggleSave(selectedArticle.id)}
@@ -293,7 +292,7 @@ export function App() {
                   }`}
                 >
                   <Bookmark className="w-3.5 h-3.5" />
-                  <span>{savedArticleIds?.includes(selectedArticle.id) ? 'Sauvegardé' : 'Sauvegarder'}</span>
+                  <span>{savedArticleIds?.includes(selectedArticle.id) ? t.saved : t.save}</span>
                 </button>
               </div>
 
@@ -304,7 +303,7 @@ export function App() {
                   rel="noopener noreferrer"
                   className="w-full py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-center"
                 >
-                  <span>Lire directement sur {selectedArticle.source}</span>
+                  <span>{t.readDirectlyOn} {selectedArticle.source}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}

@@ -124,7 +124,6 @@ export const HomePage: React.FC<HomePageProps> = ({
       {currentWeather && (
         <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-3.5 shadow-xl w-full space-y-3">
           
-          {/* Titre de la section Météo */}
           <div className="flex items-center space-x-2 border-b border-indigo-500/15 pb-2 text-indigo-300">
             <Sun className="w-4 h-4 text-amber-400" />
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-100">Météo & Éphéméride</h2>
@@ -239,12 +238,14 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 3. SECTION ACTUALITÉS */}
+      {/* 3. SECTION ACTUALITÉS TRADUITE VIA t.liveNews ET t.read */}
       <div className="bg-gradient-to-r from-[#0e1713] via-[#121f19] to-[#0c1411] border-2 border-emerald-600/50 rounded-2xl p-3.5 shadow-2xl space-y-3 w-full">
         <div className="flex items-center justify-between border-b border-emerald-600/25 pb-2">
           <div className="flex items-center space-x-2 text-emerald-300">
             <Newspaper className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-emerald-100">En continu (France Info & L'essentiel)</h2>
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-emerald-100">
+              {t.liveNews}
+            </h2>
           </div>
           <button onClick={onViewSourcesNews} className="text-[10px] text-emerald-300 font-bold hover:underline cursor-pointer flex items-center gap-1">
             <span>{t.allSources}</span>
@@ -289,7 +290,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                 <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800 text-[10px]">
                   <span className="text-emerald-400 font-bold flex items-center space-x-1">
-                    <span>Lire</span>
+                    <span>{t.read}</span>
                     <ChevronRight className="w-3 h-3" />
                   </span>
                   <button 

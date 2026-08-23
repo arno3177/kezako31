@@ -44,12 +44,20 @@ export const translations = {
     saintOfDay: "Saint du jour",
     sunrise: "Lever",
     sunset: "Coucher",
-    liveNews: "SOURCES ACTUS",
+    liveNews: "En continu (France Info & L'essentiel)",
+    read: "Lire",
     readArticle: "Lire l'article",
     allSources: "Toutes les sources",
     latestPosts: "Dernières Publications",
 
-    // Page Météo Détaillée (AJOUT)
+    // Modale Actualités (AJOUT)
+    previous: "Précédent",
+    next: "Suivant",
+    save: "Sauvegarder",
+    saved: "Sauvegardé",
+    readDirectlyOn: "Lire directement sur",
+
+    // Page Météo Détaillée
     hourlyForecast: "Prévisions horaires",
     dailyForecast: "Prévisions sur 7 jours",
     airQuality: "Qualité de l'air",
@@ -59,13 +67,12 @@ export const translations = {
     pressure: "Pression",
     visibility: "Visibilité",
 
-    // Page Actualités (AJOUT)
+    // Page Actualités
     allArticles: "Tous les articles",
     searchPlaceholder: "Rechercher un article...",
     noArticlesFound: "Aucun article trouvé",
     backToHome: "Retour à l'accueil",
 
-    // Conditions Météo Traduisibles (AJOUT)
     conditions: {
       "Ensoleillé": "Ensoleillé",
       "Nuageux": "Nuageux",
@@ -116,12 +123,18 @@ export const translations = {
     saintOfDay: "Saint of the day",
     sunrise: "Sunrise",
     sunset: "Sunset",
-    liveNews: "NEWS SOURCES",
+    liveNews: "Live News (France Info & L'essentiel)",
+    read: "Read",
     readArticle: "Read article",
     allSources: "All sources",
     latestPosts: "Latest Posts",
 
-    // Page Météo Détaillée (AJOUT)
+    previous: "Previous",
+    next: "Next",
+    save: "Save",
+    saved: "Saved",
+    readDirectlyOn: "Read directly on",
+
     hourlyForecast: "Hourly Forecast",
     dailyForecast: "7-Day Forecast",
     airQuality: "Air Quality",
@@ -131,13 +144,11 @@ export const translations = {
     pressure: "Pressure",
     visibility: "Visibility",
 
-    // Page Actualités (AJOUT)
     allArticles: "All Articles",
     searchPlaceholder: "Search article...",
     noArticlesFound: "No articles found",
     backToHome: "Back to Home",
 
-    // Conditions Météo Traduisibles (AJOUT)
     conditions: {
       "Ensoleillé": "Sunny",
       "Nuageux": "Cloudy",
@@ -188,12 +199,18 @@ export const translations = {
     saintOfDay: "Tagesheiliger",
     sunrise: "Sonnenaufgang",
     sunset: "Sonnenuntergang",
-    liveNews: "NACHRICHTENQUELLEN",
+    liveNews: "Live-Nachrichten (France Info & L'essentiel)",
+    read: "Lesen",
     readArticle: "Artikel lesen",
     allSources: "Alle Quellen",
     latestPosts: "Neueste Beiträge",
 
-    // Page Météo Détaillée (AJOUT)
+    previous: "Vorherige",
+    next: "Nächste",
+    save: "Speichern",
+    saved: "Gespeichert",
+    readDirectlyOn: "Direkt lesen auf",
+
     hourlyForecast: "Stündliche Vorhersage",
     dailyForecast: "7-Tage-Vorhersage",
     airQuality: "Luftqualität",
@@ -203,13 +220,11 @@ export const translations = {
     pressure: "Druck",
     visibility: "Sichtweite",
 
-    // Page Actualités (AJOUT)
     allArticles: "Alle Artikel",
     searchPlaceholder: "Artikel suchen...",
     noArticlesFound: "Keine Artikel gefunden",
     backToHome: "Zurück zur Startseite",
 
-    // Conditions Météo Traduisibles (AJOUT)
     conditions: {
       "Ensoleillé": "Sonnig",
       "Nuageux": "Bewölkt",
@@ -260,12 +275,18 @@ export const translations = {
     saintOfDay: "Santo del día",
     sunrise: "Amanecer",
     sunset: "Atardecer",
-    liveNews: "FUENTES DE NOTICIAS",
+    liveNews: "Noticias en directo (France Info & L'essentiel)",
+    read: "Leer",
     readArticle: "Leer artículo",
     allSources: "Todas las fuentes",
     latestPosts: "Últimas publicaciones",
 
-    // Page Météo Détaillée (AJOUT)
+    previous: "Anterior",
+    next: "Siguiente",
+    save: "Guardar",
+    saved: "Guardado",
+    readDirectlyOn: "Leer directamente en",
+
     hourlyForecast: "Pronóstico por horas",
     dailyForecast: "Pronóstico de 7 días",
     airQuality: "Calidad del aire",
@@ -275,13 +296,11 @@ export const translations = {
     pressure: "Presión",
     visibility: "Visibilidad",
 
-    // Page Actualités (AJOUT)
     allArticles: "Todos los artículos",
     searchPlaceholder: "Buscar artículo...",
     noArticlesFound: "No se encontraron artículos",
     backToHome: "Volver al inicio",
 
-    // Conditions Météo Traduisibles (AJOUT)
     conditions: {
       "Ensoleillé": "Soleado",
       "Nuageux": "Nublado",
@@ -299,7 +318,6 @@ export const getTranslation = (lang: AppSettings['language'] = 'fr') => {
   return translations[lang] || translations.fr;
 };
 
-// Helper dynamique pour traduire les conditions météo (AJOUT)
 export const translateCondition = (condition: string, lang: AppSettings['language'] = 'fr') => {
   const t = getTranslation(lang);
   return t.conditions?.[condition as keyof typeof t.conditions] || condition;
