@@ -79,7 +79,7 @@ export interface RouteTrip {
 export type TemperatureUnit = 'C' | 'F';
 
 // Ajout des vues 'trips' et 'settings' pour la navigation complète
-export type PageView = 'home' | 'weather-detail' | 'sources-news' | 'trips' | 'settings';
+export type PageView = 'home' | 'weather-detail' | 'sources-news' | 'trips' | 'settings' | 'ai-chat';
 
 export interface AppSettings {
   temperatureUnit: TemperatureUnit;

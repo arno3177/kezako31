@@ -9,6 +9,7 @@ import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TripsPage } from './pages/TripsPage';
+import { AiChatPage } from './pages/AiChatPage';
 import { AddCityModal } from './components/AddCityModal';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -23,7 +24,7 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'ai-chat'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -52,7 +53,6 @@ export function App() {
     };
   });
 
-  // Gestion des traductions dynamiques
   const t = getTranslation(settings.language);
 
   const [isAddCityOpen, setIsAddCityOpen] = useState<boolean>(false);
@@ -154,6 +154,8 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative">
+      
+      {/* HEADER AVEC GESTION DES ONGLETS ET DU CLic IA */}
       <Header
         currentView={activeTab}
         setCurrentView={setActiveTab}
@@ -167,6 +169,7 @@ export function App() {
         language={settings.language}
       />
 
+      {/* CONTENU PRINCIPAL SELON LA PAGE ACTIVE */}
       <main className="flex-1 w-full max-w-full px-3 sm:px-6 py-4 mx-auto overflow-x-hidden">
         {activeTab === 'sources-news' ? (
           <SourcesNewsPage
@@ -207,6 +210,8 @@ export function App() {
             language={settings.language}
             currentWeather={currentWeather}
           />
+        ) : activeTab === 'ai-chat' ? (
+          <AiChatPage />
         ) : (
           <HomePage
             articles={articles}
@@ -230,7 +235,7 @@ export function App() {
 
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />
 
-      {/* MODALE GLOBALE CENTRÉE TRADUITE */}
+      {/* MODALE ARTICLE */}
       {selectedArticle && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
           <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl p-5 space-y-4 text-xs relative my-auto flex flex-col">
