@@ -7,7 +7,8 @@ import {
   Newspaper, ChevronRight,
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
-  Briefcase, Building2, ShieldAlert, Zap, Globe
+  Briefcase, Building2, ShieldAlert, Zap, Globe,
+  ExternalLink, Plus, Trash2
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -28,6 +29,13 @@ interface HomePageProps {
   language?: AppSettings['language'];
 }
 
+interface LinkItem {
+  id: string;
+  name: string;
+  url: string;
+  category: string;
+}
+
 export const HomePage: React.FC<HomePageProps> = ({
   articles,
   currentWeather,
@@ -42,6 +50,67 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
+
+  // États pour les raccourcis favoris
+  const defaultLinks: LinkItem[] = [
+    { id: '1', name: 'RTL.lu', url: 'https://www.rtl.lu', category: 'Actus' },
+    { id: '2', name: 'Mobiliteit.lu', url: 'https://www.mobiliteit.lu/fr/', category: 'Transport' },
+    { id: '3', name: 'ACL Carburants', url: 'https://www.acl.lu/fr/mobilite/prix-des-carburants/', category: 'Voiture' },
+    { id: '4', name: 'Guichet.lu', url: 'https://guichet.public.lu/fr.html', category: 'Administratif' },
+    { id: '5', name: 'Spuerkeess / E-Banking', url: 'https://www.spuerkeess.lu', category: 'Banque' },
+    { id: '6', name: '100komma7', url: 'https://www.100komma7.lu', category: 'Actus' },
+  ];
+
+  const [links, setLinks] = useState<LinkItem[]>(() => {
+    const saved = localStorage.getItem('user_quick_links');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return defaultLinks;
+  });
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const [newCategory, setNewCategory] = useState('Général');
+
+  const handleAddLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName || !newUrl) return;
+
+    let formattedUrl = newUrl;
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = 'https://' + formattedUrl;
+    }
+
+    const newItem: LinkItem = {
+      id: Date.now().toString(),
+      name: newName,
+      url: formattedUrl,
+      category: newCategory || 'Favoris'
+    };
+
+    const updated = [...links, newItem];
+    setLinks(updated);
+    localStorage.setItem('user_quick_links', JSON.stringify(updated));
+
+    setNewName('');
+    setNewUrl('');
+    setShowAddModal(false);
+  };
+
+  const handleDeleteLink = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const updated = links.filter(l => l.id !== id);
+    setLinks(updated);
+    localStorage.setItem('user_quick_links', JSON.stringify(updated));
+  };
 
   const [mainTrip] = useState<RouteTrip | null>(() => {
     const saved = localStorage.getItem('user_saved_trips_extended');
@@ -122,8 +191,8 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* 1. MÉTÉO - CARTE COMPACTE AVEC TITRE */}
       {currentWeather && (
-        <div className="bg-gradient-to-r from-[#16182a] via-[#1a1733] to-[#121324] border border-indigo-500/20 rounded-2xl p-3.5 shadow-xl w-full space-y-3">
-          
+       <div className="bg-gradient-to-r from-[#0c2238] via-[#103458] to-[#081b2e] border border-sky-400/40 rounded-2xl p-3.5 shadow-xl w-full space-y-3">
+        
           <div className="flex items-center space-x-2 border-b border-indigo-500/15 pb-2 text-indigo-300">
             <Sun className="w-4 h-4 text-amber-400" />
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-100">Météo & Éphéméride</h2>
@@ -238,6 +307,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
+      
+
       {/* 3. SECTION ACTUALITÉS TRADUITE VIA t.liveNews ET t.read */}
       <div className="bg-gradient-to-r from-[#0e1713] via-[#121f19] to-[#0c1411] border-2 border-emerald-600/50 rounded-2xl p-3.5 shadow-2xl space-y-3 w-full">
         <div className="flex items-center justify-between border-b border-emerald-600/25 pb-2">
@@ -308,7 +379,108 @@ export const HomePage: React.FC<HomePageProps> = ({
           })}
         </div>
       </div>
+          {/* 2.5. SECTION : RACCOURCIS FAVORIS (ROUGE PROFOND) */}
+      <div className="bg-[#1c1114] border border-rose-500/30 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
+        <div className="flex items-center justify-between border-b border-rose-900/30 pb-2">
+          <div className="flex items-center space-x-2 text-white font-bold text-xs">
+            <Bookmark className="w-4 h-4 text-rose-400" />
+            <span>Raccourcis Favoris & Utiles (Luxembourg)</span>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-400 border border-rose-800/50 font-bold flex items-center gap-1 transition-colors text-[10px] cursor-pointer"
+          >
+            <Plus className="w-3 h-3" />
+            <span>Ajouter</span>
+          </button>
+        </div>
 
+        {/* Modal d'ajout de lien */}
+        {showAddModal && (
+          <div className="bg-[#141215] p-3 rounded-xl border border-rose-500/40 shadow-lg space-y-2.5 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-white text-xs">Nouveau raccourci</span>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white font-bold text-xs">✕</button>
+            </div>
+            <form onSubmit={handleAddLink} className="space-y-2">
+              <div>
+                <label className="text-[9px] text-slate-400 font-bold uppercase">Nom du site</label>
+                <input 
+                  type="text" 
+                  value={newName} 
+                  onChange={(e) => setNewName(e.target.value)} 
+                  placeholder="Ex: RTL.lu" 
+                  required
+                  className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-rose-500 outline-none text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] text-slate-400 font-bold uppercase">URL / Adresse Web</label>
+                <input 
+                  type="text" 
+                  value={newUrl} 
+                  onChange={(e) => setNewUrl(e.target.value)} 
+                  placeholder="Ex: https://www.rtl.lu" 
+                  required
+                  className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-rose-500 outline-none text-xs"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-1">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddModal(false)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer shadow-md"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Grille des liens favoris */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {links.map((link) => (
+            <a
+              key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative p-2.5 rounded-xl bg-[#120a0d] border border-rose-950 hover:border-rose-500/50 transition-all flex flex-col justify-between space-y-1.5 cursor-pointer shadow-sm hover:shadow-rose-950/20"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-rose-300 uppercase tracking-wide">
+                  {link.category}
+                </span>
+                <button
+                  onClick={(e) => handleDeleteLink(link.id, e)}
+                  className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-0.5 transition-opacity"
+                  title="Supprimer ce raccourci"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-0.5">
+                <div className="flex items-center space-x-1.5 min-w-0 pr-1">
+                  <Globe className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                  <span className="text-slate-200 font-bold text-xs truncate group-hover:text-rose-300 transition-colors">
+                    {link.name}
+                  </span>
+                </div>
+                <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-rose-400 transition-colors flex-shrink-0" />
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>  
     </div>
+    
   );
 };
