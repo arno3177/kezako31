@@ -83,7 +83,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
       // Affiche l'erreur en popup sur le téléphone pour comprendre le blocage
-      alert("Erreur Login: " + (error.message || JSON.stringify(error)));
+      
     }
   };
 
