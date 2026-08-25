@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.monapp.meteo',
+  appId: 'com.example.kezako31',
   appName: 'MeteoApp',
   webDir: 'dist'
 };
