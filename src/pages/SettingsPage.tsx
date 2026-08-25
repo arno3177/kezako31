@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
 import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential, signInWithRedirect } from 'firebase/auth';
+
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
@@ -10,7 +11,7 @@ import {
   Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon, Save, Trash2, ExternalLink, Eye, EyeOff
 } from 'lucide-react';
 
-interface SettingsPageProps {
+interface SettingsPageProps { 
   citiesList: string[];
   activeCity: string;
   unit: TemperatureUnit;
@@ -69,11 +70,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   }, []);
 
   // Connexion sécurisée : native pour mobile (évite le localhost introuvable), popup pour le web
- const handleLogin = async () => {
+ // Connexion sécurisée : utilise la redirection sur mobile pour éviter la page blanche, et la popup sur le web
+  const handleLogin = async () => {
     try {
-      // On force l'utilisation de la popup Firebase Web standard, 
-      // ce qui évite d'utiliser le plugin natif Android et ses erreurs de configuration.
-      await signInWithPopup(auth, googleProvider);
+      if (Capacitor.isNativePlatform()) {
+        // Sur Android, on utilise la redirection Firebase standard pour éviter l'échec des popups WebView
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        // Sur le web (navigateur classique)
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
       alert("Erreur Login: " + (error.message || JSON.stringify(error)));
