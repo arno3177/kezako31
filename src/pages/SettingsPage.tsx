@@ -87,10 +87,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   // Connexion sécurisée par redirection web standard pour éviter les erreurs Credential Manager d'Android
   const handleLogin = async () => {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      // Utilise la popup web standard
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("Connecté avec succès :", result.user.email);
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
-      alert("Erreur Login: " + (error.message || JSON.stringify(error)));
+      alert("Erreur Login Popup: " + (error.message || JSON.stringify(error)));
     }
   };
 
