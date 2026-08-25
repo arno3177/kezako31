@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
+import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
-  Thermometer, ArrowLeft, Key, ShieldCheck, Eye, EyeOff, Save, Trash2, ExternalLink 
+  Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon, Save, Trash2, ExternalLink, Eye, EyeOff
 } from 'lucide-react';
 
 interface SettingsPageProps {
@@ -44,10 +46,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const t = getTranslation(settings.language);
   const isLuxembourg = settings.country === 'LU' || settings.country === 'Luxembourg';
 
+  const [user, setUser] = useState<User | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('user_gemini_api_key');
@@ -55,6 +65,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setApiKey(storedKey);
     }
   }, []);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      console.error("Erreur de connexion Google :", error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error: any) {
+      console.error("Erreur de déconnexion :", error);
+    }
+  };
 
   const handleSaveApiKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +95,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     localStorage.removeItem('user_gemini_api_key');
     setApiKey('');
     setDeleteSuccess(true);
-    // Déclencher un événement de stockage pour mettre à jour le Header en direct
     window.dispatchEvent(new Event('storage'));
     setTimeout(() => setDeleteSuccess(false), 3000);
   };
@@ -107,6 +132,53 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="space-y-4">
         <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1 pt-2">
           {t.generalSettings}
+        </div>
+
+        {/* WIDGET DE CONNEXION GOOGLE */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Authentification Google</h2>
+          </div>
+
+          {user ? (
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center space-x-3">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full border border-indigo-500" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                    <UserIcon className="w-4 h-4" />
+                  </div>
+                )}
+                <div>
+                  <div className="font-bold text-white text-xs">{user.displayName}</div>
+                  <div className="text-[10px] text-slate-400">{user.email}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Déconnexion</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 pt-1">
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Connectez-vous avec votre compte Google pour débloquer l'accès au module **Quantum AI** en toute sécurité.
+              </p>
+              <button
+                onClick={handleLogin}
+                className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer text-xs"
+              >
+                <LogIn className="w-4 h-4 text-indigo-600" />
+                <span>Se connecter avec Google</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* PAYS */}
@@ -190,12 +262,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           )}
         </div>
 
-        {/* CLÉ API GEMINI PERSONNELLE (AVEC SUPPRESSION) */}
+        {/* CLÉ API GEMINI PERSONNELLE (OPTIONNELLE) */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center space-x-2 text-indigo-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-white">Clé API Gemini AI Personnelle</h2>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-white">Clé API Gemini AI Personnelle (Alternative)</h2>
             </div>
             <a 
               href="https://aistudio.google.com/app/apikey" 
@@ -209,7 +281,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
 
           <p className="text-slate-400 text-[11px] leading-relaxed">
-            Saisissez votre clé API Google Gemini personnelle pour activer les fonctionnalités d'intelligence artificielle. Elle est stockée uniquement en local.
+            Si vous préférez ne pas vous connecter via Google, vous pouvez saisir une clé API Gemini personnelle.
           </p>
 
           <form onSubmit={handleSaveApiKey} className="space-y-3 pt-1">
@@ -218,14 +290,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 type={showKey ? "text" : "password"}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Collez votre clé API Gemini ici (ex: AIzaSy...)"
+                placeholder="Collez votre clé API Gemini ici..."
                 className="w-full p-2.5 pr-10 rounded-xl bg-[#0d0f17] border border-slate-800 text-white focus:border-indigo-500 outline-none text-xs font-mono"
               />
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-                title={showKey ? "Masquer la clé" : "Afficher la clé"}
               >
                 {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -234,18 +305,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
               <div>
                 {savedSuccess && (
-                  <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px] animate-fade-in">
+                  <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px]">
                     <CheckCircle2 className="w-4 h-4" /> Clé enregistrée !
                   </span>
                 )}
                 {deleteSuccess && (
-                  <span className="text-rose-400 font-bold flex items-center gap-1 text-[11px] animate-fade-in">
+                  <span className="text-rose-400 font-bold flex items-center gap-1 text-[11px]">
                     <Trash2 className="w-4 h-4" /> Clé supprimée !
-                  </span>
-                )}
-                {!savedSuccess && !deleteSuccess && (
-                  <span className="text-[10px] text-slate-500">
-                    Stockée en sécurité sur votre appareil.
                   </span>
                 )}
               </div>
@@ -255,17 +321,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   <button 
                     type="button"
                     onClick={handleDeleteApiKey}
-                    className="px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                    title="Supprimer la clé"
+                    className="px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Supprimer</span>
                   </button>
                 )}
-
                 <button 
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer text-xs"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Enregistrer</span>
@@ -273,10 +337,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </div>
             </div>
           </form>
-        </div>
-
-        <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1 pt-4">
-          {t.weatherSettings}
         </div>
 
         {/* UNITÉ */}

@@ -4,12 +4,14 @@ import { useWeatherData } from './hook/useWeatherData';
 import { fetchRealWeatherData } from './service/weatherService';
 import { getTranslation } from './utils/translations';
 import { Article, PageView, TemperatureUnit, AppSettings } from './types';
+import { auth } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { HomePage } from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TripsPage } from './pages/TripsPage';
-import { AiChatPage } from './pages/AiChatPage';
+import { WorkspacePage } from './pages/WorkspacePage';
 import { AddCityModal } from './components/AddCityModal';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -24,9 +26,17 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'ai-chat'>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const [unit, setUnit] = useState<TemperatureUnit>(() => {
     return (localStorage.getItem(UNIT_STORAGE_KEY) as TemperatureUnit) || 'C';
@@ -155,7 +165,6 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative">
       
-      {/* HEADER AVEC GESTION DES ONGLETS ET DU CLic IA */}
       <Header
         currentView={activeTab}
         setCurrentView={setActiveTab}
@@ -169,7 +178,6 @@ export function App() {
         language={settings.language}
       />
 
-      {/* CONTENU PRINCIPAL SELON LA PAGE ACTIVE */}
       <main className="flex-1 w-full max-w-full px-3 sm:px-6 py-4 mx-auto overflow-x-hidden">
         {activeTab === 'sources-news' ? (
           <SourcesNewsPage
@@ -210,8 +218,8 @@ export function App() {
             language={settings.language}
             currentWeather={currentWeather}
           />
-        ) : activeTab === 'ai-chat' ? (
-          <AiChatPage />
+        ) : activeTab === 'workspace' ? (
+          <WorkspacePage />
         ) : (
           <HomePage
             articles={articles}

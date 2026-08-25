@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { PageView, AppSettings, WeatherData } from '../types';
 import { getTranslation } from '../utils/translations';
+import { auth, onAuthStateChanged } from '../firebase';
 import { Compass, CloudSun, Globe, MapPin, Sparkles, Settings as SettingsIcon, Bookmark, Clock, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
 
 interface HeaderProps {
   currentView: PageView | 'ai-chat';
-  setCurrentView: (view: PageView | 'ai-chat') => void;
+  setCurrentView: (view: PageView | 'workspace') => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   activeCity: string;
@@ -26,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentWeather
 }) => {
   const t = getTranslation(language);
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Mise à jour de l'heure chaque minute
@@ -35,22 +36,16 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Vérifier la présence de la clé API Gemini
+  // Vérifier l'état de connexion de l'utilisateur avec Firebase
   useEffect(() => {
-    const checkApiKey = () => {
-      const key = localStorage.getItem('user_gemini_api_key');
-      setHasApiKey(!!key && key.trim().length > 0);
-    };
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+    });
+    return () => unsubscribe();
+  }, []);
 
-    checkApiKey();
-    window.addEventListener('storage', checkApiKey);
-    return () => window.removeEventListener('storage', checkApiKey);
-  }, [currentView]);
-
-  // Formatage de l'heure actuelle
   const formattedTime = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Sélection de l'icône météo selon la condition
   const getWeatherIcon = (condition?: string) => {
     const cond = condition?.toLowerCase() || '';
     if (cond.includes('pluie') || cond.includes('rain')) return <CloudRain className="w-3.5 h-3.5 text-sky-400" />;
@@ -58,6 +53,9 @@ export const Header: React.FC<HeaderProps> = ({
     if (cond.includes('nuage') || cond.includes('cloud')) return <Cloud className="w-3.5 h-3.5 text-slate-300" />;
     return <Sun className="w-3.5 h-3.5 text-amber-400" />;
   };
+
+  const weatherTemp = currentWeather ? ((currentWeather as any).temperature ?? (currentWeather as any).temp ?? '--') : '--';
+  const weatherCity = currentWeather?.city || 'Luxembourg';
 
   return (
     <header className="max-w-6xl w-full mx-auto mb-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-[#111e25] border border-slate-800 rounded-2xl p-4 shadow-xl">
@@ -78,10 +76,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Séparateur vertical */}
         <div className="h-6 w-[1px] bg-slate-800 hidden sm:block" />
 
-        {/* Indicateur Heure & Météo */}
         <div className="hidden sm:flex items-center space-x-3 text-[11px] text-slate-300 bg-[#0a1217] px-3 py-1.5 rounded-xl border border-slate-800/80">
           <div className="flex items-center space-x-1 font-mono text-indigo-300 font-bold">
             <Clock className="w-3.5 h-3.5" />
@@ -91,10 +87,10 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="text-slate-600">|</div>
 
           <div className="flex items-center space-x-1.5 font-medium">
-  {getWeatherIcon(currentWeather?.condition)}
-  <span>{currentWeather ? `${(currentWeather as any).temperature || (currentWeather as any).temp}°C` : '--°C'}</span>
-  <span className="text-slate-500 text-[10px] truncate max-w-[80px]">({currentWeather?.city || 'Luxembourg'})</span>
-</div>
+            {getWeatherIcon(currentWeather?.condition)}
+            <span>{weatherTemp}°C</span>
+            <span className="text-slate-500 text-[10px] truncate max-w-[80px]">({weatherCity})</span>
+          </div>
         </div>
       </div>
 
@@ -149,12 +145,12 @@ export const Header: React.FC<HeaderProps> = ({
           <span>Trajets</span>
         </button>
 
-        {/* RACCOURCI IA : AFFICHÉ UNIQUEMENT SI LA CLÉ EST PRÉSENTE */}
-        {hasApiKey && (
+        {/* RACCOURCI IA : AFFICHÉ UNIQUEMENT SI L'UTILISATEUR EST CONNECTÉ À GOOGLE */}
+        {isAuthenticated && (
           <button
-            onClick={() => setCurrentView('ai-chat')}
+            onClick={() => setCurrentView('workspace')}
             className={`px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 transition-all cursor-pointer animate-fade-in ${
-              currentView === 'ai-chat'
+              currentView === 'workspace'
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-950'
                 : 'bg-[#0a1217] text-cyan-300 border border-cyan-500/30 hover:border-cyan-400'
             }`}

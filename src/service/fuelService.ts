@@ -56,4 +56,4 @@ export const fetchLuxembourgFuelPrices = async (): Promise<FuelPrices> => {
       updatedAt: "Barème officiel"
     };
   }
-};
+};  
