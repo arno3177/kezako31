@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
 import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential, getRedirectResult } from 'firebase/auth';
 
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
@@ -57,24 +57,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   // Écoute de l'état d'authentification Firebase
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
       setUser(currentUser);
     });
     return () => unsubscribe();
-  }, []);
-
-  // Récupération automatique du résultat après la redirection Google
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          console.log("Connexion par redirection réussie :", result.user.email);
-        }
-      })
-      .catch((error) => {
-        console.error("Erreur lors de la récupération de la redirection :", error);
-        alert("Erreur Redirection: " + (error.message || JSON.stringify(error)));
-      });
   }, []);
 
   useEffect(() => {
@@ -84,15 +70,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   }, []);
 
-  // Connexion sécurisée par redirection web standard pour éviter les erreurs Credential Manager d'Android
+  // Connexion sécurisée : Native sur mobile, Popup sur Web
   const handleLogin = async () => {
     try {
-      // Utilise la popup web standard
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log("Connecté avec succès :", result.user.email);
+      if (Capacitor.isNativePlatform()) {
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        if (result.credential) {
+          const credential = GoogleAuthProvider.credential(
+            result.credential.idToken,
+            result.credential.accessToken
+          );
+          await signInWithCredential(auth, credential);
+          console.log("Connecté nativement avec succès !");
+        }
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error: any) {
-      console.error("Erreur de connexion Google :", error);
-      alert("Erreur Login Popup: " + (error.message || JSON.stringify(error)));
+      console.error("Erreur de connexion :", error);
+      alert("Erreur Login: " + (error.message || JSON.stringify(error)));
     }
   };
 
