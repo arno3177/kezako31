@@ -74,10 +74,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const handleLogin = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Sur Android, on utilise la redirection Firebase standard pour éviter l'échec des popups WebView
-        await signInWithRedirect(auth, googleProvider);
+        // Utilisation propre du plugin natif Firebase Authentication pour Capacitor
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        if (result.credential) {
+          const credential = GoogleAuthProvider.credential(result.credential.idToken);
+          await signInWithCredential(auth, credential);
+        }
       } else {
-        // Sur le web (navigateur classique)
+        // Sur le web classique
         await signInWithPopup(auth, googleProvider);
       }
     } catch (error: any) {
