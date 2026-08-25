@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
 import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential, signInWithRedirect } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
@@ -55,11 +55,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
 
+  // Écoute de l'état d'authentification Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Récupération automatique du résultat après la redirection Google
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Connexion par redirection réussie :", result.user.email);
+        }
+      })
+      .catch((error) => {
+        console.error("Erreur lors de la récupération de la redirection :", error);
+        alert("Erreur Redirection: " + (error.message || JSON.stringify(error)));
+      });
   }, []);
 
   useEffect(() => {
@@ -69,11 +84,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   }, []);
 
-  // Connexion sécurisée : native pour mobile (évite le localhost introuvable), popup pour le web
- // Connexion sécurisée : utilise la redirection sur mobile pour éviter la page blanche, et la popup sur le web
+  // Connexion sécurisée par redirection web standard pour éviter les erreurs Credential Manager d'Android
   const handleLogin = async () => {
     try {
-      // Utilise la redirection web Firebase standard qui contourne les erreurs Credential Manager d'Android
       await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);

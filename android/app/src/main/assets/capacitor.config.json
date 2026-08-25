@@ -2,6 +2,9 @@
 	"appId": "com.example.kezako31",
 	"appName": "MeteoApp",
 	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
 	"plugins": {
 		"FirebaseAuthentication": {
 			"skipNativeAuth": false,
