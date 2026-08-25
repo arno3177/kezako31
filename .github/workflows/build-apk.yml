@@ -30,7 +30,7 @@ jobs:
           gradle-version: '8.13'
 
       - name: Get SHA-1
-        run: cd android && ./gradlew signingReport
+        run: cd android && chmod +x gradlew && ./gradlew signingReport
 
       - name: Install dependencies
         run: npm install
