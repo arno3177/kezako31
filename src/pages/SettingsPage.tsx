@@ -73,17 +73,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
  // Connexion sécurisée : utilise la redirection sur mobile pour éviter la page blanche, et la popup sur le web
   const handleLogin = async () => {
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Utilisation propre du plugin natif Firebase Authentication pour Capacitor
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        if (result.credential) {
-          const credential = GoogleAuthProvider.credential(result.credential.idToken);
-          await signInWithCredential(auth, credential);
-        }
-      } else {
-        // Sur le web classique
-        await signInWithPopup(auth, googleProvider);
-      }
+      // Utilise la redirection web Firebase standard qui contourne les erreurs Credential Manager d'Android
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
       alert("Erreur Login: " + (error.message || JSON.stringify(error)));
