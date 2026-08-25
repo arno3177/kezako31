@@ -69,20 +69,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   }, []);
 
   // Connexion sécurisée : native pour mobile (évite le localhost introuvable), popup pour le web
-  const handleLogin = async () => {
+ const handleLogin = async () => {
     try {
-      if (Capacitor.isNativePlatform()) {
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        if (result.credential) {
-          const credential = GoogleAuthProvider.credential(result.credential.idToken);
-          await signInWithCredential(auth, credential);
-        }
-      } else {
-        await signInWithPopup(auth, googleProvider);
-      }
+      // On force l'utilisation de la popup Firebase Web standard, 
+      // ce qui évite d'utiliser le plugin natif Android et ses erreurs de configuration.
+      await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
-      // Affiche l'erreur en popup sur le téléphone pour comprendre le blocage
       alert("Erreur Login: " + (error.message || JSON.stringify(error)));
     }
   };
