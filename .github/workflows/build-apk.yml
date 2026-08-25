@@ -29,6 +29,9 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Get SHA-1
+        run: cd android && ./gradlew signingReport
+
       - name: Install dependencies
         run: npm install
 
