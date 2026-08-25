@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
 import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signInWithRedirect } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
   Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon, Save, Trash2, ExternalLink, Eye, EyeOff
@@ -66,9 +67,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   }, []);
 
+  // Correction de la connexion pour éviter la page blanche sur mobile (Capacitor)
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (Capacitor.isNativePlatform()) {
+        // Sur Android/iOS natif, on utilise la redirection pour éviter le blocage de la popup
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        // Sur le Web, on garde la popup classique
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
     }
@@ -369,3 +377,5 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     </div>
   );
 };
+
+export default SettingsPage;

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "95625812104",
+    "project_id": "pulse-32ca1",
+    "storage_bucket": "pulse-32ca1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:95625812104:android:4ab65cef3d0869ed10a73d",
+        "android_client_info": {
+          "package_name": "com.example.kezako31"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXOy5HqrWWj3V6U5Am7e6iv-LKoavam68"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
