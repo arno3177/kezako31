@@ -87,8 +87,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         await signInWithPopup(auth, googleProvider);
       }
     } catch (error: any) {
-      console.error("Erreur de connexion :", error);
-      alert("Erreur Login: " + (error.message || JSON.stringify(error)));
+    console.error("Erreur de connexion :", error);
+      
+      // Récupération poussée des propriétés de l'erreur native
+      const errDetails = {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        nativeError: error?.nativeError,
+        stringified: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      };
+      
+      alert("Erreur Login: " + JSON.stringify(errDetails, null, 2));
     }
   };
 
