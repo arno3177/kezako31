@@ -12,7 +12,7 @@ const config: CapacitorConfig = {
       skipNativeAuth: false,
       providers: ['google.com'],
       // ATTENTION : Utilisez 'clientId' et mettez-y votre WEB Client ID (pas l'Android Client ID) !
-      clientId: '962997405081-07u2hc9umk6c7jh9elv3e05env16kf10.apps.googleusercontent.com',
+      clientId: '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com',
     },
   },
 };
