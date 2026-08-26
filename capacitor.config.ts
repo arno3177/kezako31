@@ -5,14 +5,14 @@ const config: CapacitorConfig = {
   appName: 'MeteoApp',
   webDir: 'dist',
   server: {
-    // Permet d'éviter les problèmes de localhost en production mobile
     androidScheme: 'https'
   },
   plugins: {
     FirebaseAuthentication: {
       skipNativeAuth: false,
       providers: ['google.com'],
-      androidClientId: '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com',
+      // ATTENTION : Utilisez 'clientId' et mettez-y votre WEB Client ID (pas l'Android Client ID) !
+      clientId: 'VOTRE_WEB_CLIENT_ID.apps.googleusercontent.com',
     },
   },
 };
