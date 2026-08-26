@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
 import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 
 import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
   Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon, Save, Trash2, ExternalLink, Eye, EyeOff
@@ -54,20 +55,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
 
-  // 1. Intercepte le retour de la redirection Google sur mobile
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          console.log("Connecté avec succès via redirection mobile !");
-        }
-      })
-      .catch((error) => {
-        console.error("Erreur lors du retour de redirection :", error);
-        alert("Erreur Redirection: " + error.message);
-      });
-  }, []);
-
   // Écoute de l'état d'authentification Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
@@ -83,13 +70,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   }, []);
 
-  // Connexion sécurisée : Redirection sur mobile (évite les erreurs natives et la page blanche), Popup sur Web
+  // Connexion : Natif Android/iOS sur mobile (sans redirection ni localhost), Popup sur Web
   const handleLogin = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Utilise la redirection web mobile pour contourner le Credential Manager bloquant
-        await signInWithRedirect(auth, googleProvider);
+        // 1. Déclenche le sélecteur de compte natif Google Android
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        
+        if (result.credential?.idToken) {
+          // 2. Échange le jeton avec Firebase
+          const credential = GoogleAuthProvider.credential(
+            result.credential.idToken,
+            result.credential.accessToken
+          );
+          await signInWithCredential(auth, credential);
+          console.log("Connecté nativement avec succès !");
+        }
       } else {
+        // Sur le Web, conserve le mode Pop-up classique
         await signInWithPopup(auth, googleProvider);
       }
     } catch (error: any) {
@@ -100,6 +98,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleLogout = async () => {
     try {
+      if (Capacitor.isNativePlatform()) {
+        await FirebaseAuthentication.signOut();
+      }
       await signOut(auth);
     } catch (error: any) {
       console.error("Erreur de déconnexion :", error);
@@ -286,7 +287,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           )}
         </div>
 
-        {/* CLÉ API GEMINI PERSONNELLE (OPTIONNELLE) */}
+        {/* CLÉ API GEMINI PERSONNELLE */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center space-x-2 text-indigo-400">
@@ -394,4 +395,4 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   );
 };
 
-export default SettingsPage; 
+export default SettingsPage;
