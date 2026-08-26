@@ -37,6 +37,11 @@ jobs:
           npm run build
           npx cap sync android
 
+      - name: Get SHA-1 Fingerprint
+        run: |
+          cd android
+          gradle signingReport
+
       - name: Build Android APK
         run: |
           cd android
