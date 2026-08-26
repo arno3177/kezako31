@@ -17,4 +17,4 @@ const config: CapacitorConfig = {
   },
 };
 
-export default config;
+export default config; 
