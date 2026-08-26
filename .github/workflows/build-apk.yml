@@ -37,10 +37,17 @@ jobs:
           npm run build
           npx cap sync android
 
+      # 1. Compile d'abord l'APK (ce qui génère /home/runner/.config/.android/debug.keystore)
       - name: Build Android APK
         run: |
           cd android
           gradle assembleDebug
+
+      # 2. Lit le keystore fraîchement créé et affiche le SHA-1
+      - name: Get SHA-1 Fingerprint
+        run: |
+          cd android
+          gradle signingReport
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
