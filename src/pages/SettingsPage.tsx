@@ -8,7 +8,7 @@ import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
-  Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon, Save, Trash2, ExternalLink, Eye, EyeOff
+  Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon
 } from 'lucide-react';
 
 interface SettingsPageProps { 
@@ -50,10 +50,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const isLuxembourg = settings.country === 'LU' || settings.country === 'Luxembourg';
 
   const [user, setUser] = useState<User | null>(null);
-  const [apiKey, setApiKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-  const [deleteSuccess, setDeleteSuccess] = useState(false);
 
   // Écoute de l'état d'authentification Firebase
   useEffect(() => {
@@ -63,22 +59,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const storedKey = localStorage.getItem('user_gemini_api_key');
-    if (storedKey) {
-      setApiKey(storedKey);
-    }
-  }, []);
-
-  // Connexion : Natif Android/iOS sur mobile (sans redirection ni localhost), Popup sur Web
+  // Connexion : Natif Android/iOS sur mobile, Popup sur Web
   const handleLogin = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // 1. Déclenche le sélecteur de compte natif Google Android
         const result = await FirebaseAuthentication.signInWithGoogle();
         
         if (result.credential?.idToken) {
-          // 2. Échange le jeton avec Firebase
           const credential = GoogleAuthProvider.credential(
             result.credential.idToken,
             result.credential.accessToken
@@ -87,7 +74,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           console.log("Connecté nativement avec succès !");
         }
       } else {
-        // Sur le Web, conserve le mode Pop-up classique
         await signInWithPopup(auth, googleProvider);
       }
     } catch (error: any) {
@@ -105,23 +91,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     } catch (error: any) {
       console.error("Erreur de déconnexion :", error);
     }
-  };
-
-  const handleSaveApiKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (apiKey.trim()) {
-      localStorage.setItem('user_gemini_api_key', apiKey.trim());
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
-    }
-  };
-
-  const handleDeleteApiKey = () => {
-    localStorage.removeItem('user_gemini_api_key');
-    setApiKey('');
-    setDeleteSuccess(true);
-    window.dispatchEvent(new Event('storage'));
-    setTimeout(() => setDeleteSuccess(false), 3000);
   };
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -193,7 +162,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           ) : (
             <div className="space-y-3 pt-1">
               <p className="text-slate-400 text-[11px] leading-relaxed">
-                Connectez-vous avec votre compte Google pour débloquer l'accès au module **Quantum AI** en toute sécurité.
+                Connectez-vous avec votre compte Google pour débloquer l'accès aux fonctionnalités avancées en toute sécurité.
               </p>
               <button
                 onClick={handleLogin}
@@ -287,84 +256,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           )}
         </div>
 
-        {/* CLÉ API GEMINI PERSONNELLE */}
-        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center space-x-2 text-indigo-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-white">Clé API Gemini AI Personnelle (Alternative)</h2>
-            </div>
-            <a 
-              href="https://aistudio.google.com/app/apikey" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-[10px] text-indigo-400 hover:underline inline-flex items-center gap-1 font-mono"
-            >
-              <span>Obtenir une clé</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-
-          <p className="text-slate-400 text-[11px] leading-relaxed">
-            Si vous préférez ne pas vous connecter via Google, vous pouvez saisir une clé API Gemini personnelle.
-          </p>
-
-          <form onSubmit={handleSaveApiKey} className="space-y-3 pt-1">
-            <div className="relative">
-              <input 
-                type={showKey ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Collez votre clé API Gemini ici..."
-                className="w-full p-2.5 pr-10 rounded-xl bg-[#0d0f17] border border-slate-800 text-white focus:border-indigo-500 outline-none text-xs font-mono"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-              >
-                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-              <div>
-                {savedSuccess && (
-                  <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px]">
-                    <CheckCircle2 className="w-4 h-4" /> Clé enregistrée !
-                  </span>
-                )}
-                {deleteSuccess && (
-                  <span className="text-rose-400 font-bold flex items-center gap-1 text-[11px]">
-                    <Trash2 className="w-4 h-4" /> Clé supprimée !
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {apiKey && (
-                  <button 
-                    type="button"
-                    onClick={handleDeleteApiKey}
-                    className="px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Supprimer</span>
-                  </button>
-                )}
-                <button 
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer text-xs"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Enregistrer</span>
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-
-        {/* UNITÉ */}
+        {/* UNITÉ DE TEMPÉRATURE */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
             <Thermometer className="w-4 h-4" />

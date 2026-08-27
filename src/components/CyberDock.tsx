@@ -1,165 +1,198 @@
-import React, { useState } from 'react';
-import { Home, CloudSun, Navigation, Briefcase, Cpu, X, Newspaper, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Home, CloudSun, Navigation, Briefcase, Cpu, X, Newspaper, Bookmark, Settings, User as UserIcon } from 'lucide-react';
 import { PageView } from '../types';
+import { auth } from '../firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 interface CyberDockProps {
   currentView: string;
-  setCurrentView: (view: PageView | 'workspace') => void;
+  setCurrentView: (view: PageView | 'workspace' | 'shortcuts' | 'saved') => void;
   activeCity?: string;
+  savedCount?: number;
+  onOpenSaved?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
-export const CyberDock: React.FC<CyberDockProps> = ({ currentView, setCurrentView, activeCity }) => {
+export const CyberDock: React.FC<CyberDockProps> = ({ 
+  currentView, 
+  setCurrentView, 
+  savedCount = 0,
+  onOpenSaved,
+  onOpenShortcuts
+}) => {
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleNavigate = (view: string) => {
     setCurrentView(view as any);
     setIsMatrixOpen(false);
   };
 
-  const menuItems = [
-    { id: 'home', label: 'Accueil', icon: Home, color: 'from-blue-500 to-indigo-500' },
-    { id: 'sources-news', label: 'Flux Actu', icon: Newspaper, color: 'from-cyan-500 to-blue-500' },
-    { id: 'weather-detail', label: 'Météo', icon: CloudSun, color: 'from-amber-400 to-orange-500', badge: activeCity },
-    { id: 'trips', label: 'Trajets', icon: Navigation, color: 'from-emerald-400 to-teal-500' },
-    { id: 'workspace', label: 'Workspace IA', icon: Briefcase, color: 'from-purple-500 to-pink-500', badge: 'PRO' },
-    { id: 'settings', label: 'Réglages', icon: Settings, color: 'from-slate-400 to-slate-600' },
-  ];
+  const handleGoToShortcuts = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsMatrixOpen(false);
+    if (onOpenShortcuts) {
+      onOpenShortcuts();
+    } else {
+      setCurrentView('shortcuts' as any);
+    }
+  };
+
+  const handleGoToSaved = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsMatrixOpen(false);
+    if (onOpenSaved) {
+      onOpenSaved();
+    } else {
+      setCurrentView('saved' as any);
+    }
+  };
 
   return (
     <>
-      {/* ------------------------------------------------------------------- */}
-      {/* 1. OVERLAY DE LA MATRICE FULLSCREEN (S'OUVRE DEPUIS L'ORB CENTRAL)  */}
-      {/* ------------------------------------------------------------------- */}
+      {/* 1. OVERLAY MATRICE FULLSCREEN */}
       {isMatrixOpen && (
         <div className="fixed inset-0 z-[100] bg-[#07080d]/95 backdrop-blur-2xl p-6 pt-16 flex flex-col justify-between animate-fade-in">
           <div className="max-w-md mx-auto w-full space-y-6">
-            
-            {/* Header Matrice */}
             <div className="flex items-center justify-between border-b border-indigo-500/30 pb-3">
               <div>
-                <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase">
-                  // SYSTEM_MATRIX_V2
-                </span>
+                <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase">// SYSTEM_MATRIX_V2</span>
                 <h2 className="text-sm font-extrabold text-white">Centre de Commandement</h2>
               </div>
-              <button
-                onClick={() => setIsMatrixOpen(false)}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+              <button 
+                onClick={() => setIsMatrixOpen(false)} 
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Grille 2x3 des modules */}
             <div className="grid grid-cols-2 gap-3">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentView === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => handleNavigate(item.id)}
-                    className={`relative p-4 rounded-2xl border transition-all cursor-pointer group flex flex-col justify-between h-28 overflow-hidden ${
-                      isActive
-                        ? 'bg-indigo-950/70 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
-                        : 'bg-[#101320] border-slate-800 hover:border-indigo-500/40 hover:bg-[#141829]'
-                    }`}
-                  >
-                    {/* Effet Glow d'arrière-plan */}
-                    <div className={`absolute -right-4 -bottom-4 w-16 h-16 rounded-full opacity-20 bg-gradient-to-r ${item.color} blur-xl group-hover:opacity-40 transition-opacity`} />
+              <div onClick={() => handleNavigate('home')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer">
+                <Home className="w-5 h-5 text-blue-400 mb-2" />
+                <h3 className="text-xs font-bold text-white">Accueil</h3>
+              </div>
 
-                    <div className="flex items-center justify-between z-10">
-                      <div className={`p-2.5 rounded-xl bg-gradient-to-r ${item.color} text-white shadow-lg`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      {item.badge && (
-                        <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
+              <div onClick={() => handleNavigate('weather-detail')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer">
+                <CloudSun className="w-5 h-5 text-amber-400 mb-2" />
+                <h3 className="text-xs font-bold text-white">Météo</h3>
+              </div>
 
-                    <div className="z-10">
-                      <h3 className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">
-                        {item.label}
-                      </h3>
-                      <span className="text-[9px] font-mono text-slate-500">
-                        {isActive ? '> CONNECTÉ' : 'ACCÉDER'}
-                      </span>
-                    </div>
+              <div onClick={() => handleNavigate('sources-news')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer">
+                <Newspaper className="w-5 h-5 text-cyan-400 mb-2" />
+                <h3 className="text-xs font-bold text-white">News</h3>
+              </div>
+
+              <div onClick={handleGoToSaved} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer">
+                <Bookmark className="w-5 h-5 text-indigo-400 mb-2" />
+                <h3 className="text-xs font-bold text-white">Articles Sauvegardés ({savedCount})</h3>
+              </div>
+
+              <div onClick={() => handleNavigate('trips')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer">
+                <Navigation className="w-5 h-5 text-emerald-400 mb-2" />
+                <h3 className="text-xs font-bold text-white">Trajets</h3>
+              </div>
+
+              <div onClick={() => handleNavigate('settings')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer">
+                <Settings className="w-5 h-5 text-slate-400 mb-2" />
+                <h3 className="text-xs font-bold text-white">Réglages</h3>
+              </div>
+
+              {user && (
+                <div onClick={() => handleNavigate('workspace')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer col-span-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt="Avatar" className="w-5 h-5 rounded-full border border-purple-400" />
+                    ) : (
+                      <Briefcase className="w-5 h-5 text-purple-400" />
+                    )}
+                    <span className="text-[10px] text-emerald-400 font-bold font-mono">Connecté Google</span>
                   </div>
-                );
-              })}
+                  <h3 className="text-xs font-bold text-white">Workspace</h3>
+                </div>
+              )}
             </div>
-          </div>
-
-          <div className="text-center font-mono text-[10px] text-slate-500 pb-4">
-            KEZAKO31 CYBER-DOCK OS • 2026
           </div>
         </div>
       )}
 
-      {/* ------------------------------------------------------------------- */}
-      {/* 2. LE DOCK CYBERINFÉRIEUR FLOTTANT (FIXÉ EN BAS DE L'ÉCRAN)        */}
-      {/* ------------------------------------------------------------------- */}
-      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] w-[92%] max-w-md bg-[#0a0c16]/85 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-2 shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-around">
+      {/* 2. DOCK FLOTTANT */}
+      <nav className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[90] w-[96%] max-w-lg bg-[#0a0c16]/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.9)] flex items-center justify-between px-2">
         
-        {/* Onglet Accueil */}
-        <button
-          onClick={() => setCurrentView('home')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all cursor-pointer ${
-            currentView === 'home' ? 'text-cyan-400 scale-105' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
+        {/* ACCUEIL */}
+        <button onClick={() => setCurrentView('home')} className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'home' ? 'text-cyan-400 scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
           <Home className="w-4 h-4" />
-          <span className="text-[9px] font-mono tracking-wider">ACCUEIL</span>
+          <span className="text-[8px] font-mono tracking-wider">ACCUEIL</span>
         </button>
 
-        {/* Onglet Météo */}
-        <button
-          onClick={() => setCurrentView('weather-detail')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all cursor-pointer ${
-            currentView === 'weather-detail' ? 'text-amber-400 scale-105' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
+        {/* MÉTÉO */}
+        <button onClick={() => setCurrentView('weather-detail')} className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'weather-detail' ? 'text-amber-400 scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
           <CloudSun className="w-4 h-4" />
-          <span className="text-[9px] font-mono tracking-wider">MÉTÉO</span>
+          <span className="text-[8px] font-mono tracking-wider">MÉTÉO</span>
         </button>
 
-        {/* BOUTON CENTRAL ORB (OUVRE LA MATRICE) */}
-        <button
-          onClick={() => setIsMatrixOpen(!isMatrixOpen)}
-          className="relative -top-4 w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 p-[1.5px] shadow-[0_0_20px_rgba(6,182,212,0.6)] active:scale-95 transition-all cursor-pointer group"
-          title="Ouvrir la matrice"
-        >
+        {/* NEWS */}
+        <button onClick={() => setCurrentView('sources-news' as any)} className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'sources-news' ? 'text-blue-400 scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
+          <Newspaper className="w-4 h-4" />
+          <span className="text-[8px] font-mono tracking-wider">NEWS</span>
+        </button>
+
+        {/* BOUTON CENTRAL ORB */}
+        <button onClick={() => setIsMatrixOpen(!isMatrixOpen)} className="relative -top-3 w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 p-[1.5px] shadow-[0_0_15px_rgba(6,182,212,0.6)] active:scale-95 transition-all cursor-pointer group flex-shrink-0">
           <div className="w-full h-full bg-[#080a14] rounded-2xl flex items-center justify-center group-hover:bg-[#0d1021] transition-colors">
-            <Cpu className="w-5 h-5 text-cyan-300 animate-pulse" />
+            <Cpu className="w-4 h-4 text-cyan-300 animate-pulse" />
           </div>
         </button>
 
-        {/* Onglet Trajets */}
-        <button
-          onClick={() => setCurrentView('trips')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all cursor-pointer ${
-            currentView === 'trips' ? 'text-emerald-400 scale-105' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Navigation className="w-4 h-4" />
-          <span className="text-[9px] font-mono tracking-wider">TRAJETS</span>
+        {/* FAVORIS */}
+        <button onClick={handleGoToShortcuts} className={`relative flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'shortcuts' ? 'text-indigo-400 scale-105' : 'text-slate-400 hover:text-indigo-400'}`}>
+          <Bookmark className="w-4 h-4" />
+          <span className="text-[8px] font-mono tracking-wider">FAVORIS</span>
         </button>
 
-        {/* Onglet Workspace */}
-        <button
-          onClick={() => setCurrentView('workspace')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all cursor-pointer ${
-            currentView === 'workspace' ? 'text-purple-400 scale-105' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Briefcase className="w-4 h-4" />
-          <span className="text-[9px] font-mono tracking-wider">WORK</span>
+        {/* TRAJETS */}
+        <button onClick={() => setCurrentView('trips')} className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'trips' ? 'text-emerald-400 scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
+          <Navigation className="w-4 h-4" />
+          <span className="text-[8px] font-mono tracking-wider">TRAJETS</span>
         </button>
+
+        {/* WORKSPACE AVEC PHOTO GOOGLE DU USER */}
+        {user && (
+          <button onClick={() => setCurrentView('workspace')} className={`relative flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'workspace' ? 'text-purple-400 scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
+            
+            {/* Badge vert pulsant */}
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 z-10">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-black"></span>
+            </span>
+
+            {/* Photo de profil de l'utilisateur Google */}
+            {user.photoURL ? (
+              <img 
+                src={user.photoURL} 
+                alt="Avatar Google" 
+                className={`w-4 h-4 rounded-full object-cover border ${currentView === 'workspace' ? 'border-purple-400' : 'border-slate-500'}`} 
+              />
+            ) : (
+              <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[8px] font-bold text-white">
+                {user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon className="w-2.5 h-2.5" />}
+              </div>
+            )}
+
+            <span className="text-[8px] font-mono font-bold text-purple-300 tracking-tight">WORK</span>
+          </button>
+        )}
 
       </nav>
     </>
   );
 };
+
+export default CyberDock;

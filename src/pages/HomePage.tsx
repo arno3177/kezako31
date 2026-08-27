@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { 
@@ -8,8 +8,9 @@ import {
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Plus, Trash2
+  ExternalLink, Trash2
 } from 'lucide-react';
+import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 
 interface HomePageProps {
   articles: Article[];
@@ -24,16 +25,10 @@ interface HomePageProps {
   onViewWeatherDetail: () => void;
   onViewSourcesNews: () => void;
   onViewTrips?: (mode?: 'car' | 'bus') => void;
+  onViewShortcuts?: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   language?: AppSettings['language'];
-}
-
-interface LinkItem {
-  id: string;
-  name: string;
-  url: string;
-  category: string;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -45,24 +40,16 @@ export const HomePage: React.FC<HomePageProps> = ({
   onViewWeatherDetail,
   onViewSourcesNews,
   onViewTrips,
+  onViewShortcuts,
   searchQuery,
   language = 'en'
 }) => {
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
 
-  // États pour les raccourcis favoris (Rouge profond)
-  const defaultLinks: LinkItem[] = [
-    { id: '1', name: 'RTL.lu', url: 'https://www.rtl.lu', category: 'Actus' },
-    { id: '2', name: 'Mobiliteit.lu', url: 'https://www.mobiliteit.lu/fr/', category: 'Transport' },
-    { id: '3', name: 'ACL Carburants', url: 'https://www.acl.lu/fr/mobilite/prix-des-carburants/', category: 'Voiture' },
-    { id: '4', name: 'Guichet.lu', url: 'https://guichet.public.lu/fr.html', category: 'Administratif' },
-    { id: '5', name: 'Spuerkeess / E-Banking', url: 'https://www.spuerkeess.lu', category: 'Banque' },
-    { id: '6', name: '100komma7', url: 'https://www.100komma7.lu', category: 'Actus' },
-  ];
-
-  const [links, setLinks] = useState<LinkItem[]>(() => {
-    const saved = localStorage.getItem('user_quick_links');
+  // Synchronisation dynamique des raccourcis
+  const [links, setLinks] = useState<Shortcut[]>(() => {
+    const saved = localStorage.getItem(SHORTCUTS_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -71,44 +58,35 @@ export const HomePage: React.FC<HomePageProps> = ({
         console.error(e);
       }
     }
-    return defaultLinks;
+    return DEFAULT_SHORTCUTS;
   });
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newUrl, setNewUrl] = useState('');
-
-  const handleAddLink = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName || !newUrl) return;
-
-    let formattedUrl = newUrl;
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-      formattedUrl = 'https://' + formattedUrl;
-    }
-
-    const newItem: LinkItem = {
-      id: Date.now().toString(),
-      name: newName,
-      url: formattedUrl,
-      category: 'Favoris'
+  useEffect(() => {
+    const syncShortcuts = () => {
+      const saved = localStorage.getItem(SHORTCUTS_STORAGE_KEY);
+      if (saved) {
+        try { setLinks(JSON.parse(saved)); } catch (e) { console.error(e); }
+      }
     };
 
-    const updated = [...links, newItem];
-    setLinks(updated);
-    localStorage.setItem('user_quick_links', JSON.stringify(updated));
+    window.addEventListener('storage', syncShortcuts);
+    window.addEventListener('storage-update', syncShortcuts);
+    return () => {
+      window.removeEventListener('storage', syncShortcuts);
+      window.removeEventListener('storage-update', syncShortcuts);
+    };
+  }, []);
 
-    setNewName('');
-    setNewUrl('');
-    setShowAddModal(false);
+  const saveLinks = (newLinks: Shortcut[]) => {
+    setLinks(newLinks);
+    localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(newLinks));
+    window.dispatchEvent(new Event('storage-update'));
   };
 
   const handleDeleteLink = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const updated = links.filter(l => l.id !== id);
-    setLinks(updated);
-    localStorage.setItem('user_quick_links', JSON.stringify(updated));
+    saveLinks(links.filter(l => l.id !== id));
   };
 
   const [mainTrip] = useState<RouteTrip | null>(() => {
@@ -188,7 +166,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* 1. MÉTÉO - BLEU CIEL LUMINEUX */}
+      {/* 1. MÉTÉO */}
       {currentWeather && (
         <div className="bg-gradient-to-r from-[#0c2238] via-[#103458] to-[#081b2e] border border-sky-400/40 rounded-2xl p-3.5 shadow-xl w-full space-y-3">
           
@@ -306,70 +284,22 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 2.5. SECTION : RACCOURCIS FAVORIS (ROUGE PROFOND) */}
+      {/* 2.5. SECTION : RACCOURCIS FAVORIS */}
       <div className="bg-[#1c1114] border border-rose-500/30 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
         <div className="flex items-center justify-between border-b border-rose-900/30 pb-2">
           <div className="flex items-center space-x-2 text-white font-bold text-xs">
             <Bookmark className="w-4 h-4 text-rose-400" />
             <span>Raccourcis Favoris & Utiles (Luxembourg)</span>
           </div>
+          
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={onViewShortcuts}
             className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-400 border border-rose-800/50 font-bold flex items-center gap-1 transition-colors text-[10px] cursor-pointer"
           >
-            <Plus className="w-3 h-3" />
-            <span>Ajouter</span>
+            <span>Tous les favoris</span>
+            <ChevronRight className="w-3 h-3" />
           </button>
         </div>
-
-        {/* Modal d'ajout de lien */}
-        {showAddModal && (
-          <div className="bg-[#141215] p-3 rounded-xl border border-rose-500/40 shadow-lg space-y-2.5 animate-fade-in">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-white text-xs">Nouveau raccourci</span>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white font-bold text-xs">✕</button>
-            </div>
-            <form onSubmit={handleAddLink} className="space-y-2">
-              <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase">Nom du site</label>
-                <input 
-                  type="text" 
-                  value={newName} 
-                  onChange={(e) => setNewName(e.target.value)} 
-                  placeholder="Ex: RTL.lu" 
-                  required
-                  className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-rose-500 outline-none text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase">URL / Adresse Web</label>
-                <input 
-                  type="text" 
-                  value={newUrl} 
-                  onChange={(e) => setNewUrl(e.target.value)} 
-                  placeholder="Ex: https://www.rtl.lu" 
-                  required
-                  className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-rose-500 outline-none text-xs"
-                />
-              </div>
-              <div className="flex justify-end space-x-2 pt-1">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddModal(false)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer shadow-md"
-                >
-                  Enregistrer
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
 
         {/* Grille des liens favoris */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -482,3 +412,5 @@ export const HomePage: React.FC<HomePageProps> = ({
     </div>
   );
 };
+
+export default HomePage;

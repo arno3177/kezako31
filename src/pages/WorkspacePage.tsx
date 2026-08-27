@@ -84,7 +84,7 @@ export const WorkspacePage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Connecté et Sécurisé
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Google: Connecté
           </span>
         </div>
       </div>

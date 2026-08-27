@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNewsFetcher } from './hook/useNewsFetcher';
 import { useWeatherData } from './hook/useWeatherData';
 import { fetchRealWeatherData } from './service/weatherService';
@@ -11,9 +11,10 @@ import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TripsPage } from './pages/TripsPage';
-import { WorkspacePage } from './pages/WorkspacePage';
+import WorkspacePage from './pages/WorkspacePage';
+import { SavedArticlesPage } from './pages/SavedArticlesPage';
+import { ShortcutsPage } from './pages/ShortcutsPage';
 import { AddCityModal } from './components/AddCityModal';
-import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { SavedArticlesModal } from './components/SavedArticlesModal';
 import { NewsletterModal } from './components/NewsletterModal';
@@ -27,10 +28,10 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'workspace'>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [user, setUser] = useState<User | null>(null);
+  const [, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -164,10 +165,8 @@ export function App() {
   const savedArticles = articles.filter(a => savedArticleIds.includes(a.id));
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative pb-28">
       
-   
-
       <main className="flex-1 w-full max-w-full px-3 sm:px-6 py-4 mx-auto overflow-x-hidden">
         {activeTab === 'sources-news' ? (
           <SourcesNewsPage
@@ -177,6 +176,15 @@ export function App() {
             onReadArticle={setSelectedArticle}
             onBackToHome={() => setActiveTab('home')}
             language={settings.language}
+          />
+        ) : activeTab === 'shortcuts' ? (
+          <ShortcutsPage onBackToHome={() => setActiveTab('home')} />
+        ) : activeTab === 'saved' ? (
+          <SavedArticlesPage
+            savedArticles={savedArticles}
+            onReadArticle={setSelectedArticle}
+            onToggleSave={handleToggleSave}
+            onBackToHome={() => setActiveTab('home')}
           />
         ) : activeTab === 'settings' ? (
           <SettingsPage
@@ -223,6 +231,7 @@ export function App() {
             onReadArticle={setSelectedArticle}
             onViewWeatherDetail={() => setActiveTab('weather-detail')}
             onViewSourcesNews={() => setActiveTab('sources-news')}
+            onViewShortcuts={() => setActiveTab('shortcuts')} 
             onViewTrips={handleViewTrips}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -230,11 +239,17 @@ export function App() {
           />
         )}
       </main>
-<CyberDock 
-  currentView={activeTab} 
-  setCurrentView={(view) => setActiveTab(view as any)} 
-  activeCity={activeCity} 
-/>
+
+      {/* CyberDock Flottant */}
+      <CyberDock 
+        currentView={activeTab} 
+        setCurrentView={(view) => setActiveTab(view as any)} 
+        activeCity={activeCity}
+        savedCount={savedArticleIds.length}
+        onOpenSaved={() => setActiveTab('saved')}
+        onOpenShortcuts={() => setActiveTab('shortcuts')}
+      />
+
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />
 
       {/* MODALE ARTICLE */}
