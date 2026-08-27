@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Bookmark, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, ExternalLink, Plus, Trash2, X } from 'lucide-react';
 
 export interface Shortcut {
   id: string;
@@ -37,6 +37,7 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
     return DEFAULT_SHORTCUTS;
   });
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState('Favoris');
@@ -67,6 +68,7 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
     setName('');
     setUrl('');
     setCategory('Favoris');
+    setIsModalOpen(false);
   };
 
   const handleDeleteShortcut = (id: string, e: React.MouseEvent) => {
@@ -78,61 +80,31 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
   return (
     <div className="max-w-4xl mx-auto space-y-5 animate-fade-in text-xs pb-16">
       
-      {/* En-tête de la page */}
-      <div className="flex items-center justify-between bg-[#151824] border border-slate-800 p-4 rounded-2xl shadow-lg">
+      {/* En-tête de la page harmonisé */}
+      <div className="flex items-center justify-between bg-[#1c1114] border border-rose-500/30 p-4 rounded-2xl shadow-lg">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBackToHome}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl transition-colors cursor-pointer"
+            className="p-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700/50 rounded-xl transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <h1 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <Bookmark className="w-4 h-4 text-rose-400" /> Raccourcis Favoris & Utiles (Luxembourg)
+              <Bookmark className="w-4 h-4 text-rose-400" /> Raccourcis Favoris & Utiles
             </h1>
             <p className="text-[10px] text-slate-400">Gérez vos accès rapides personnalisés</p>
           </div>
         </div>
-      </div>
 
-      {/* Formulaire d'ajout */}
-      <div className="bg-[#1c1114] border border-rose-500/30 rounded-2xl p-4 shadow-lg space-y-3">
-        <h2 className="text-xs font-bold text-white flex items-center gap-1.5 border-b border-rose-900/30 pb-2">
-          <Plus className="w-4 h-4 text-rose-400" /> Ajouter un nouveau raccourci
-        </h2>
-
-        <form onSubmit={handleAddShortcut} className="grid grid-cols-1 sm:grid-cols-7 gap-2">
-          <input
-            type="text"
-            placeholder="Nom (ex: Gouden Garf)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="sm:col-span-2 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Lien / URL (ex: www.site.lu)"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="sm:col-span-3 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Catégorie"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="sm:col-span-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="sm:col-span-1 py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md"
-          >
-            <Plus className="w-4 h-4" /> Ajouter
-          </button>
-        </form>
+        {/* Bouton d'ajout uniforme */}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-rose-400 border border-rose-800/50 font-bold flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Ajouter un raccourci</span>
+        </button>
       </div>
 
       {/* Grille des raccourcis */}
@@ -174,6 +146,78 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
               </a>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* MODALE D'AJOUT UNIFORMISEÉ */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#141215] border border-rose-500/40 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-rose-900/30 pb-3">
+              <h2 className="text-xs font-extrabold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-rose-400" /> Ajouter un nouveau raccourci
+              </h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded-lg bg-slate-900 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddShortcut} className="space-y-3">
+              <div>
+                <label className="text-[9px] text-slate-400 font-bold uppercase">Nom du site</label>
+                <input
+                  type="text"
+                  placeholder="Ex: RTL.lu"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 outline-none text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-400 font-bold uppercase">Adresse Web (URL)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: www.rtl.lu"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 outline-none text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] text-slate-400 font-bold uppercase">Catégorie</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Favoris, Transport, Actus..."
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full mt-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 outline-none text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800/60">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer shadow-md"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

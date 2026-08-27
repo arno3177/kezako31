@@ -3,7 +3,7 @@ import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
-  Droplets, Wind, ArrowRight, Bookmark,
+  Droplets, Wind, Bookmark,
   Newspaper, ChevronRight,
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
@@ -170,9 +170,18 @@ export const HomePage: React.FC<HomePageProps> = ({
       {currentWeather && (
         <div className="bg-gradient-to-r from-[#0c2238] via-[#103458] to-[#081b2e] border border-sky-400/40 rounded-2xl p-3.5 shadow-xl w-full space-y-3">
           
-          <div className="flex items-center space-x-2 border-b border-sky-400/30 pb-2 text-sky-200">
-            <Sun className="w-4 h-4 text-sky-300" />
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-sky-100">Météo & Éphéméride</h2>
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-2">
+            <div className="flex items-center space-x-2 text-sky-200">
+              <Sun className="w-4 h-4 text-sky-300" />
+              <h2 className="text-xs font-extrabold uppercase tracking-wider text-sky-100">Météo & Éphéméride</h2>
+            </div>
+            <button 
+              onClick={onViewWeatherDetail} 
+              className="p-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/40 text-sky-200 border border-sky-400/30 transition-colors cursor-pointer"
+              title="Voir la météo détaillée"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -192,9 +201,6 @@ export const HomePage: React.FC<HomePageProps> = ({
 
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <span className="text-2xl font-black text-white">{currentWeather.temperature}°C</span>
-                <button onClick={onViewWeatherDetail} className="p-2 bg-sky-500/30 text-sky-100 rounded-xl border border-sky-400/40 cursor-pointer hover:bg-sky-500/50 transition-colors">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
               </div>
             </div>
 
@@ -236,9 +242,12 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
             
             {onViewTrips && (
-              <button onClick={() => onViewTrips(activeMapMode)} className="text-[11px] font-bold text-emerald-400 flex items-center space-x-1 flex-shrink-0 cursor-pointer">
-                <span>{t.details}</span>
-                <ArrowRight className="w-3 h-3" />
+              <button 
+                onClick={() => onViewTrips(activeMapMode)} 
+                className="p-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-200 border border-emerald-500/30 transition-colors cursor-pointer"
+                title="Voir le trajet détaillé"
+              >
+                <ChevronRight className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -294,10 +303,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           
           <button
             onClick={onViewShortcuts}
-            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-400 border border-rose-800/50 font-bold flex items-center gap-1 transition-colors text-[10px] cursor-pointer"
+            className="p-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/40 text-rose-200 border border-rose-500/30 transition-colors cursor-pointer"
+            title="Gérer tous les favoris"
           >
-            <span>Tous les favoris</span>
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
@@ -347,9 +356,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               {t.liveNews}
             </h2>
           </div>
-          <button onClick={onViewSourcesNews} className="text-[10px] text-emerald-300 font-bold hover:underline cursor-pointer flex items-center gap-1">
-            <span>{t.allSources}</span>
-            <ChevronRight className="w-3 h-3" />
+          <button 
+            onClick={onViewSourcesNews} 
+            className="p-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-200 border border-emerald-500/30 transition-colors cursor-pointer"
+            title="Voir toutes les sources d'actualités"
+          >
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 

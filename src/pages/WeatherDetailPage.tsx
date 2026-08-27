@@ -79,7 +79,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
       }
     }
 
-    // Déduplication pour s'assurer qu'il n'y a pas de doublons
     const uniqueMap = new Map<string, string>();
     initialList.forEach(c => {
       if (c && typeof c === 'string') {
@@ -93,7 +92,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     return Array.from(uniqueMap.values());
   });
 
-  // Synchronisation et sauvegarde dans le localStorage avec déduplication
+  // Synchronisation et sauvegarde dans le localStorage
   useEffect(() => {
     try {
       const uniqueMap = new Map<string, string>();
@@ -246,16 +245,18 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <p className="text-[10px] text-sky-300/70 capitalize truncate">{translateCondition(currentWeather.condition || '', language)}</p>
             </div>
           </div>
-          <button 
+          
+          {/* Bouton d'ajout d'en-tête harmonisé */}
+          <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               setShowCitySettings(true);
-            }} 
-            className="p-2 bg-[#0d0f17] border border-slate-800 text-indigo-400 hover:border-indigo-500 rounded-xl flex-shrink-0 cursor-pointer shadow-md"
-            title="Gérer les villes"
+            }}
+            className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-sky-300 border border-sky-400/30 font-bold flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer shadow-md"
           >
-            <Settings className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
+            <span>Ajouter une ville</span>
           </button>
         </div>
 
@@ -667,7 +668,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         )}
       </div>
 
-      {/* MODAL DE GESTION DES VILLES */}
+      {/* MODALE DE GESTION DES VILLES */}
       {showCitySettings && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-[#16182a] border border-indigo-500/50 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
@@ -754,3 +755,5 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     </div>
   );
 };
+
+export default WeatherDetailPage;
