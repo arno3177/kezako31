@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from '../firebase';
-import { Calendar, Mail, CheckSquare, ExternalLink, User, Plus, Trash2, Globe } from 'lucide-react';
+import { Calendar, Mail, CheckSquare, ExternalLink, User, Plus, Trash2, HardDrive } from 'lucide-react';
+import { AppLauncher } from '@capacitor/app-launcher';
+import { Capacitor } from '@capacitor/core';
 
 interface Task {
   id: string;
@@ -25,6 +27,24 @@ export const WorkspacePage: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('workspace_tasks', JSON.stringify(tasks));
   }, [tasks]);
+
+  // Fonction pour ouvrir l'application native ou basculer sur le Web
+  const handleOpenApp = async (appUrl: string, webUrl: string) => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: appUrl });
+        if (canOpen) {
+          await AppLauncher.openUrl({ url: appUrl });
+          return;
+        }
+      }
+      // Fallback sur le navigateur web si non natif ou app non installée
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.warn('Erreur ouverture application, bascule web:', error);
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,10 +93,11 @@ export const WorkspacePage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* Raccourci Gmail */}
-        <a
-          href="https://mail.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div
+          onClick={() => handleOpenApp(
+            Capacitor.getPlatform() === 'android' ? 'com.google.android.gm' : 'googlegmail://',
+            'https://mail.google.com'
+          )}
           className="bg-[#151824] hover:bg-[#1a1f30] border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 shadow-lg transition-all flex items-center justify-between group cursor-pointer"
         >
           <div className="flex items-center space-x-3">
@@ -85,17 +106,18 @@ export const WorkspacePage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-sm font-bold text-white">Gmail</h2>
-              <p className="text-[10px] text-slate-400">Ouvrir la boîte de réception</p>
+              <p className="text-[10px] text-slate-400">Ouvrir l'application</p>
             </div>
           </div>
           <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-        </a>
+        </div>
 
         {/* Raccourci Calendar */}
-        <a
-          href="https://calendar.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div
+          onClick={() => handleOpenApp(
+            Capacitor.getPlatform() === 'android' ? 'com.google.android.calendar' : 'googlecalendar://',
+            'https://calendar.google.com'
+          )}
           className="bg-[#151824] hover:bg-[#1a1f30] border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 shadow-lg transition-all flex items-center justify-between group cursor-pointer"
         >
           <div className="flex items-center space-x-3">
@@ -104,30 +126,31 @@ export const WorkspacePage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-sm font-bold text-white">Google Calendar</h2>
-              <p className="text-[10px] text-slate-400">Gérer votre agenda</p>
+              <p className="text-[10px] text-slate-400">Ouvrir votre agenda</p>
             </div>
           </div>
           <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-        </a>
+        </div>
 
         {/* Raccourci Google Drive */}
-        <a
-          href="https://drive.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div
+          onClick={() => handleOpenApp(
+            Capacitor.getPlatform() === 'android' ? 'com.google.android.apps.docs' : 'googledrive://',
+            'https://drive.google.com'
+          )}
           className="bg-[#151824] hover:bg-[#1a1f30] border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 shadow-lg transition-all flex items-center justify-between group cursor-pointer"
         >
           <div className="flex items-center space-x-3">
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 group-hover:scale-105 transition-transform">
-              <Globe className="w-5 h-5" />
+              <HardDrive className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-white">Google Drive</h2>
-              <p className="text-[10px] text-slate-400">Accéder à vos fichiers</p>
+              <p className="text-[10px] text-slate-400">Accéder aux fichiers</p>
             </div>
           </div>
           <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-        </a>
+        </div>
 
       </div>
 

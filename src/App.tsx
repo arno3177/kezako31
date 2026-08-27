@@ -18,6 +18,7 @@ import { Footer } from './components/Footer';
 import { SavedArticlesModal } from './components/SavedArticlesModal';
 import { NewsletterModal } from './components/NewsletterModal';
 import { X, Bookmark, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { CyberDock } from './components/CyberDock';
 
 const CITIES_STORAGE_KEY = 'mon_journal_cities';
 const ACTIVE_CITY_STORAGE_KEY = 'mon_journal_active_city';
@@ -165,18 +166,7 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative">
       
-      <Header
-        currentView={activeTab}
-        setCurrentView={setActiveTab}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        activeCity={activeCity}
-        setActiveCity={handleSelectCity}
-        savedCount={savedArticleIds.length}
-        onOpenSaved={() => setIsSavedModalOpen(true)}
-        onOpenNewsletter={() => setIsNewsletterOpen(true)}
-        language={settings.language}
-      />
+   
 
       <main className="flex-1 w-full max-w-full px-3 sm:px-6 py-4 mx-auto overflow-x-hidden">
         {activeTab === 'sources-news' ? (
@@ -240,7 +230,11 @@ export function App() {
           />
         )}
       </main>
-
+<CyberDock 
+  currentView={activeTab} 
+  setCurrentView={(view) => setActiveTab(view as any)} 
+  activeCity={activeCity} 
+/>
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />
 
       {/* MODALE ARTICLE */}
