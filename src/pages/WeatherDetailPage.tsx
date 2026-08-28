@@ -37,7 +37,7 @@ const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderCla
   1: { bars: 3, colorClass: 'bg-red-600 shadow-[0_0_8px_#dc2626]', borderClass: 'border-red-600/30' },
 };
 
-// Composant Réutilisable : Indicateur LED 9 Niveaux (3 Barres Horizontales Sans Libellé)
+// Indicateur LED 9 Niveaux (Sans libellé)
 const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
   const safeLevel = Math.max(1, Math.min(9, Math.round(level)));
   const config = LEVEL_CONFIG[safeLevel];
@@ -287,7 +287,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         )}
       </div>
 
-      {/* 2. Météo Heure par Heure (Avec Indicateur LED par heure) */}
+      {/* 2. Météo Heure par Heure (Bloc unique glossy harmonisé avec les jours) */}
       <div className="space-y-2 bg-[#151824] p-3.5 rounded-2xl border border-slate-800 shadow-xl">
         <div className="flex items-center justify-between">
           <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
@@ -295,23 +295,41 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </span>
           <span className="text-[9px] text-slate-400">°C</span>
         </div>
-        <div className="h-52 flex items-end justify-between gap-1 pt-4 pb-1 overflow-x-auto">
+        <div className="h-72 flex items-end justify-between gap-2 pt-6 pb-1 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
           {hourlyData.map((item: any, idx: number) => {
-            const h = Math.max(25, Math.round(((item.temp - minHourly) / rangeHourly) * 100));
-            // Calcul du niveau LED horaire basé sur la température
+            const h = Math.max(35, Math.min(100, Math.round(((item.temp - minHourly) / rangeHourly) * 100)));
             const hourlyLedLevel = Math.max(1, Math.min(9, Math.round((item.temp / 30) * 9)));
 
             return (
-              <div key={idx} className="flex-1 min-w-[42px] flex flex-col items-center gap-1 h-full justify-end border border-indigo-500/15 rounded-md p-0.5 bg-[#121420]/30">
-                <div className="h-5 flex items-center justify-center">
+              <div key={idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1.5 h-full justify-end border border-indigo-500/15 rounded-xl p-1 bg-[#121420]/40 hover:bg-[#16192a] transition-all">
+                
+                {/* Module LED Level */}
+                <div className="h-5 flex items-center justify-center animate-fade-in">
                   <LedLevelIndicator level={hourlyLedLevel} />
                 </div>
-                <div className="flex flex-col items-center h-7 justify-end mb-1" title={item.condition || 'Météo'}>
-                  {getWeatherIcon(item.condition, "w-4 h-4")}
+
+                {/* BARRE GLOSSY UNIQUE POUR L'HEURE */}
+                <div 
+                  style={{ height: `${h}%` }} 
+                  className="w-full max-w-[32px] flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.6)] border border-white/20 bg-slate-950/80 backdrop-blur-sm relative group"
+                >
+                  <div className="flex-1 bg-gradient-to-t from-blue-700 via-sky-600 to-amber-400 flex flex-col items-center justify-between py-2 px-0.5 relative overflow-hidden">
+                    <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
+                    
+                    {/* Température en haut */}
+                    <span className="text-[10px] font-black text-white drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)] z-10">
+                      {item.temp}°
+                    </span>
+                    
+                    {/* Icône au centre/bas de la barre */}
+                    <div className="z-10">{getWeatherIcon(item.condition, "w-4 h-4")}</div>
+                  </div>
                 </div>
-                <span className="text-[10px] font-black text-indigo-200">{item.temp}°</span>
-                <div style={{ height: `${h}%` }} className="w-full max-w-[18px] bg-gradient-to-t from-cyan-500 via-indigo-500 to-blue-600 rounded-t-lg shadow-sm" />
-                <span className="text-[8px] text-slate-400 pt-1">{item.time}</span>
+
+                {/* Heure */}
+                <span className="text-[9px] text-slate-200 font-extrabold border-t border-slate-800/80 pt-1 w-full text-center truncate">
+                  {item.time}
+                </span>
               </div>
             );
           })}
