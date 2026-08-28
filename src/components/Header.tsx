@@ -6,7 +6,7 @@ import { Compass, CloudSun, Globe, MapPin, Sparkles, Settings as SettingsIcon, B
 
 interface HeaderProps {
   currentView: PageView | 'ai-chat';
-  setCurrentView: (view: PageView | 'workspace') => void;
+  setCurrentView: (view: PageView | '') => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   activeCity: string;
@@ -150,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => setCurrentView('workspace')}
             className={`px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 transition-all cursor-pointer animate-fade-in ${
-              currentView === 'workspace'
+              currentView === 'ai-chat'
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-950'
                 : 'bg-[#0a1217] text-cyan-300 border border-cyan-500/30 hover:border-cyan-400'
             }`}
