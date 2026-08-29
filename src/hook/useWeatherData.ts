@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { WeatherData } from '../types';
 import { fetchRealWeatherData } from '../service/weatherService';
-import { mockWeatherData } from '../data/mockData';
 
 export function useWeatherData(activeCity: string) {
-  const [weatherDataMap, setWeatherDataMap] = useState<Record<string, WeatherData>>(mockWeatherData);
+  const [weatherDataMap, setWeatherDataMap] = useState<Record<string, WeatherData>>({});
   const [loadingWeather, setLoadingWeather] = useState<boolean>(false);
 
   useEffect(() => {

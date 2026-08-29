@@ -57,13 +57,22 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
   const hourly = data.hourly;
   const daily = data.daily;
 
-  const formattedHourly = hourly.time.slice(0, 12).map((timeStr: string, index: number) => {
-    const hour = new Date(timeStr).getHours().toString().padStart(2, '0');
+  // Repérage précis de l'index correspondant à l'heure courante dans le flux horaire Open-Meteo
+  const nowIsoString = new Date().toISOString().slice(0, 13); // ex: "2026-06-06T19"
+  let startIndex = hourly.time.findIndex((t: string) => t.startsWith(nowIsoString));
+  if (startIndex === -1) startIndex = 0;
+
+  // Extraction stricte à partir de l'heure courante + les 16 heures suivantes (17 points au total)
+  const formattedHourly = hourly.time.slice(startIndex, startIndex + 17).map((timeStr: string, index: number) => {
+    const actualIndex = startIndex + index;
+    const dateObj = new Date(timeStr);
+    const hour = dateObj.getHours().toString().padStart(2, '0');
+    
     return {
       time: `${hour}:00`,
-      temp: Math.round(hourly.temperature_2m[index]),
-      condition: mapWmoCodeToCondition(hourly.weather_code[index]),
-      pop: hourly.precipitation_probability[index] || 0,
+      temp: Math.round(hourly.temperature_2m[actualIndex]),
+      condition: mapWmoCodeToCondition(hourly.weather_code[actualIndex]),
+      pop: hourly.precipitation_probability[actualIndex] || 0,
     };
   });
 
