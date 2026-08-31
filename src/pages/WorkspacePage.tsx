@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from '../firebase';
-import { Calendar, Mail, CheckSquare, ExternalLink, User, Plus, Trash2, HardDrive } from 'lucide-react';
+import { auth, googleProvider } from '../firebase';
+import { signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { Calendar, Mail, CheckSquare, ExternalLink, User, Plus, Trash2, HardDrive, RefreshCw, Terminal } from 'lucide-react';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 
@@ -11,9 +12,16 @@ interface Task {
 }
 
 export const WorkspacePage: React.FC = () => {
-  const currentUser = auth.currentUser;
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
   
-  // Gestion d'une liste de tâches / notes personnelles locales
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  const [isCheckingGmail, setIsCheckingGmail] = useState<boolean>(false);
+  const [debugLog, setDebugLog] = useState<string>('En attente de connexion...');
+  
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => {
+    return localStorage.getItem('google_access_token');
+  });
+
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem('workspace_tasks');
     return saved ? JSON.parse(saved) : [
@@ -25,10 +33,114 @@ export const WorkspacePage: React.FC = () => {
   const [newTaskText, setNewTaskText] = useState('');
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('workspace_tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  // Fonction pour ouvrir l'application native ou basculer sur le Web
+  // Connexion Google et capture des tokens
+  const handleGoogleLogin = async () => {
+    try {
+      setDebugLog('Tentative de connexion Google avec scope Gmail...');
+      googleProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      const credential = (window as any).firebase?.auth?.GoogleAuthProvider?.credentialFromResult(result);
+      let token = result ? (credential?.accessToken || (result as any)._tokenResponse?.oauthAccessToken) : null;
+      
+      if (!token && (result as any)._tokenResponse?.oauthAccessToken) {
+        token = (result as any)._tokenResponse.oauthAccessToken;
+      }
+
+      if (token) {
+        setGoogleAccessToken(token);
+        localStorage.setItem('google_access_token', token);
+        setDebugLog(`Token récupéré avec succès : ${token.substring(0, 15)}...`);
+        fetchUnreadEmailsCount(token);
+      } else {
+        setDebugLog('Connexion réussie mais token OAuth Gmail introuvable dans la réponse.');
+      }
+    } catch (error: any) {
+      console.error("Erreur de connexion Google:", error);
+      setDebugLog(`Erreur de connexion : ${error.message || error}`);
+    }
+  };
+
+  // Interrogation de l'API Gmail avec journalisation
+  const fetchUnreadEmailsCount = async (token?: string) => {
+    const tokenToUse = token || googleAccessToken;
+    if (!tokenToUse) {
+      setDebugLog('Aucun googleAccessToken disponible pour effectuer le fetch.');
+      setUnreadCount(null);
+      setIsCheckingGmail(false);
+      return;
+    }
+
+    setIsCheckingGmail(true);
+    setDebugLog('Appel de l\'API Gmail (labels/UNREAD)...');
+
+    try {
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/labels/UNREAD', {
+        headers: {
+          'Authorization': `Bearer ${tokenToUse}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.messagesUnread ?? 0);
+        setDebugLog(`Succès API ! Réponse brute : ${JSON.stringify(data)}`);
+      } else {
+        const errorText = await response.text();
+        setDebugLog(`Erreur API Gmail [Statut ${response.status}] : ${errorText}`);
+        if (response.status === 401) {
+          setGoogleAccessToken(null);
+          localStorage.removeItem('google_access_token');
+        }
+        setUnreadCount(null);
+      }
+    } catch (error: any) {
+      setDebugLog(`Erreur réseau : ${error.message || error}`);
+      setUnreadCount(null);
+    } finally {
+      setIsCheckingGmail(false);
+    }
+  };
+
+  useEffect(() => {
+    if (googleAccessToken && currentUser) {
+      fetchUnreadEmailsCount(googleAccessToken);
+    }
+  }, [googleAccessToken, currentUser]);
+
+  const handleGmailClick = async () => {
+    if (!googleAccessToken) {
+      await handleGoogleLogin();
+      return;
+    }
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const appUrl = Capacitor.getPlatform() === 'android' ? 'com.google.android.gm' : 'googlegmail://';
+        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: appUrl });
+        if (canOpen) {
+          await AppLauncher.openUrl({ url: appUrl });
+          return;
+        }
+      }
+      window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const handleOpenApp = async (appUrl: string, webUrl: string) => {
     try {
       if (Capacitor.isNativePlatform()) {
@@ -38,10 +150,8 @@ export const WorkspacePage: React.FC = () => {
           return;
         }
       }
-      // Fallback sur le navigateur web si non natif ou app non installée
       window.open(webUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      console.warn('Erreur ouverture application, bascule web:', error);
       window.open(webUrl, '_blank', 'noopener,noreferrer');
     }
   };
@@ -54,7 +164,7 @@ export const WorkspacePage: React.FC = () => {
   };
 
   const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
   };
 
   const deleteTask = (id: string) => {
@@ -83,9 +193,28 @@ export const WorkspacePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Google: Connecté
-          </span>
+          {currentUser ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Google: Connecté
+              </span>
+              {!googleAccessToken && (
+                <button
+                  onClick={handleGoogleLogin}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md cursor-pointer text-[10px]"
+                >
+                  Autoriser Gmail
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={handleGoogleLogin}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md cursor-pointer"
+            >
+              Se connecter avec Google
+            </button>
+          )}
         </div>
       </div>
 
@@ -94,25 +223,46 @@ export const WorkspacePage: React.FC = () => {
         
         {/* Raccourci Gmail */}
         <div
-          onClick={() => handleOpenApp(
-            Capacitor.getPlatform() === 'android' ? 'com.google.android.gm' : 'googlegmail://',
-            'https://mail.google.com'
-          )}
-          className="bg-[#151824] hover:bg-[#1a1f30] border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 shadow-lg transition-all flex items-center justify-between group cursor-pointer"
+          onClick={handleGmailClick}
+          className="bg-[#151824] hover:bg-[#1a1f30] border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 shadow-lg transition-all flex items-center justify-between group cursor-pointer relative"
         >
           <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 group-hover:scale-105 transition-transform">
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 group-hover:scale-105 transition-transform relative">
               <Mail className="w-5 h-5" />
+              {unreadCount !== null && unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full shadow-md animate-bounce">
+                  {unreadCount}
+                </span>
+              )}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">Gmail</h2>
-              <p className="text-[10px] text-slate-400">Ouvrir l'application</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white">Gmail</h2>
+                {googleAccessToken && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fetchUnreadEmailsCount();
+                    }}
+                    className="text-slate-400 hover:text-indigo-400 p-0.5 transition-colors"
+                    title="Actualiser les messages non lus"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGmail ? 'animate-spin text-indigo-400' : ''}`} />
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                {unreadCount !== null
+                  ? (unreadCount > 0 ? `${unreadCount} message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}` : 'Aucun message non lu')
+                  : (googleAccessToken ? 'Vérification...' : 'Cliquez pour lier Gmail')}
+              </p>
             </div>
           </div>
           <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
         </div>
 
-        {/* Raccourci Calendar */}
+        {/* Calendar */}
         <div
           onClick={() => handleOpenApp(
             Capacitor.getPlatform() === 'android' ? 'com.google.android.calendar' : 'googlecalendar://',
@@ -132,7 +282,7 @@ export const WorkspacePage: React.FC = () => {
           <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
         </div>
 
-        {/* Raccourci Google Drive */}
+        {/* Google Drive */}
         <div
           onClick={() => handleOpenApp(
             Capacitor.getPlatform() === 'android' ? 'com.google.android.apps.docs' : 'googledrive://',
@@ -154,65 +304,26 @@ export const WorkspacePage: React.FC = () => {
 
       </div>
 
-      {/* SECTION TÂCHES ET NOTES PERSONNELLES */}
-      <div className="bg-[#151824] border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-            <CheckSquare className="w-4 h-4 text-indigo-400" /> Mes Tâches & Rappels Rapides
-          </h2>
-          <span className="text-[10px] text-slate-400">Sauvegarde locale instantanée</span>
-        </div>
-
-        {/* Formulaire ajout tâche */}
-        <form onSubmit={handleAddTask} className="flex gap-2">
-          <input
-            type="text"
-            value={newTaskText}
-            onChange={(e) => setNewTaskText(e.target.value)}
-            placeholder="Ajouter une nouvelle tâche rapide..."
-            className="flex-1 p-3 bg-[#0d0f17] border border-slate-800 text-white placeholder-slate-500 rounded-xl focus:border-indigo-500 focus:outline-none text-xs"
-          />
+      {/* CONSOLE DE DÉBOGAGE GMAIL / TOKEN */}
+      <div className="bg-[#0b0e14] border border-indigo-500/30 rounded-2xl p-4 shadow-lg space-y-2 font-mono">
+        <div className="flex items-center justify-between border-b border-indigo-950 pb-2">
+          <span className="text-indigo-400 font-bold flex items-center gap-1.5 text-[11px]">
+            <Terminal className="w-3.5 h-3.5" /> Console de Débogage OAuth & Gmail API
+          </span>
           <button
-            type="submit"
-            className="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+            onClick={() => fetchUnreadEmailsCount()}
+            className="px-2.5 py-1 rounded bg-indigo-950 text-indigo-300 hover:bg-indigo-900 transition-colors text-[9px]"
           >
-            <Plus className="w-4 h-4" /> Ajouter
+            Tester l'appel API
           </button>
-        </form>
-
-        {/* Liste des tâches */}
-        <div className="space-y-2 pt-2">
-          {tasks.length === 0 ? (
-            <p className="text-slate-500 text-center py-4">Aucune tâche pour le moment.</p>
-          ) : (
-            tasks.map(task => (
-              <div
-                key={task.id}
-                className={`p-3.5 rounded-xl bg-[#0d0f17] border transition-all flex items-center justify-between ${
-                  task.completed ? 'border-emerald-500/20 opacity-60' : 'border-slate-800'
-                }`}
-              >
-                <div className="flex items-center space-x-3 cursor-pointer flex-1" onClick={() => toggleTask(task.id)}>
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={() => toggleTask(task.id)}
-                    className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
-                  />
-                  <span className={`text-xs ${task.completed ? 'line-through text-slate-500' : 'text-slate-200 font-medium'}`}>
-                    {task.text}
-                  </span>
-                </div>
-                <button
-                  onClick={() => deleteTask(task.id)}
-                  className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
-                  title="Supprimer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))
-          )}
+        </div>
+        <div className="space-y-1 text-[10px]">
+          <p className="text-slate-400">
+            <strong className="text-slate-200">Token stocké :</strong> {googleAccessToken ? `${googleAccessToken.substring(0, 25)}...` : 'Aucun (null)'}
+          </p>
+          <p className="text-slate-400">
+            <strong className="text-slate-200">Statut / Log :</strong> <span className="text-emerald-300">{debugLog}</span>
+          </p>
         </div>
       </div>
 

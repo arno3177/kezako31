@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
+import { auth } from '../firebase';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
   Droplets, Wind, Bookmark,
@@ -8,9 +9,11 @@ import {
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Trash2, Info
+  ExternalLink, Trash2, Info, User, Mail, RefreshCw
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
+import { AppLauncher } from '@capacitor/app-launcher';
+import { Capacitor } from '@capacitor/core';
 
 interface HomePageProps {
   articles: Article[];
@@ -93,13 +96,79 @@ export const HomePage: React.FC<HomePageProps> = ({
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
 
+  // Récupération de l'utilisateur et du token Gmail
+  const currentUser = auth.currentUser;
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  const [isCheckingGmail, setIsCheckingGmail] = useState<boolean>(false);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => {
+    return localStorage.getItem('google_access_token');
+  });
+
+  // Interrogation réelle de l'API Gmail pour les non lus
+  const fetchUnreadEmailsCount = async (token?: string) => {
+    const tokenToUse = token || googleAccessToken;
+    if (!tokenToUse) return;
+
+    setIsCheckingGmail(true);
+    try {
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/labels/UNREAD', {
+        headers: {
+          'Authorization': `Bearer ${tokenToUse}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.messagesUnread ?? 0);
+      } else {
+        if (response.status === 401) {
+          setGoogleAccessToken(null);
+          localStorage.removeItem('google_access_token');
+        }
+      }
+    } catch (error) {
+      console.error("Erreur récupération e-mails non lus:", error);
+    } finally {
+      setIsCheckingGmail(false);
+    }
+  };
+
+  // Actualisation automatique en arrière-plan toutes les 3 minutes
+  useEffect(() => {
+    if (googleAccessToken && currentUser) {
+      fetchUnreadEmailsCount(googleAccessToken);
+
+      const intervalId = setInterval(() => {
+        fetchUnreadEmailsCount(googleAccessToken);
+      }, 180000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [googleAccessToken, currentUser]);
+
+  const handleOpenGmail = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const appUrl = Capacitor.getPlatform() === 'android' ? 'com.google.android.gm' : 'googlegmail://';
+        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: appUrl });
+        if (canOpen) {
+          await AppLauncher.openUrl({ url: appUrl });
+          return;
+        }
+      }
+      window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
+    }
+  };
+
   // Salutation dynamique selon l'heure de la journée
   const getGreeting = () => {
     const hour = new Date().getHours();
-    return hour >= 18 || hour < 5 ? 'Bonsoir,' : 'Bonjour,';
+    return hour >= 18 || hour < 5 ? 'Bonsoir, ravi de vous retrouver' : 'Bonjour, ravi de vous retrouver';
   };
 
-  // Calcul de la prévention douce sur la home (sans le mot "alerte")
+  // Calcul de la prévention douce sur la home
   const activePrevention = useMemo(() => {
     if (!currentWeather) return null;
     const temp = Number(currentWeather.temperature ?? 20);
@@ -239,8 +308,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* EN-TÊTE : CARTE CHALEUREUSE & ULTRA-LISIBLE (Bonjour / Bonsoir) */}
-      <div className="bg-gradient-to-r from-slate-900 via-teal-950/50 to-slate-900 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex items-center justify-between w-full relative overflow-hidden">
+      {/* EN-TÊTE : CARTE CHALEUREUSE AVEC ENVELOPPE GMAIL & COMPTEUR */}
+      <div className="bg-gradient-to-r from-slate-900 via-teal-950/50 to-slate-900 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-indigo-500 shadow-[0_0_10px_#2dd4bf]" />
         
         <div className="space-y-0.5 pl-2">
@@ -253,13 +322,44 @@ export const HomePage: React.FC<HomePageProps> = ({
           </p>
         </div>
 
-        <div className="bg-black/50 border border-teal-500/20 px-3 py-1.5 rounded-xl text-right flex-shrink-0">
-          <span className="text-[11px] font-mono font-black text-teal-300 block">
-            {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          <span className="text-[9px] font-mono text-slate-400 block">
-            {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).toUpperCase()}
-          </span>
+        <div className="flex items-center gap-2.5 pl-2 sm:pl-0">
+          
+          {/* BOUTON ENVELOPPE GMAIL AVEC COMPTEUR NON LU */}
+          {googleAccessToken && (
+            <button
+              onClick={handleOpenGmail}
+              className="relative p-2 rounded-xl bg-black/50 hover:bg-black/80 border border-rose-500/30 text-rose-400 flex items-center justify-center transition-all cursor-pointer shadow-md group"
+              title="Ouvrir Gmail"
+            >
+              <Mail className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              {unreadCount !== null && unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-full shadow-md animate-bounce">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Email ou statut utilisateur */}
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-teal-500/30 text-teal-300 text-[10px] font-mono">
+            {currentUser?.photoURL ? (
+              <img src={currentUser.photoURL} alt="Avatar" className="w-4 h-4 rounded-full object-cover" />
+            ) : (
+              <User className="w-3.5 h-3.5 text-teal-400" />
+            )}
+            <span className="truncate max-w-[150px]">
+              {currentUser ? currentUser.email || currentUser.displayName : 'Non connecté'}
+            </span>
+          </div>
+
+          <div className="bg-black/50 border border-teal-500/20 px-3 py-1.5 rounded-xl text-right flex-shrink-0">
+            <span className="text-[11px] font-mono font-black text-teal-300 block">
+              {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <span className="text-[9px] font-mono text-slate-400 block">
+              {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).toUpperCase()}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -274,13 +374,11 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              {/* Indicateur de niveau LED élégant */}
               <div className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-black/40 border border-sky-400/20" title={`Niveau thermique : ${currentTemp}°C`}>
                 <LedLevelIndicator level={currentLedLevel} />
                 <span className="text-[10px] font-bold text-sky-200">{currentTemp}°C</span>
               </div>
 
-              {/* Badge de prévention douce si un seuil est atteint */}
               {activePrevention && (
                 <div className={`flex items-center space-x-1 px-2 py-1 rounded-xl border text-[10px] font-extrabold uppercase ${activePrevention.badgeColor}`} title="Conseil de prévention météo">
                   {activePrevention.icon}
@@ -424,7 +522,6 @@ export const HomePage: React.FC<HomePageProps> = ({
           </button>
         </div>
 
-        {/* Grille des liens favoris */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {links.map((link) => (
             <a
