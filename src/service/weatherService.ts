@@ -7,6 +7,7 @@ const CITIES_COORDS: Record<string, { lat: number; lon: number; country: string 
   'Genève': { lat: 46.2044, lon: 6.1432, country: 'Suisse' },
   'Londres': { lat: 51.5074, lon: -0.1278, country: 'Royaume-Uni' },
   'New York': { lat: 40.7128, lon: -74.0060, country: 'États-Unis' },
+  'Licata': { lat: 37.1037, lon: 13.9351, country: 'Italie' },
 };
 
 const mapWmoCodeToCondition = (code: number): string => {
@@ -20,8 +21,9 @@ const mapWmoCodeToCondition = (code: number): string => {
 };
 
 export const geocodeCity = async (cityName: string): Promise<{ lat: number; lon: number; name: string; country: string }> => {
-  if (CITIES_COORDS[cityName]) {
-    return { ...CITIES_COORDS[cityName], name: cityName };
+  const foundKey = Object.keys(CITIES_COORDS).find(k => k.toLowerCase() === cityName.toLowerCase());
+  if (foundKey) {
+    return { ...CITIES_COORDS[foundKey], name: foundKey };
   }
 
   const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=fr&format=json`;
@@ -44,7 +46,6 @@ export const geocodeCity = async (cityName: string): Promise<{ lat: number; lon:
 export const fetchRealWeatherData = async (cityName: string): Promise<WeatherData> => {
   const coords = await geocodeCity(cityName);
   
-  // Appel étendu pour récupérer les données horaires sur 10 jours (température, vent, précipitations, ressentie)
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,weather_code&hourly=temperature_2m,apparent_temperature,precipitation,wind_speed_10m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max&timezone=auto`;
 
   const response = await fetch(url);
@@ -57,7 +58,35 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
   const hourly = data.hourly;
   const daily = data.daily;
 
-  // 1. Formatage des 17 prochaines heures
+  const temp = Math.round(current.temperature_2m);
+  const maxTemp = Math.round(daily.temperature_2m_max[0] || temp);
+  const windSpeed = Math.round(current.wind_speed_10m);
+  const weatherCode = current.weather_code;
+
+  // --- ANALYSE DES ALERTES RÉELLES SPÉCIFIQUES À CETTE VILLE ---
+  let alertData = null;
+  
+  if (maxTemp >= 31 || temp >= 31) {
+    alertData = {
+      type: 'Chaleur Extrême / Canicule',
+      color: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
+      details: `Températures élevées mesurées (${maxTemp}°C max). Hydratez-vous régulièrement et évitez l'exposition prolongée au soleil.`
+    };
+  } else if (windSpeed >= 45) {
+    alertData = {
+      type: 'Vent Violent',
+      color: 'bg-rose-500/15 border-rose-500/40 text-rose-300',
+      details: `Rafales de vent importantes mesurées à ${windSpeed} km/h.`
+    };
+  } else if ([95, 96, 99].includes(weatherCode)) {
+    alertData = {
+      type: 'Orages Violents',
+      color: 'bg-purple-500/15 border-purple-500/40 text-purple-300',
+      details: `Risque d'orages détecté dans cette zone.`
+    };
+  }
+
+  // 1. Heure par heure (17 prochaines heures)
   const nowIsoString = new Date().toISOString().slice(0, 13);
   let startIndex = hourly.time.findIndex((t: string) => t.startsWith(nowIsoString));
   if (startIndex === -1) startIndex = 0;
@@ -75,18 +104,16 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
     };
   });
 
-  // 2. Formatage des prévisions quotidiennes (10 jours) avec séparation Matin (~08:00) et Soir/Apm (~18:00)
+  // 2. Prévisions sur plusieurs jours (Matin vs Soir)
   const formattedForecast = daily.time.map((dateStr: string, index: number) => {
     const dateObj = new Date(dateStr);
     const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
     const isToday = index === 0;
 
-    // Index de base pour la journée (chaque jour comporte 24 heures)
     const dayStartIdx = index * 24;
-    const mornIdx = dayStartIdx + 8;  // 08:00 du matin
-    const eveIdx = dayStartIdx + 18; // 18:00 le soir
+    const mornIdx = dayStartIdx + 8;
+    const eveIdx = dayStartIdx + 18;
 
-    // Extraction des vraies valeurs horaires ou fallback sur les moyennes journalières
     const mornTemp = Math.round(hourly.temperature_2m[mornIdx] ?? daily.temperature_2m_min[index]);
     const eveTemp = Math.round(hourly.temperature_2m[eveIdx] ?? daily.temperature_2m_max[index]);
     
@@ -108,7 +135,6 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
       precipitation: daily.precipitation_probability_max[index] || 0,
       uvIndex: Math.round(daily.uv_index_max[index] || 0),
 
-      // Données détaillées Matin & Soir pour les graphiques avancés
       mornTemp,
       eveTemp,
       mornCondition: mapWmoCodeToCondition(hourly.weather_code[mornIdx] ?? daily.weather_code[index]),
@@ -123,7 +149,6 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
       windMorn: mornWind,
       windEve: eveWind,
 
-      // Simulation cohérente du pollen basée sur la température et la saison (valeurs 1 à 5)
       pollenMorn: Math.min(5, Math.max(1, Math.round((mornTemp / 8)))),
       pollenEve: Math.min(5, Math.max(1, Math.round((eveTemp / 7)))),
 
@@ -142,24 +167,23 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
     };
   });
 
-  const temp = Math.round(current.temperature_2m);
-
   return {
     city: coords.name,
     country: coords.country,
     temperature: temp,
     condition: mapWmoCodeToCondition(current.weather_code),
     humidity: Math.round(current.relative_humidity_2m),
-    windSpeed: Math.round(current.wind_speed_10m),
+    windSpeed,
     pressure: Math.round(current.surface_pressure),
     uvIndex: Math.round(daily.uv_index_max[0] || 4),
     visibility: 10,
     icon: current.weather_code === 0 ? 'Sun' : 'Cloud',
     airQuality: { aqi: 35, status: 'Bon', pm25: 8.0, pm10: 15.2 },
+    alert: alertData, // <--- L'alerte calculée est maintenant bien retournée et transmise au composant
     activities: {
       fitness: { ideal: temp >= 12 && temp <= 25, score: 85, label: 'Excellentes conditions' },
       tennis: { ideal: temp >= 15 && temp <= 28 && current.weather_code < 3, score: 90, label: 'Court extérieur idéal' },
-      cycling: { ideal: Math.round(current.wind_speed_10m) < 25, score: 80, label: 'Vent modéré' },
+      cycling: { ideal: windSpeed < 25, score: 80, label: 'Vent modéré' },
       forestWalk: { ideal: current.weather_code !== 61, score: 95, label: 'Air frais en sous-bois' }
     },
     hourly: formattedHourly,

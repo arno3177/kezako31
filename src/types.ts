@@ -60,6 +60,11 @@ export interface WeatherData {
   visibility: number;
   icon: string;
   airQuality: AirQuality;
+  alert?: {          // <-- Ajoute cette ligne ici
+    type: string;
+    color: string;
+    details: string;
+  } | null;
   activities: ActivitySuitability;
   hourly: HourlyForecast[];
   forecast: DailyForecast[];

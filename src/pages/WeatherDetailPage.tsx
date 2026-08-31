@@ -5,7 +5,7 @@ import {
   CloudSun, Sun, Cloud, CloudRain, Droplets, Wind, 
   Settings, Calendar, ChevronDown, ChevronUp, 
   BarChart3, Activity, Bike, Dumbbell, Trees, Trophy, Gauge, SunMedium,
-  Thermometer, Umbrella, Compass, Flower2, Clock, X, Plus, Trash2, AlertTriangle, ShieldCheck
+  Thermometer, Umbrella, Compass, Flower2, Clock, X, Plus, Trash2, ShieldCheck, Info
 } from 'lucide-react';
 
 interface WeatherDetailPageProps {
@@ -24,16 +24,30 @@ type WeatherTab = 'temp' | 'aqi' | 'uv' | 'activities';
 
 const STORAGE_KEY = 'weather_saved_cities';
 
+// --- CONFIGURATION DES LED : BLEU (Froid) -> VERT (Doux) -> ORANGE (Chaud) -> ROUGE (Canicule) ---
 const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderClass: string }> = {
-  9: { bars: 3, colorClass: 'bg-emerald-400 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' },
-  8: { bars: 2, colorClass: 'bg-emerald-400 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' },
-  7: { bars: 1, colorClass: 'bg-emerald-400 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' },
-  6: { bars: 3, colorClass: 'bg-amber-400 shadow-[0_0_8px_#f59e0b]', borderClass: 'border-amber-500/30' },
-  5: { bars: 2, colorClass: 'bg-orange-500 shadow-[0_0_8px_#f97316]', borderClass: 'border-orange-500/30' },
-  4: { bars: 1, colorClass: 'bg-orange-500 shadow-[0_0_8px_#f97316]', borderClass: 'border-orange-500/30' },
-  3: { bars: 1, colorClass: 'bg-rose-500 shadow-[0_0_8px_#f43f5e]', borderClass: 'border-rose-500/30' },
-  2: { bars: 2, colorClass: 'bg-rose-500 shadow-[0_0_8px_#f43f5e]', borderClass: 'border-rose-500/30' },
-  1: { bars: 3, colorClass: 'bg-red-600 shadow-[0_0_8px_#dc2626]', borderClass: 'border-red-600/30' },
+  9: { bars: 3, colorClass: 'bg-red-700 shadow-[0_0_8px_#b91c1c]', borderClass: 'border-red-700/30' },       // Rouge foncé (> 35°C)
+  8: { bars: 2, colorClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]', borderClass: 'border-red-500/30' },       // Rouge moyen (32°C - 35°C)
+  7: { bars: 1, colorClass: 'bg-orange-600 shadow-[0_0_8px_#ea580c]', borderClass: 'border-orange-600/30' }, // Orange foncé (28°C - 31°C)
+  6: { bars: 3, colorClass: 'bg-orange-400 shadow-[0_0_8px_#fb923c]', borderClass: 'border-orange-400/30' }, // Orange clair (27°C - 28°C)
+  5: { bars: 2, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' }, // Vert moyen (22°C - 26°C)
+  4: { bars: 1, colorClass: 'bg-emerald-300 shadow-[0_0_8px_#6ee7b7]', borderClass: 'border-emerald-300/30' }, // Vert clair (17°C - 21°C -> 19°C)
+  3: { bars: 3, colorClass: 'bg-blue-700 shadow-[0_0_8px_#1d4ed8]', borderClass: 'border-blue-700/30' },       // Bleu foncé (12°C - 16°C)
+  2: { bars: 2, colorClass: 'bg-blue-500 shadow-[0_0_8px_#3b82f6]', borderClass: 'border-blue-500/30' },       // Bleu moyen (5°C - 11°C)
+  1: { bars: 1, colorClass: 'bg-blue-900 shadow-[0_0_8px_#1e3a8a]', borderClass: 'border-blue-900/30' },       // Bleu très foncé (< 5°C)
+};
+
+// --- GESTION DES TRANCHES DE TEMPÉRATURE EXACTES ---
+const getLedLevelForTemp = (temp: number): number => {
+  if (temp < 5) return 1;    // Niveau 1 : < 5°C (Bleu foncé)
+  if (temp <= 11) return 2;  // Niveau 2 : 5°C à 11°C (Bleu moyen)
+  if (temp <= 16) return 3;  // Niveau 3 : 12°C à 16°C (Bleu foncé)
+  if (temp <= 21) return 4;  // Niveau 4 : 17°C à 21°C (Vert clair - 19°C tombe ici)
+  if (temp <= 26) return 5;  // Niveau 5 : 22°C à 26°C (Vert moyen)
+  if (temp <= 28) return 6;  // Niveau 6 : 27°C à 28°C (Orange clair)
+  if (temp <= 31) return 7;  // Niveau 7 : 29°C à 31°C (Orange foncé)
+  if (temp <= 35) return 8;  // Niveau 8 : 32°C à 35°C (Rouge moyen)
+  return 9;                  // Niveau 9 : > 35°C (Rouge foncé)
 };
 
 const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
@@ -122,16 +136,47 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
   const [showCitySettings, setShowCitySettings] = useState<boolean>(false);
   const [newCityInput, setNewCityInput] = useState<string>('');
+  
+  // États pour l'autocomplétion des villes
+  const [suggestions, setSuggestions] = useState<Array<{ name: string; country: string; admin1?: string }>>([]);
 
-  const handleAdd = (e?: React.MouseEvent | React.KeyboardEvent) => {
-    if (e) e.preventDefault();
-    const trimmed = newCityInput.trim();
+  useEffect(() => {
+    const query = newCityInput.trim();
+    if (query.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=fr&format=json`);
+        const data = await res.json();
+        if (data.results) {
+          setSuggestions(data.results);
+        } else {
+          setSuggestions([]);
+        }
+      } catch (e) {
+        console.error(e);
+        setSuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [newCityInput]);
+
+  const handleAddCityName = (cityName: string) => {
+    const trimmed = cityName.trim();
     if (!trimmed) return;
     if (!cities.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      setCities([...cities, trimmed]);
+      const updated = [...cities, trimmed];
+      setCities(updated);
       if (onAddCity) onAddCity(trimmed);
     }
+    onSelectCity(trimmed);
     setNewCityInput('');
+    setSuggestions([]);
+    setShowCitySettings(false);
   };
 
   const handleRemove = (e: React.MouseEvent, cityToRemove: string) => {
@@ -164,20 +209,35 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
   const currentTemp = Number((currentWeather as any)?.temperature ?? 20);
   const currentWind = Number(currentWeather?.windSpeed ?? 10);
-  const currentCondition = (currentWeather?.condition || '').toLowerCase();
 
-  const activeAlert = useMemo(() => {
-    if (currentTemp >= 32) {
-      return { type: 'Chaleur Extrême', color: 'bg-amber-500/15 border-amber-500/40 text-amber-300', icon: <Thermometer className="w-4 h-4 text-amber-400 animate-pulse" />, details: `Vague de chaleur intense (${currentTemp}°C). Hydratez-vous régulièrement.` };
+  // GESTION DE LA PRÉVENTION DOUCE (SANS LE MOT "ALERTE")
+  const activePrevention = useMemo(() => {
+    if (currentTemp > 32) {
+      return { 
+        type: 'Prévention Chaleur', 
+        color: 'bg-amber-500/10 border-amber-500/30 text-amber-300', 
+        icon: <Info className="w-4 h-4 text-amber-400" />, 
+        details: `Température élevée (${currentTemp}°C > 32°C). Pensez à vous hydrater.` 
+      };
     }
-    if (currentTemp <= 0 || currentCondition.includes('glace') || currentCondition.includes('givre')) {
-      return { type: 'Risque de Glace / Givre', color: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300', icon: <AlertTriangle className="w-4 h-4 text-cyan-400 animate-pulse" />, details: `Températures négatives ou verglas (${currentTemp}°C). Soyez vigilants.` };
+    if (currentTemp < 4) {
+      return { 
+        type: 'Prévention Froid', 
+        color: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300', 
+        icon: <Info className="w-4 h-4 text-cyan-400" />, 
+        details: `Température basse (${currentTemp}°C < 4°C). Couvrez-vous bien.` 
+      };
     }
-    if (currentWind >= 45) {
-      return { type: 'Vent Violent', color: 'bg-rose-500/15 border-rose-500/40 text-rose-300', icon: <Wind className="w-4 h-4 text-rose-400 animate-pulse" />, details: `Rafales de vent importantes mesurées à ${currentWind} km/h.` };
+    if (currentWind > 45) {
+      return { 
+        type: 'Prévention Vent', 
+        color: 'bg-sky-500/10 border-sky-500/30 text-sky-300', 
+        icon: <Info className="w-4 h-4 text-sky-400" />, 
+        details: `Vent mesuré à ${currentWind} km/h (> 45 km/h). Soyez prudents en extérieur.` 
+      };
     }
     return null;
-  }, [currentTemp, currentWind, currentCondition]);
+  }, [currentTemp, currentWind]);
 
   const tenDaysData = useMemo(() => {
     if (forecastData.length > 0) return forecastData;
@@ -284,21 +344,24 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         )}
       </div>
 
-      {/* SECTION ALERTE MÉTÉO */}
-      {activeAlert ? (
-        <div className={`border rounded-2xl p-3.5 shadow-xl flex items-start space-x-3 animate-fade-in ${activeAlert.color}`}>
+      {/* SECTION PRÉVENTION OU CONDITIONS STABLES */}
+      {activePrevention ? (
+        <div className={`border rounded-2xl p-3.5 shadow-xl flex items-start space-x-3 animate-fade-in ${activePrevention.color}`}>
           <div className="p-2 rounded-xl bg-black/30 border border-current/20 flex-shrink-0 mt-0.5">
-            {activeAlert.icon}
+            {activePrevention.icon}
           </div>
           <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center justify-between">
               <h2 className="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" /> Alerte Météo : {activeAlert.type}
+                <Info className="w-3.5 h-3.5" /> 
+                {activePrevention.type}
               </h2>
-              <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-black/40 border border-current/30 uppercase">Actif</span>
+              <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-black/40 border border-current/30 uppercase">
+                Conseil
+              </span>
             </div>
             <p className="text-[10px] text-slate-300 leading-relaxed font-medium">
-              {activeAlert.details}
+              {activePrevention.details}
             </p>
           </div>
         </div>
@@ -309,10 +372,10 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-              Aucune alerte en cours
+              Conditions stables
             </h2>
             <p className="text-[9px] text-slate-500 truncate">
-              Les conditions météorologiques sont stables pour le moment.
+              Aucun seuil de vigilance particulier n'est atteint.
             </p>
           </div>
         </div>
@@ -334,7 +397,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           ) : (
             hourlyData.map((item: any, idx: number) => {
               const h = Math.max(35, Math.min(100, Math.round(((item.temp - minHourly) / rangeHourly) * 100)));
-              const hourlyLedLevel = Math.max(1, Math.min(9, Math.round((item.temp / 30) * 9)));
+              const hourlyLedLevel = getLedLevelForTemp(item.temp);
 
               return (
                 <div 
@@ -448,7 +511,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           {tenDaysData.map((day: any, idx: number) => {
             let evePercent = 50;
             let mornPercent = 50;
-            let ledLevel = 9;
+            let ledLevel = 5;
 
             const mornVal = day.mornTemp ?? day.tempMin ?? 15;
             const eveVal = day.eveTemp ?? day.tempMax ?? 25;
@@ -456,7 +519,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
             if (activeTab === 'temp') {
               evePercent = Math.max(20, Math.min(100, Math.round(((eveVal - minDaily) / tempRange) * 100)));
               mornPercent = Math.max(20, Math.min(100, Math.round(((mornVal - minDaily) / tempRange) * 100)));
-              ledLevel = Math.max(1, Math.min(9, Math.round((eveVal / 30) * 9)));
+              ledLevel = getLedLevelForTemp(eveVal);
             } else if (activeTab === 'aqi') {
               evePercent = Math.max(20, Math.min(100, Math.round((day.aqiEve / 120) * 100)));
               mornPercent = Math.max(20, Math.min(100, Math.round((day.aqiMorn / 120) * 100)));
@@ -526,7 +589,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       </div>
 
-      {/* 5. DÉTAILS AVANCÉS (AVEC VRAIES VALEURS DE L'API) */}
+      {/* 5. DÉTAILS AVANCÉS */}
       <div className="bg-[#151824] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <button
           type="button"
@@ -560,7 +623,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   return (
                     <div key={idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
                       <div className="h-4 flex items-center justify-center">
-                        <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round((day.feelsEve / 35) * 9)))} />
+                        <LedLevelIndicator level={getLedLevelForTemp(day.feelsEve)} />
                       </div>
                       <div style={{ height: `${h}%` }} className="w-full max-w-[32px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-orange-600 to-amber-400 flex items-center justify-center">
@@ -701,27 +764,50 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] text-slate-300 font-semibold block">Ajouter une ville</label>
+            <div className="space-y-2 relative">
+              <label className="text-[10px] text-slate-300 font-semibold block">Ajouter une ville (Recherche automatique)</label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Nom de la ville..."
+                  placeholder="Tapez une ville (ex: Rome, Paris...)"
                   value={newCityInput}
                   onChange={(e) => setNewCityInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAdd(e);
-                  }}
                   className="flex-1 bg-[#0d0f17] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
                 />
                 <button
                   type="button"
-                  onClick={(e) => handleAdd(e)}
-                  className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                  disabled={!newCityInput.trim() || suggestions.length === 0}
+                  onClick={() => {
+                    if (suggestions.length > 0) {
+                      handleAddCityName(suggestions[0].name);
+                    }
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                    !newCityInput.trim() || suggestions.length === 0
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+                      : 'bg-teal-600 hover:bg-teal-500 text-white cursor-pointer shadow-md'
+                  }`}
                 >
                   <Plus className="w-3.5 h-3.5" /> Ajouter
                 </button>
               </div>
+
+              {/* Suggestions d'autocomplétion en direct */}
+              {suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0f17] border border-teal-500/40 rounded-xl shadow-2xl z-50 overflow-hidden max-h-40 overflow-y-auto">
+                  {suggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleAddCityName(item.name)}
+                      className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-teal-500/20 hover:text-white flex items-center justify-between transition-colors border-b border-slate-800/50 last:border-none cursor-pointer"
+                    >
+                      <span className="font-bold">{item.name}</span>
+                      <span className="text-[9px] text-teal-400/80">{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 pt-2">

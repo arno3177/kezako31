@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { 
@@ -8,7 +8,7 @@ import {
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Trash2
+  ExternalLink, Trash2, Info
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 
@@ -31,6 +31,52 @@ interface HomePageProps {
   language?: AppSettings['language'];
 }
 
+// Configuration des LED pour l'indicateur de niveau météo sur la Home
+const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderClass: string }> = {
+  9: { bars: 3, colorClass: 'bg-red-700 shadow-[0_0_8px_#b91c1c]', borderClass: 'border-red-700/30' },
+  8: { bars: 2, colorClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]', borderClass: 'border-red-500/30' },
+  7: { bars: 1, colorClass: 'bg-orange-600 shadow-[0_0_8px_#ea580c]', borderClass: 'border-orange-600/30' },
+  6: { bars: 3, colorClass: 'bg-orange-400 shadow-[0_0_8px_#fb923c]', borderClass: 'border-orange-400/30' },
+  5: { bars: 2, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' },
+  4: { bars: 1, colorClass: 'bg-emerald-300 shadow-[0_0_8px_#6ee7b7]', borderClass: 'border-emerald-300/30' },
+  3: { bars: 3, colorClass: 'bg-blue-700 shadow-[0_0_8px_#1d4ed8]', borderClass: 'border-blue-700/30' },
+  2: { bars: 2, colorClass: 'bg-blue-500 shadow-[0_0_8px_#3b82f6]', borderClass: 'border-blue-500/30' },
+  1: { bars: 1, colorClass: 'bg-blue-900 shadow-[0_0_8px_#1e3a8a]', borderClass: 'border-blue-900/30' },
+};
+
+const getLedLevelForTemp = (temp: number): number => {
+  if (temp < 5) return 1;
+  if (temp <= 11) return 2;
+  if (temp <= 16) return 3;
+  if (temp <= 21) return 4;
+  if (temp <= 26) return 5;
+  if (temp <= 28) return 6;
+  if (temp <= 31) return 7;
+  if (temp <= 35) return 8;
+  return 9;
+};
+
+const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
+  const safeLevel = Math.max(1, Math.min(9, Math.round(level)));
+  const config = LEVEL_CONFIG[safeLevel];
+
+  return (
+    <div className={`flex flex-col gap-0.5 p-0.5 bg-black/60 rounded border ${config.borderClass} backdrop-blur-xs w-5 shadow-md flex-shrink-0`}>
+      {[3, 2, 1].map((barIndex) => {
+        const isLit = barIndex <= config.bars;
+        return (
+          <div
+            key={barIndex}
+            className={`h-0.5 w-full rounded-xs transition-all duration-300 ${
+              isLit ? config.colorClass : 'bg-slate-800/40'
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 export const HomePage: React.FC<HomePageProps> = ({
   articles,
   currentWeather,
@@ -46,6 +92,30 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
+
+  // Salutation dynamique selon l'heure de la journée
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    return hour >= 18 || hour < 5 ? 'Bonsoir,' : 'Bonjour,';
+  };
+
+  // Calcul de la prévention douce sur la home (sans le mot "alerte")
+  const activePrevention = useMemo(() => {
+    if (!currentWeather) return null;
+    const temp = Number(currentWeather.temperature ?? 20);
+    const wind = Number(currentWeather.windSpeed ?? 10);
+
+    if (temp > 32) {
+      return { type: 'Chaleur', badgeColor: 'bg-amber-500/20 border-amber-500/40 text-amber-300', icon: <Info className="w-3 h-3 text-amber-400" /> };
+    }
+    if (temp < 4) {
+      return { type: 'Froid', badgeColor: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', icon: <Info className="w-3 h-3 text-cyan-400" /> };
+    }
+    if (wind > 45) {
+      return { type: 'Vent', badgeColor: 'bg-sky-500/20 border-sky-500/40 text-sky-300', icon: <Info className="w-3 h-3 text-sky-400" /> };
+    }
+    return null;
+  }, [currentWeather]);
 
   // Synchronisation dynamique des raccourcis
   const [links, setLinks] = useState<Shortcut[]>(() => {
@@ -163,8 +233,35 @@ export const HomePage: React.FC<HomePageProps> = ({
   const originQuery = encodeURIComponent(mainTrip?.origin || 'Kopstal');
   const destQuery = encodeURIComponent(mainTrip?.destination || 'Luxembourg');
 
+  const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 20) : 20;
+  const currentLedLevel = getLedLevelForTemp(currentTemp);
+
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
+
+      {/* EN-TÊTE : CARTE CHALEUREUSE & ULTRA-LISIBLE (Bonjour / Bonsoir) */}
+      <div className="bg-gradient-to-r from-slate-900 via-teal-950/50 to-slate-900 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex items-center justify-between w-full relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-indigo-500 shadow-[0_0_10px_#2dd4bf]" />
+        
+        <div className="space-y-0.5 pl-2">
+          <h2 className="text-xs font-black text-white flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>{getGreeting()}</span>
+          </h2>
+          <p className="text-[10px] text-teal-200/80 font-medium">
+            Aujourd'hui : Conditions stables • 0 perturbation sur votre trajet
+          </p>
+        </div>
+
+        <div className="bg-black/50 border border-teal-500/20 px-3 py-1.5 rounded-xl text-right flex-shrink-0">
+          <span className="text-[11px] font-mono font-black text-teal-300 block">
+            {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          <span className="text-[9px] font-mono text-slate-400 block">
+            {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).toUpperCase()}
+          </span>
+        </div>
+      </div>
 
       {/* 1. MÉTÉO */}
       {currentWeather && (
@@ -175,13 +272,30 @@ export const HomePage: React.FC<HomePageProps> = ({
               <Sun className="w-4 h-4 text-sky-300" />
               <h2 className="text-xs font-extrabold uppercase tracking-wider text-sky-100">Météo & Éphéméride</h2>
             </div>
-            <button 
-              onClick={onViewWeatherDetail} 
-              className="p-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/40 text-sky-200 border border-sky-400/30 transition-colors cursor-pointer"
-              title="Voir la météo détaillée"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            
+            <div className="flex items-center space-x-2">
+              {/* Indicateur de niveau LED élégant */}
+              <div className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-black/40 border border-sky-400/20" title={`Niveau thermique : ${currentTemp}°C`}>
+                <LedLevelIndicator level={currentLedLevel} />
+                <span className="text-[10px] font-bold text-sky-200">{currentTemp}°C</span>
+              </div>
+
+              {/* Badge de prévention douce si un seuil est atteint */}
+              {activePrevention && (
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded-xl border text-[10px] font-extrabold uppercase ${activePrevention.badgeColor}`} title="Conseil de prévention météo">
+                  {activePrevention.icon}
+                  <span>{activePrevention.type}</span>
+                </div>
+              )}
+
+              <button 
+                onClick={onViewWeatherDetail} 
+                className="p-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/40 text-sky-200 border border-sky-400/30 transition-colors cursor-pointer"
+                title="Voir la météo détaillée"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3">
