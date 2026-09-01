@@ -7,57 +7,27 @@ interface WorkspaceProps {
   onAuthenticated: (token: string) => void;
 }
 
-export const WorkspaceAuth: React.FC<WorkspaceProps> = ({ clientId, onAuthenticated }) => {
+export const WorkspaceAuth: React.FC<WorkspaceProps> = ({ onAuthenticated }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
-  const [tokenClient, setTokenClient] = useState<any>(null);
 
   useEffect(() => {
-    // Vérifier si un token valide existe déjà au démarrage (persistance)
+    // Initialisation du plugin au chargement
+    GoogleAuthService.init();
+
     const existingToken = GoogleAuthService.getStoredToken();
-    
     if (existingToken) {
       setIsAuthenticated(true);
       onAuthenticated(existingToken);
-      setIsInitializing(false);
-    } else {
-      setIsInitializing(false);
     }
+    setIsInitializing(false);
+  }, [onAuthenticated]);
 
-    const scriptId = 'google-gsi-script';
-    const initClient = () => {
-      if ((window as any).google) {
-        const client = GoogleAuthService.initGoogleTokenClient(
-          clientId,
-          'https://www.googleapis.com/auth/gmail.readonly',
-          (newToken: string) => {
-            setIsAuthenticated(true);
-            onAuthenticated(newToken);
-          }
-        );
-        setTokenClient(client);
-      }
-    };
-
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initClient;
-      document.body.appendChild(script);
-    } else {
-      initClient();
-    }
-  }, [clientId, onAuthenticated]);
-
-  const handleManualLogin = () => {
-    if (tokenClient) {
-      // Déclencher la demande de token
-      tokenClient.requestAccessToken({ prompt: '' });
-    } else {
-      console.error("Le client Google Token n'est pas initialisé.");
+  const handleManualLogin = async () => {
+    const token = await GoogleAuthService.signIn();
+    if (token) {
+      setIsAuthenticated(true);
+      onAuthenticated(token);
     }
   };
 
@@ -65,7 +35,7 @@ export const WorkspaceAuth: React.FC<WorkspaceProps> = ({ clientId, onAuthentica
     return (
       <div className="flex items-center gap-2 text-slate-400 text-xs">
         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-        <span>Vérification de la session Google...</span>
+        <span>Vérification de la session...</span>
       </div>
     );
   }

@@ -1,17 +1,17 @@
 {
 	"appId": "com.example.kezako31",
-	"appName": "MeteoApp",
+	"appName": "TonApp",
 	"webDir": "dist",
 	"server": {
 		"androidScheme": "https"
 	},
 	"plugins": {
-		"FirebaseAuthentication": {
-			"skipNativeAuth": false,
-			"providers": [
-				"google.com"
+		"GoogleAuth": {
+			"scopes": [
+				"https://www.googleapis.com/auth/gmail.readonly"
 			],
-			"clientId": "95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com"
+			"serverClientId": "95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com",
+			"forceCodeForRefreshToken": true
 		}
 	}
 }
