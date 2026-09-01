@@ -36,6 +36,9 @@ export const GoogleAuthService = {
     return (window as any).google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: scope,
+      // 'popup' fonctionne bien sur le web. 
+      // Si sur l'APK Android le bouton ne fait toujours rien, remplace par 'redirect'
+      ux_mode: 'redirect', 
       callback: (response: any) => {
         if (response && response.access_token) {
           this.storeToken(response.access_token, response.expires_in);
