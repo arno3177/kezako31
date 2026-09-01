@@ -30,7 +30,7 @@ jobs:
           gradle-version: '8.13'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web App & Sync Capacitor
         run: |
