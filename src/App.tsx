@@ -28,7 +28,7 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts'>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts'  | 'settings' >('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [, setUser] = useState<User | null>(null);
@@ -168,7 +168,7 @@ export function App() {
     <div className="min-h-screen bg-[#0f1117] text-gray-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] w-full overflow-x-hidden relative pb-28">
       
       <main className="flex-1 w-full max-w-full px-3 sm:px-6 py-4 mx-auto overflow-x-hidden">
-        {activeTab === 'sources-news' ? (
+        {activeTab === 'sources-news' && (
           <SourcesNewsPage
             articles={articles}
             savedArticleIds={savedArticleIds}
@@ -177,16 +177,19 @@ export function App() {
             onBackToHome={() => setActiveTab('home')}
             language={settings.language}
           />
-        ) : activeTab === 'shortcuts' ? (
+        )}
+        {activeTab === 'shortcuts' && (
           <ShortcutsPage onBackToHome={() => setActiveTab('home')} />
-        ) : activeTab === 'saved' ? (
+        )}
+        {activeTab === 'saved' && (
           <SavedArticlesPage
             savedArticles={savedArticles}
             onReadArticle={setSelectedArticle}
             onToggleSave={handleToggleSave}
             onBackToHome={() => setActiveTab('home')}
           />
-        ) : activeTab === 'settings' ? (
+        )}
+        {activeTab === 'settings' && (
           <SettingsPage
             citiesList={citiesList}
             activeCity={activeCity}
@@ -199,26 +202,30 @@ export function App() {
             onUpdateSettings={handleUpdateSettings}
             onBack={() => setActiveTab('weather-detail')}
           />
-        ) : activeTab === 'weather-detail' ? (
+        )}
+        {activeTab === 'weather-detail' && (
           <WeatherDetailPage
             currentWeather={currentWeather}
             citiesList={citiesList}
             activeCity={activeCity}
             unit={unit}
             onSelectCity={handleSelectCity}
-            onOpenSettings={() => setActiveTab('settings')}
+            onOpenSettings={() => setActiveTab('settings' as any)}
             language={settings.language}
           />
-        ) : activeTab === 'trips' ? (
+        )}
+        {activeTab === 'trips' && (
           <TripsPage 
             initialMode={selectedTripMode} 
             busApi={settings.busApi} 
             language={settings.language}
             currentWeather={currentWeather}
           />
-        ) : activeTab === 'workspace' ? (
+        )}
+        {activeTab === 'workspace' && (
           <WorkspacePage />
-        ) : (
+        )}
+        {activeTab === 'home' && (
           <HomePage
             articles={articles}
             currentWeather={currentWeather}
@@ -241,9 +248,9 @@ export function App() {
       </main>
 
       {/* CyberDock Flottant */}
-      <CyberDock 
-        currentView={activeTab} 
-        setCurrentView={(view) => setActiveTab(view as any)} 
+      <CyberDock
+        currentView={activeTab as any}
+        setCurrentView={(view: any) => setActiveTab(view)}
         activeCity={activeCity}
         savedCount={savedArticleIds.length}
         onOpenSaved={() => setActiveTab('saved')}
