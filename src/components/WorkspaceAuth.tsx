@@ -13,6 +13,7 @@ export const WorkspaceAuth: React.FC<WorkspaceProps> = ({ clientId, onAuthentica
   const [tokenClient, setTokenClient] = useState<any>(null);
 
   useEffect(() => {
+    // Vérifier si un token valide existe déjà au démarrage (persistance)
     const existingToken = GoogleAuthService.getStoredToken();
     
     if (existingToken) {
@@ -53,7 +54,10 @@ export const WorkspaceAuth: React.FC<WorkspaceProps> = ({ clientId, onAuthentica
 
   const handleManualLogin = () => {
     if (tokenClient) {
+      // Déclencher la demande de token
       tokenClient.requestAccessToken({ prompt: '' });
+    } else {
+      console.error("Le client Google Token n'est pas initialisé.");
     }
   };
 
@@ -71,7 +75,7 @@ export const WorkspaceAuth: React.FC<WorkspaceProps> = ({ clientId, onAuthentica
       {isAuthenticated ? (
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-bold shadow-sm">
           <ShieldCheck className="w-4 h-4" />
-          <span>Workspace Connecté (Sécurisé)</span>
+          <span>Workspace Connecté</span>
         </div>
       ) : (
         <button
