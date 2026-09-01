@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { auth } from '../firebase';
+import { WorkspaceAuth } from '../components/WorkspaceAuth';
+import { fetchUnreadEmailCount } from '../service/gmailService';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
   Droplets, Wind, Bookmark,
@@ -9,7 +11,7 @@ import {
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Trash2, Info, User, Mail, RefreshCw
+  ExternalLink, Trash2, Info, User, Mail
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
@@ -34,7 +36,6 @@ interface HomePageProps {
   language?: AppSettings['language'];
 }
 
-// Configuration des LED pour l'indicateur de niveau météo sur la Home
 const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderClass: string }> = {
   9: { bars: 3, colorClass: 'bg-red-700 shadow-[0_0_8px_#b91c1c]', borderClass: 'border-red-700/30' },
   8: { bars: 2, colorClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]', borderClass: 'border-red-500/30' },
@@ -96,55 +97,22 @@ export const HomePage: React.FC<HomePageProps> = ({
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
 
-  // Récupération de l'utilisateur et du token Gmail
   const currentUser = auth.currentUser;
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
-  const [isCheckingGmail, setIsCheckingGmail] = useState<boolean>(false);
-  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => {
-    return localStorage.getItem('google_access_token');
-  });
 
-  // Interrogation réelle de l'API Gmail pour les non lus
-  const fetchUnreadEmailsCount = async (token?: string) => {
-    const tokenToUse = token || googleAccessToken;
-    if (!tokenToUse) return;
+  // Récupération sécurisée du client ID Web depuis le fichier .env
+  // Forcer la lecture directe ou utiliser une valeur de secours en dur si le .env n'est pas chargé
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com';
 
-    setIsCheckingGmail(true);
+  const handleAuthenticated = async (token: string) => {
     try {
-      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/labels/UNREAD', {
-        headers: {
-          'Authorization': `Bearer ${tokenToUse}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUnreadCount(data.messagesUnread ?? 0);
-      } else {
-        if (response.status === 401) {
-          setGoogleAccessToken(null);
-          localStorage.removeItem('google_access_token');
-        }
-      }
+      const count = await fetchUnreadEmailCount(token);
+      setUnreadCount(count);
     } catch (error) {
-      console.error("Erreur récupération e-mails non lus:", error);
-    } finally {
-      setIsCheckingGmail(false);
+      console.error("Erreur lors de la récupération des e-mails :", error);
+      setUnreadCount(0);
     }
   };
-
-  // Actualisation automatique en arrière-plan toutes les 3 minutes
-  useEffect(() => {
-    if (googleAccessToken && currentUser) {
-      fetchUnreadEmailsCount(googleAccessToken);
-
-      const intervalId = setInterval(() => {
-        fetchUnreadEmailsCount(googleAccessToken);
-      }, 180000);
-
-      return () => clearInterval(intervalId);
-    }
-  }, [googleAccessToken, currentUser]);
 
   const handleOpenGmail = async () => {
     try {
@@ -162,31 +130,22 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
   };
 
-  // Salutation dynamique selon l'heure de la journée
   const getGreeting = () => {
     const hour = new Date().getHours();
     return hour >= 18 || hour < 5 ? 'Bonsoir, ravi de vous retrouver' : 'Bonjour, ravi de vous retrouver';
   };
 
-  // Calcul de la prévention douce sur la home
   const activePrevention = useMemo(() => {
     if (!currentWeather) return null;
     const temp = Number(currentWeather.temperature ?? 20);
     const wind = Number(currentWeather.windSpeed ?? 10);
 
-    if (temp > 32) {
-      return { type: 'Chaleur', badgeColor: 'bg-amber-500/20 border-amber-500/40 text-amber-300', icon: <Info className="w-3 h-3 text-amber-400" /> };
-    }
-    if (temp < 4) {
-      return { type: 'Froid', badgeColor: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', icon: <Info className="w-3 h-3 text-cyan-400" /> };
-    }
-    if (wind > 45) {
-      return { type: 'Vent', badgeColor: 'bg-sky-500/20 border-sky-500/40 text-sky-300', icon: <Info className="w-3 h-3 text-sky-400" /> };
-    }
+    if (temp > 32) return { type: 'Chaleur', badgeColor: 'bg-amber-500/20 border-amber-500/40 text-amber-300', icon: <Info className="w-3 h-3 text-amber-400" /> };
+    if (temp < 4) return { type: 'Froid', badgeColor: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', icon: <Info className="w-3 h-3 text-cyan-400" /> };
+    if (wind > 45) return { type: 'Vent', badgeColor: 'bg-sky-500/20 border-sky-500/40 text-sky-300', icon: <Info className="w-3 h-3 text-sky-400" /> };
     return null;
   }, [currentWeather]);
 
-  // Synchronisation dynamique des raccourcis
   const [links, setLinks] = useState<Shortcut[]>(() => {
     const saved = localStorage.getItem(SHORTCUTS_STORAGE_KEY);
     if (saved) {
@@ -258,9 +217,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     const otherArticles = filteredArticles.filter(a => !(a.source || '').toLowerCase().includes('essentiel'));
 
     const mixed = [];
-    if (essentielArticles.length > 0) {
-      mixed.push(essentielArticles[0]);
-    }
+    if (essentielArticles.length > 0) mixed.push(essentielArticles[0]);
 
     let eIndex = 1;
     let oIndex = 0;
@@ -308,7 +265,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* EN-TÊTE : CARTE CHALEUREUSE AVEC ENVELOPPE GMAIL & COMPTEUR */}
+      {/* EN-TÊTE : CARTE AVEC GMAIL & WORKSPACE AUTH */}
       <div className="bg-gradient-to-r from-slate-900 via-teal-950/50 to-slate-900 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-indigo-500 shadow-[0_0_10px_#2dd4bf]" />
         
@@ -322,21 +279,19 @@ export const HomePage: React.FC<HomePageProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 pl-2 sm:pl-0">
+        <div className="flex items-center gap-2.5 pl-2 sm:pl-0 flex-wrap">
           
           {/* BOUTON ENVELOPPE GMAIL AVEC COMPTEUR NON LU */}
-          {googleAccessToken && (
+          {unreadCount !== null && unreadCount > 0 && (
             <button
               onClick={handleOpenGmail}
               className="relative p-2 rounded-xl bg-black/50 hover:bg-black/80 border border-rose-500/30 text-rose-400 flex items-center justify-center transition-all cursor-pointer shadow-md group"
               title="Ouvrir Gmail"
             >
               <Mail className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              {unreadCount !== null && unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-full shadow-md animate-bounce">
-                  {unreadCount}
-                </span>
-              )}
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-full shadow-md animate-bounce">
+                {unreadCount}
+              </span>
             </button>
           )}
 
@@ -351,6 +306,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               {currentUser ? currentUser.email || currentUser.displayName : 'Non connecté'}
             </span>
           </div>
+
+          {/* COMPOSANT DE CONNEXION GOOGLE WORKSPACE PERSISTANT */}
+          <WorkspaceAuth 
+            clientId={GOOGLE_CLIENT_ID} 
+            onAuthenticated={handleAuthenticated} 
+          />
 
           <div className="bg-black/50 border border-teal-500/20 px-3 py-1.5 rounded-xl text-right flex-shrink-0">
             <span className="text-[11px] font-mono font-black text-teal-300 block">

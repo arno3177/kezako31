@@ -11,7 +11,7 @@ import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TripsPage } from './pages/TripsPage';
-import WorkspacePage from './pages/WorkspacePage';
+import { WorkspacePage } from './pages/WorkspacePage';
 import { SavedArticlesPage } from './pages/SavedArticlesPage';
 import { ShortcutsPage } from './pages/ShortcutsPage';
 import { AddCityModal } from './components/AddCityModal';
@@ -28,10 +28,15 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts'  | 'settings' >('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [, setUser] = useState<User | null>(null);
+
+  // Remonter automatiquement tout en haut de la page lors d'un changement d'onglet
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -210,7 +215,7 @@ export function App() {
             activeCity={activeCity}
             unit={unit}
             onSelectCity={handleSelectCity}
-            onOpenSettings={() => setActiveTab('settings' as any)}
+            onOpenSettings={() => setActiveTab('settings')}
             language={settings.language}
           />
         )}

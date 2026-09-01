@@ -4,7 +4,7 @@ import { fetchLuxembourgFuelPrices } from '../service/fuelService';
 import { 
   Car, Bus, Navigation, Plus, Trash2, Edit3, 
   ExternalLink, RefreshCw, Fuel, ShieldAlert, CheckCircle2,
-  CloudSun, Activity, AlertTriangle
+  CloudSun, Activity, AlertTriangle, X
 } from 'lucide-react';
 
 interface TripsPageProps {
@@ -12,6 +12,12 @@ interface TripsPageProps {
   initialMode?: 'car' | 'bus';
   busApi?: string;
   currentWeather?: WeatherData;
+}
+
+interface GeoSuggestion {
+  name: string;
+  country: string;
+  admin1?: string;
 }
 
 export const TripsPage: React.FC<TripsPageProps> = () => {
@@ -45,6 +51,10 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
   const [newOrigin, setNewOrigin] = useState('');
   const [newDestination, setNewDestination] = useState('');
 
+  // États pour l'autocomplétion
+  const [originSuggestions, setOriginSuggestions] = useState<GeoSuggestion[]>([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<GeoSuggestion[]>([]);
+
   const [fuelPrices, setFuelPrices] = useState({
     super95: 'Chargement...',
     super98: 'Chargement...',
@@ -70,6 +80,46 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
   useEffect(() => {
     loadFuelPrices();
   }, []);
+
+  // Effet d'autocomplétion pour le champ Départ
+  useEffect(() => {
+    const query = newOrigin.trim();
+    if (query.length < 2) {
+      setOriginSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=fr&format=json`);
+        const data = await res.json();
+        setOriginSuggestions(data.results || []);
+      } catch (e) {
+        console.error(e);
+        setOriginSuggestions([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [newOrigin]);
+
+  // Effet d'autocomplétion pour le champ Arrivée
+  useEffect(() => {
+    const query = newDestination.trim();
+    if (query.length < 2) {
+      setDestinationSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=fr&format=json`);
+        const data = await res.json();
+        setDestinationSuggestions(data.results || []);
+      } catch (e) {
+        console.error(e);
+        setDestinationSuggestions([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [newDestination]);
 
   const handleAddOrUpdateTrip = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +151,8 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
     setNewName('');
     setNewOrigin('');
     setNewDestination('');
+    setOriginSuggestions([]);
+    setDestinationSuggestions([]);
     setShowAddModal(false);
   };
 
@@ -124,10 +176,9 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
     }
   };
 
-  // Calcul dynamique de la fluidité selon l'heure actuelle
   const getDynamicTrafficInfo = () => {
     const currentHour = new Date().getHours();
-    const currentDay = new Date().getDay(); // 0 = Dimanche, 6 = Samedi
+    const currentDay = new Date().getDay();
     const isWeekend = currentDay === 0 || currentDay === 6;
 
     if (isWeekend) {
@@ -138,7 +189,6 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
       };
     }
 
-    // Heures de pointe matin (07h - 09h30) et soir (16h - 19h)
     const isMorningRush = currentHour >= 7 && currentHour <= 9;
     const isEveningRush = currentHour >= 16 && currentHour <= 19;
 
@@ -157,7 +207,6 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
         };
       }
     } else {
-      // Pour les bus
       if (isMorningRush || isEveningRush) {
         return {
           status: 'Réseau chargé (Heure de pointe)',
@@ -176,15 +225,135 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
 
   const trafficInfo = getDynamicTrafficInfo();
 
-  const originQuery = encodeURIComponent(activeTrip?.origin || 'Kopstal');
-  const destQuery = encodeURIComponent(activeTrip?.destination || 'Luxembourg');
+  // Optimisation de l'encodage avec fallback géographique strict (ex: Luxembourg) pour éviter les confusions de villes homonymes
+  const originQuery = encodeURIComponent(`${activeTrip?.origin || 'Kopstal'}, Luxembourg`);
+  const destQuery = encodeURIComponent(`${activeTrip?.destination || 'Luxembourg'}, Luxembourg`);
 
   const isUserInLuxembourg = 
     navigator.language.toLowerCase().includes('lu') || 
     Intl.DateTimeFormat().resolvedOptions().timeZone.toLowerCase().includes('luxembourg');
 
   return (
-    <div className="space-y-4 animate-fade-in text-xs w-full max-w-full pb-8">
+    <div className="space-y-4 animate-fade-in text-xs w-full max-w-full pb-8 relative">
+      
+      {/* MODALE D'AJOUT / MODIFICATION DE TRAJET AVEC AUTOCOMPLÉTION */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[99999] flex items-start justify-center pt-12 bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
+            
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-emerald-400" />
+                {editingTrip ? 'Modifier le trajet' : 'Ajouter un nouveau trajet'}
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddOrUpdateTrip} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Nom du trajet</label>
+                <input 
+                  type="text" 
+                  value={newName} 
+                  onChange={(e) => setNewName(e.target.value)} 
+                  placeholder="Ex: Bureau, Maison, Vacances..." 
+                  required
+                  className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                
+                {/* Champ Départ avec Autocomplétion */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Départ</label>
+                  <input 
+                    type="text" 
+                    value={newOrigin} 
+                    onChange={(e) => setNewOrigin(e.target.value)} 
+                    placeholder="Ex: Kopstal" 
+                    required
+                    className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  {originSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0f17] border border-emerald-500/40 rounded-xl shadow-2xl z-50 overflow-hidden max-h-40 overflow-y-auto">
+                      {originSuggestions.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setNewOrigin(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`);
+                            setOriginSuggestions([]);
+                          }}
+                          className="w-full text-left px-3 py-2 text-[11px] text-slate-200 hover:bg-emerald-500/20 hover:text-white flex items-center justify-between transition-colors border-b border-slate-800/50 last:border-none cursor-pointer"
+                        >
+                          <span className="font-bold">{item.name}</span>
+                          <span className="text-[9px] text-emerald-400/80">{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Champ Arrivée avec Autocomplétion */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Arrivée</label>
+                  <input 
+                    type="text" 
+                    value={newDestination} 
+                    onChange={(e) => setNewDestination(e.target.value)} 
+                    placeholder="Ex: Luxembourg" 
+                    required
+                    className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  {destinationSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0f17] border border-emerald-500/40 rounded-xl shadow-2xl z-50 overflow-hidden max-h-40 overflow-y-auto">
+                      {destinationSuggestions.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setNewDestination(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`);
+                            setDestinationSuggestions([]);
+                          }}
+                          className="w-full text-left px-3 py-2 text-[11px] text-slate-200 hover:bg-emerald-500/20 hover:text-white flex items-center justify-between transition-colors border-b border-slate-800/50 last:border-none cursor-pointer"
+                        >
+                          <span className="font-bold">{item.name}</span>
+                          <span className="text-[9px] text-emerald-400/80">{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-bold cursor-pointer transition-all"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md"
+                >
+                  {editingTrip ? 'Mettre à jour' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
       
       {/* 1. SÉLECTEUR & GESTION DES TRAJETS */}
       <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl space-y-3">
@@ -201,75 +370,12 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
               setNewDestination('');
               setShowAddModal(true);
             }}
-            className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-bold flex items-center gap-1 transition-colors text-[10px] cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-emerald-300 border border-emerald-400/30 font-bold flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer shadow-md"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Ajouter un trajet</span>
           </button>
         </div>
-
-        {showAddModal && (
-          <div className="bg-[#142028] p-3.5 rounded-xl border border-emerald-500/40 shadow-lg space-y-2.5 animate-fade-in">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-white text-xs">
-                {editingTrip ? 'Modifier le trajet' : 'Nouveau Trajet'}
-              </span>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white font-bold text-xs">✕</button>
-            </div>
-            <form onSubmit={handleAddOrUpdateTrip} className="space-y-2">
-              <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase">Nom du trajet</label>
-                <input 
-                  type="text" 
-                  value={newName} 
-                  onChange={(e) => setNewName(e.target.value)} 
-                  placeholder="Ex: Bureau, Maison, Vacances..." 
-                  required
-                  className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-emerald-500 outline-none text-xs"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[9px] text-slate-400 font-bold uppercase">Départ</label>
-                  <input 
-                    type="text" 
-                    value={newOrigin} 
-                    onChange={(e) => setNewOrigin(e.target.value)} 
-                    placeholder="Ex: Kopstal" 
-                    required
-                    className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-emerald-500 outline-none text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] text-slate-400 font-bold uppercase">Arrivée</label>
-                  <input 
-                    type="text" 
-                    value={newDestination} 
-                    onChange={(e) => setNewDestination(e.target.value)} 
-                    placeholder="Ex: Luxembourg" 
-                    required
-                    className="w-full mt-0.5 p-1.5 rounded-lg bg-[#0a1217] border border-slate-700 text-white focus:border-emerald-500 outline-none text-xs"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2 pt-1">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddModal(false)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer"
-                >
-                  {editingTrip ? 'Mettre à jour' : 'Enregistrer'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
 
         <div className="space-y-2 pt-1">
           <p className="text-[10px] text-slate-400 font-bold uppercase">Trajets enregistrés :</p>
@@ -320,13 +426,13 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
         </div>
       </div>
 
-      {/* 2. SÉLECTEUR DE MODE DE TRANSPORT (PLEINE LARGEUR AU-DESSUS DE LA CARTE) */}
+      {/* 2. SÉLECTEUR DE MODE DE TRANSPORT */}
       <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3 shadow-xl">
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setActiveMode('car')}
             className={`p-3 rounded-xl border font-bold flex items-center justify-center space-x-2 cursor-pointer transition-all ${
-              activeMode === 'car' ? 'bg-[#1b2621] border-amber-500 text-amber-400 shadow-md' : 'bg-[#0a1217] border-slate-800 text-slate-400'
+              activeMode === 'car' ? 'bg-[#1b2621] border-emerald-500 text-emerald-400 shadow-md' : 'bg-[#0a1217] border-slate-800 text-slate-400'
             }`}
           >
             <Car className="w-4 h-4" />
@@ -361,7 +467,7 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
             </div>
           </div>
 
-          {/* BLOC CONDITIONS DYNAMIQUES : MÉTÉO, FLUIDITÉ & CONGESTION */}
+          {/* BLOC CONDITIONS DYNAMIQUES */}
           <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl space-y-3">
             <div className="flex items-center space-x-2 text-white font-bold border-b border-slate-800 pb-2">
               <ShieldAlert className="w-4 h-4 text-sky-400" />
@@ -369,7 +475,6 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-2.5 text-[10px]">
-              {/* Météo sur l'itinéraire */}
               <div className="bg-[#0a1217] p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
                 <span className="text-slate-300 flex items-center gap-1.5 font-bold">
                   <CloudSun className="w-3.5 h-3.5 text-amber-300" /> Météo itinéraire :
@@ -377,7 +482,6 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
                 <span className="text-slate-200 font-medium">Temps couvert (Routes sèches)</span>
               </div>
 
-              {/* Fluidité dynamique */}
               <div className="bg-[#0a1217] p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
                 <span className="text-slate-300 flex items-center gap-1.5 font-bold">
                   <Activity className="w-3.5 h-3.5 text-emerald-400" /> État du trafic :
@@ -387,7 +491,6 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
                 </span>
               </div>
 
-              {/* Points de congestion dynamiques */}
               <div className="bg-[#0a1217] p-2.5 rounded-xl border border-rose-900/40 flex items-start justify-between space-x-2">
                 <span className="text-slate-300 flex items-center gap-1.5 font-bold flex-shrink-0">
                   <AlertTriangle className="w-3.5 h-3.5 text-rose-400" /> Points de congestion :
@@ -400,12 +503,13 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
           </div>
 
           {activeMode === 'car' ? (
-            <div className="bg-[#111e25] border border-amber-500/20 rounded-2xl p-4 shadow-xl space-y-3">
+            <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-4 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-white font-bold flex items-center gap-1.5">
-                  <Fuel className="w-4 h-4 text-amber-400" />
+                  <Fuel className="w-4 h-4 text-emerald-400" />
                   BARÈME CARBURANTS (LUXEMBOURG)
                 </span>
+
                 <button
                   onClick={loadFuelPrices}
                   disabled={isRefreshingFuel}
@@ -419,15 +523,15 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
               <div className="grid grid-cols-3 gap-2">
                 <div className="p-2.5 rounded-xl bg-[#0a1217] border border-slate-800 text-center">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Super 95</span>
-                  <span className="text-sm font-extrabold text-amber-400 mt-1 block">{fuelPrices.super95}</span>
+                  <span className="text-sm font-extrabold text-emerald-400 mt-1 block">{fuelPrices.super95}</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-[#0a1217] border border-slate-800 text-center">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Super 98</span>
-                  <span className="text-sm font-extrabold text-amber-400 mt-1 block">{fuelPrices.super98}</span>
+                  <span className="text-sm font-extrabold text-emerald-400 mt-1 block">{fuelPrices.super98}</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-[#0a1217] border border-slate-800 text-center">
                   <span className="text-[9px] text-slate-400 font-bold uppercase block">Diesel</span>
-                  <span className="text-sm font-extrabold text-amber-400 mt-1 block">{fuelPrices.diesel}</span>
+                  <span className="text-sm font-extrabold text-emerald-400 mt-1 block">{fuelPrices.diesel}</span>
                 </div>
               </div>
 
@@ -436,7 +540,7 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
                   href="https://www.acl.lu/fr/mobilite/prix-des-carburants/" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-[10px] text-amber-400 hover:underline inline-flex items-center gap-1 font-mono"
+                  className="text-[10px] text-emerald-400 hover:underline inline-flex items-center gap-1 font-mono"
                 >
                   <span>Cours officiels ACL</span>
                   <ExternalLink className="w-3 h-3" />
@@ -505,16 +609,16 @@ export const TripsPage: React.FC<TripsPageProps> = () => {
 
         </div>
 
-        {/* Carte Google Maps */}
+        {/* Carte Google Maps optimisée (avec paramètres de langue et de centrage précis) */}
         <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl h-[520px] overflow-hidden relative">
           <iframe
-            key={activeMode}
+            key={`${activeMode}-${activeTrip?.id}`}
             title="Carte interactive du trajet"
             width="100%"
             height="100%"
             style={{ border: 0, borderRadius: '12px', filter: 'invert(90%) hue-rotate(180deg)' }}
             loading="lazy"
-            src={`https://maps.google.com/maps?saddr=${originQuery}&daddr=${destQuery}&dirflg=${activeMode === 'bus' ? 'r' : 'd'}&output=embed`}
+            src={`https://maps.google.com/maps?saddr=${originQuery}&daddr=${destQuery}&dirflg=${activeMode === 'bus' ? 'r' : 'd'}&hl=fr&output=embed`}
           />
         </div>
 

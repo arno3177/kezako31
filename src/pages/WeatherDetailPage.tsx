@@ -24,30 +24,28 @@ type WeatherTab = 'temp' | 'aqi' | 'uv' | 'activities';
 
 const STORAGE_KEY = 'weather_saved_cities';
 
-// --- CONFIGURATION DES LED : BLEU (Froid) -> VERT (Doux) -> ORANGE (Chaud) -> ROUGE (Canicule) ---
 const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderClass: string }> = {
-  9: { bars: 3, colorClass: 'bg-red-700 shadow-[0_0_8px_#b91c1c]', borderClass: 'border-red-700/30' },       // Rouge foncé (> 35°C)
-  8: { bars: 2, colorClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]', borderClass: 'border-red-500/30' },       // Rouge moyen (32°C - 35°C)
-  7: { bars: 1, colorClass: 'bg-orange-600 shadow-[0_0_8px_#ea580c]', borderClass: 'border-orange-600/30' }, // Orange foncé (28°C - 31°C)
-  6: { bars: 3, colorClass: 'bg-orange-400 shadow-[0_0_8px_#fb923c]', borderClass: 'border-orange-400/30' }, // Orange clair (27°C - 28°C)
-  5: { bars: 2, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' }, // Vert moyen (22°C - 26°C)
-  4: { bars: 1, colorClass: 'bg-emerald-300 shadow-[0_0_8px_#6ee7b7]', borderClass: 'border-emerald-300/30' }, // Vert clair (17°C - 21°C -> 19°C)
-  3: { bars: 3, colorClass: 'bg-blue-700 shadow-[0_0_8px_#1d4ed8]', borderClass: 'border-blue-700/30' },       // Bleu foncé (12°C - 16°C)
-  2: { bars: 2, colorClass: 'bg-blue-500 shadow-[0_0_8px_#3b82f6]', borderClass: 'border-blue-500/30' },       // Bleu moyen (5°C - 11°C)
-  1: { bars: 1, colorClass: 'bg-blue-900 shadow-[0_0_8px_#1e3a8a]', borderClass: 'border-blue-900/30' },       // Bleu très foncé (< 5°C)
+  9: { bars: 3, colorClass: 'bg-red-700 shadow-[0_0_8px_#b91c1c]', borderClass: 'border-red-700/30' },
+  8: { bars: 2, colorClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]', borderClass: 'border-red-500/30' },
+  7: { bars: 1, colorClass: 'bg-orange-600 shadow-[0_0_8px_#ea580c]', borderClass: 'border-orange-600/30' },
+  6: { bars: 3, colorClass: 'bg-orange-400 shadow-[0_0_8px_#fb923c]', borderClass: 'border-orange-400/30' },
+  5: { bars: 2, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' },
+  4: { bars: 1, colorClass: 'bg-emerald-300 shadow-[0_0_8px_#6ee7b7]', borderClass: 'border-emerald-300/30' },
+  3: { bars: 3, colorClass: 'bg-blue-700 shadow-[0_0_8px_#1d4ed8]', borderClass: 'border-blue-700/30' },
+  2: { bars: 2, colorClass: 'bg-blue-500 shadow-[0_0_8px_#3b82f6]', borderClass: 'border-blue-500/30' },
+  1: { bars: 1, colorClass: 'bg-blue-900 shadow-[0_0_8px_#1e3a8a]', borderClass: 'border-blue-900/30' },
 };
 
-// --- GESTION DES TRANCHES DE TEMPÉRATURE EXACTES ---
 const getLedLevelForTemp = (temp: number): number => {
-  if (temp < 5) return 1;    // Niveau 1 : < 5°C (Bleu foncé)
-  if (temp <= 11) return 2;  // Niveau 2 : 5°C à 11°C (Bleu moyen)
-  if (temp <= 16) return 3;  // Niveau 3 : 12°C à 16°C (Bleu foncé)
-  if (temp <= 21) return 4;  // Niveau 4 : 17°C à 21°C (Vert clair - 19°C tombe ici)
-  if (temp <= 26) return 5;  // Niveau 5 : 22°C à 26°C (Vert moyen)
-  if (temp <= 28) return 6;  // Niveau 6 : 27°C à 28°C (Orange clair)
-  if (temp <= 31) return 7;  // Niveau 7 : 29°C à 31°C (Orange foncé)
-  if (temp <= 35) return 8;  // Niveau 8 : 32°C à 35°C (Rouge moyen)
-  return 9;                  // Niveau 9 : > 35°C (Rouge foncé)
+  if (temp < 5) return 1;
+  if (temp <= 11) return 2;
+  if (temp <= 16) return 3;
+  if (temp <= 21) return 4;
+  if (temp <= 26) return 5;
+  if (temp <= 28) return 6;
+  if (temp <= 31) return 7;
+  if (temp <= 35) return 8;
+  return 9;
 };
 
 const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
@@ -136,8 +134,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
   const [showCitySettings, setShowCitySettings] = useState<boolean>(false);
   const [newCityInput, setNewCityInput] = useState<string>('');
-  
-  // États pour l'autocomplétion des villes
   const [suggestions, setSuggestions] = useState<Array<{ name: string; country: string; admin1?: string }>>([]);
 
   useEffect(() => {
@@ -210,7 +206,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const currentTemp = Number((currentWeather as any)?.temperature ?? 20);
   const currentWind = Number(currentWeather?.windSpeed ?? 10);
 
-  // GESTION DE LA PRÉVENTION DOUCE (SANS LE MOT "ALERTE")
   const activePrevention = useMemo(() => {
     if (currentTemp > 32) {
       return { 
@@ -298,6 +293,95 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   return (
     <div className="space-y-4 text-xs animate-fade-in text-slate-200 w-full max-w-full overflow-x-hidden pb-10 px-2 relative">
       
+      {/* MODALE PLACÉE EN HAUT (Même taille max-w-lg et mêmes couleurs Météo Teal) */}
+      {showCitySettings && (
+        <div className="fixed inset-0 z-[99999] flex items-start justify-center pt-12 bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-[#121622] border border-teal-500/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
+            
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-teal-400" /> Ajouter une nouvelle ville
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setShowCitySettings(false)}
+                className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 relative">
+              <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Nom de la ville</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ex: Luxembourg, Paris..."
+                  value={newCityInput}
+                  onChange={(e) => setNewCityInput(e.target.value)}
+                  className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              {/* Suggestions d'autocomplétion en direct */}
+              {suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0f17] border border-teal-500/40 rounded-xl shadow-2xl z-50 overflow-hidden max-h-44 overflow-y-auto">
+                  {suggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleAddCityName(item.name)}
+                      className="w-full text-left px-3 py-2.5 text-xs text-slate-200 hover:bg-teal-500/20 hover:text-white flex items-center justify-between transition-colors border-b border-slate-800/50 last:border-none cursor-pointer"
+                    >
+                      <span className="font-bold">{item.name}</span>
+                      <span className="text-[10px] text-teal-400/80">{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Villes enregistrées ({cities.length})</label>
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                {cities.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic py-2 text-center">Aucune ville enregistrée.</p>
+                ) : (
+                  cities.map((city) => (
+                    <div 
+                      key={city} 
+                      className="flex items-center justify-between bg-[#0d0f17] border border-slate-800 px-3.5 py-2.5 rounded-xl"
+                    >
+                      <span className="font-bold text-white text-xs">{city}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemove(e, city)}
+                        className="text-rose-400 hover:text-rose-300 p-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg cursor-pointer transition-all flex items-center gap-1 text-[10px]"
+                        title="Supprimer cette ville"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Supprimer</span>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCitySettings(false)}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-bold cursor-pointer transition-all"
+              >
+                Fermer
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* 1. En-tête Météo & Liste des villes */}
       <div className="bg-[#16182a] border border-teal-500/20 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
         <div className="flex items-center justify-between">
@@ -745,111 +829,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
       </div>
-
-      {/* MODALE DE GESTION DES VILLES */}
-      {showCitySettings && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-[#16182a] border border-teal-500/50 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Settings className="w-4 h-4 text-teal-400" /> Gestionnaire des Villes
-              </h3>
-              <button 
-                type="button"
-                onClick={() => setShowCitySettings(false)}
-                className="p-1.5 text-slate-400 hover:text-white bg-[#0d0f17] border border-slate-800 rounded-xl cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2 relative">
-              <label className="text-[10px] text-slate-300 font-semibold block">Ajouter une ville (Recherche automatique)</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Tapez une ville (ex: Rome, Paris...)"
-                  value={newCityInput}
-                  onChange={(e) => setNewCityInput(e.target.value)}
-                  className="flex-1 bg-[#0d0f17] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                />
-                <button
-                  type="button"
-                  disabled={!newCityInput.trim() || suggestions.length === 0}
-                  onClick={() => {
-                    if (suggestions.length > 0) {
-                      handleAddCityName(suggestions[0].name);
-                    }
-                  }}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
-                    !newCityInput.trim() || suggestions.length === 0
-                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                      : 'bg-teal-600 hover:bg-teal-500 text-white cursor-pointer shadow-md'
-                  }`}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Ajouter
-                </button>
-              </div>
-
-              {/* Suggestions d'autocomplétion en direct */}
-              {suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0f17] border border-teal-500/40 rounded-xl shadow-2xl z-50 overflow-hidden max-h-40 overflow-y-auto">
-                  {suggestions.map((item, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleAddCityName(item.name)}
-                      className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-teal-500/20 hover:text-white flex items-center justify-between transition-colors border-b border-slate-800/50 last:border-none cursor-pointer"
-                    >
-                      <span className="font-bold">{item.name}</span>
-                      <span className="text-[9px] text-teal-400/80">{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <label className="text-[10px] text-slate-300 font-semibold block">Villes enregistrées ({cities.length})</label>
-              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                {cities.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-2 text-center">Aucune ville dans la liste.</p>
-                ) : (
-                  cities.map((city) => (
-                    <div 
-                      key={city} 
-                      className="flex items-center justify-between bg-[#0d0f17] border border-slate-800 px-3 py-2 rounded-xl"
-                    >
-                      <span className="font-semibold text-white">{city}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleRemove(e, city)}
-                        className="text-rose-400 hover:text-rose-300 p-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg cursor-pointer transition-all flex items-center gap-1"
-                        title="Supprimer cette ville"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span className="text-[9px]">Supprimer</span>
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-800 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowCitySettings(false)}
-                className="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all"
-              >
-                Fermer
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );
