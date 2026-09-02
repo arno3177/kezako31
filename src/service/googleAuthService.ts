@@ -32,10 +32,16 @@ const loadGoogleScript = (): Promise<void> => {
 
 export const GoogleAuthService = {
   async init() {
-    console.log("[Auth] Initialisation, plateforme native ?", Capacitor.isNativePlatform());
+    console.log("[Auth] Init démarrée. Natif :", Capacitor.isNativePlatform());
     if (Capacitor.isNativePlatform()) {
       try {
-        await GoogleAuth.initialize();
+        console.log("[Auth] Appel de GoogleAuth.initialize()...");
+        await GoogleAuth.initialize({
+          clientId: '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com',
+          scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+          grantOfflineAccess: true,
+        });
+        console.log("[Auth] GoogleAuth.initialize() réussi !");
       } catch (e: any) {
         console.error("[Auth] Erreur init GoogleAuth natif:", JSON.stringify(e));
       }
@@ -49,7 +55,6 @@ export const GoogleAuthService = {
     const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
     if (!token || !expiry) return null;
     if (Date.now() > parseInt(expiry, 10)) {
-      console.log("[Auth] Token expiré, suppression.");
       this.clearToken();
       return null;
     }
@@ -60,7 +65,6 @@ export const GoogleAuthService = {
     const expiryTime = Date.now() + expiresIn * 1000;
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
-    console.log("[Auth] Token stocké avec succès dans localStorage.");
   },
 
   clearToken() {
@@ -70,41 +74,36 @@ export const GoogleAuthService = {
 
   async signIn(): Promise<string | null> {
     try {
-      console.log("[Auth] Tentative de connexion lancée...");
+      console.log("[Auth] signIn() déclenché.");
       
       if (Capacitor.isNativePlatform()) {
-        console.log("[Auth] Appel de GoogleAuth.signIn() en mode natif...");
+        console.log("[Auth] Avant GoogleAuth.signIn()...");
+        
+        // Forcer l'appel natif avec un timeout de sécurité pour voir s'il freeze
         const googleUser = await GoogleAuth.signIn();
         
-        // On convertit l'objet en JSON pour l'afficher lisiblement dans la console de debug de l'écran
-        console.log("[Auth] Réponse native brute :", JSON.stringify(googleUser));
+        console.log("[Auth] Après GoogleAuth.signIn() ! Réponse :", JSON.stringify(googleUser));
         
-        const accessToken = googleUser.authentication?.accessToken;
+        const accessToken = googleUser?.authentication?.accessToken;
         if (accessToken) {
           this.storeToken(accessToken);
           return accessToken;
         } else {
-          console.error("[Auth] Aucun accessToken trouvé dans l'objet natif reçu.");
+          console.error("[Auth] AccessToken introuvable dans l'objet retourné.");
         }
       } else {
-        console.log("[Auth] Lancement du client GSI Web (popup)...");
+        console.log("[Auth] Mode Web détecté.");
         await loadGoogleScript();
         
-        if (!(window as any).google?.accounts?.oauth2) {
-          throw new Error("L'API Google Identity Services n'est pas disponible.");
-        }
-
         return new Promise((resolve) => {
           const client = (window as any).google.accounts.oauth2.initTokenClient({
             client_id: '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com',
             scope: 'https://www.googleapis.com/auth/gmail.readonly',
             callback: (response: any) => {
-              console.log("[Auth] Callback GSI Web reçu :", JSON.stringify(response));
               if (response && response.access_token) {
                 this.storeToken(response.access_token, response.expires_in);
                 resolve(response.access_token);
               } else {
-                console.error("[Auth] Réponse GSI invalide ou pas d'access_token.");
                 resolve(null);
               }
             },
@@ -114,9 +113,8 @@ export const GoogleAuthService = {
       }
       return null;
     } catch (error: any) {
-      // Capture et affichage détaillé de l'erreur brute (très utile pour voir le code d'erreur natif Android)
-      const errorMsg = typeof error === 'object' ? JSON.stringify(error) : error.message || String(error);
-      console.error("[Auth] Erreur critique attrapée:", errorMsg);
+      const errStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      console.error("[Auth] ERREUR CATCHEE dans signIn :", errStr);
       return null;
     }
   }
