@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
-import { auth, googleProvider, signInWithPopup, signOut } from '../firebase';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { auth, signOut } from '../firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { GoogleAuthService } from '../service/googleAuthService';
 
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
-  Thermometer, ArrowLeft, ShieldCheck, LogIn, LogOut, User as UserIcon
+  Thermometer, ArrowLeft, ShieldCheck, LogOut, User as UserIcon
 } from 'lucide-react';
 
 interface SettingsPageProps { 
@@ -59,35 +60,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Connexion : Natif Android/iOS sur mobile, Popup sur Web
-  const handleLogin = async () => {
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        
-        if (result.credential?.idToken) {
-          const credential = GoogleAuthProvider.credential(
-            result.credential.idToken,
-            result.credential.accessToken
-          );
-          await signInWithCredential(auth, credential);
-          console.log("Connecté nativement avec succès !");
-        }
-      } else {
-        await signInWithPopup(auth, googleProvider);
-      }
-    } catch (error: any) {
-      console.error("Erreur de connexion :", error);
-      alert("Erreur Login: " + (error?.message || JSON.stringify(error)));
-    }
-  };
-
   const handleLogout = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
         await FirebaseAuthentication.signOut();
       }
       await signOut(auth);
+      
+      // Nettoyage complet des tokens Workspace stockés en local
+      GoogleAuthService.clearToken();
+      
+      console.log("Déconnexion complète effectuée avec succès !");
     } catch (error: any) {
       console.error("Erreur de déconnexion :", error);
     }
@@ -128,11 +111,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {t.generalSettings}
         </div>
 
-        {/* WIDGET DE CONNEXION GOOGLE */}
+        {/* SECTION COMPTE GOOGLE / DÉCONNEXION */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Authentification Google</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Compte Google Workspace</h2>
           </div>
 
           {user ? (
@@ -153,24 +136,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
+                className="px-3.5 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Déconnexion</span>
+                <span>Se déconnecter</span>
               </button>
             </div>
           ) : (
-            <div className="space-y-3 pt-1">
-              <p className="text-slate-400 text-[11px] leading-relaxed">
-                Connectez-vous avec votre compte Google pour débloquer l'accès aux fonctionnalités avancées en toute sécurité.
+            <div className="pt-1">
+              <p className="text-slate-400 text-[11px] italic">
+                Aucun compte Google connecté pour le moment.
               </p>
-              <button
-                onClick={handleLogin}
-                className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer text-xs"
-              >
-                <LogIn className="w-4 h-4 text-indigo-600" />
-                <span>Se connecter avec Google</span>
-              </button>
             </div>
           )}
         </div>
