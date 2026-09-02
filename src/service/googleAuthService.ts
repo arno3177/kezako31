@@ -36,8 +36,8 @@ export const GoogleAuthService = {
     if (Capacitor.isNativePlatform()) {
       try {
         await GoogleAuth.initialize();
-      } catch (e) {
-        console.error("[Auth] Erreur init GoogleAuth natif:", e);
+      } catch (e: any) {
+        console.error("[Auth] Erreur init GoogleAuth natif:", JSON.stringify(e));
       }
     } else {
       await loadGoogleScript();
@@ -75,14 +75,16 @@ export const GoogleAuthService = {
       if (Capacitor.isNativePlatform()) {
         console.log("[Auth] Appel de GoogleAuth.signIn() en mode natif...");
         const googleUser = await GoogleAuth.signIn();
-        console.log("[Auth] Réponse native reçue :", googleUser);
+        
+        // On convertit l'objet en JSON pour l'afficher lisiblement dans la console de debug de l'écran
+        console.log("[Auth] Réponse native brute :", JSON.stringify(googleUser));
         
         const accessToken = googleUser.authentication?.accessToken;
         if (accessToken) {
           this.storeToken(accessToken);
           return accessToken;
         } else {
-          console.error("[Auth] Aucun accessToken trouvé dans la réponse native.");
+          console.error("[Auth] Aucun accessToken trouvé dans l'objet natif reçu.");
         }
       } else {
         console.log("[Auth] Lancement du client GSI Web (popup)...");
@@ -97,12 +99,12 @@ export const GoogleAuthService = {
             client_id: '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com',
             scope: 'https://www.googleapis.com/auth/gmail.readonly',
             callback: (response: any) => {
-              console.log("[Auth] Callback GSI Web reçu :", response);
+              console.log("[Auth] Callback GSI Web reçu :", JSON.stringify(response));
               if (response && response.access_token) {
                 this.storeToken(response.access_token, response.expires_in);
                 resolve(response.access_token);
               } else {
-                console.error("[Auth] Réponse GSI invalide ou pas d'access_token :", response);
+                console.error("[Auth] Réponse GSI invalide ou pas d'access_token.");
                 resolve(null);
               }
             },
@@ -111,8 +113,10 @@ export const GoogleAuthService = {
         });
       }
       return null;
-    } catch (error) {
-      console.error("[Auth] Erreur critique lors de la connexion Google:", error);
+    } catch (error: any) {
+      // Capture et affichage détaillé de l'erreur brute (très utile pour voir le code d'erreur natif Android)
+      const errorMsg = typeof error === 'object' ? JSON.stringify(error) : error.message || String(error);
+      console.error("[Auth] Erreur critique attrapée:", errorMsg);
       return null;
     }
   }
