@@ -50,29 +50,48 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const t = getTranslation(settings.language);
   const isLuxembourg = settings.country === 'LU' || settings.country === 'Luxembourg';
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(auth.currentUser);
 
   // Écoute de l'état d'authentification Firebase
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
     return () => unsubscribe();
   }, []);
 
+  // Vérification combinée et large : Firebase, service Google ou localStorage direct
+  const hasActiveSession = 
+    user !== null || 
+    auth.currentUser !== null || 
+    GoogleAuthService.getStoredToken() !== null ||
+    localStorage.getItem('google_workspace_access_token') !== null ||
+    localStorage.getItem('google_access_token') !== null;
+
   const handleLogout = async () => {
     try {
+      console.log("Début de la déconnexion...");
       if (Capacitor.isNativePlatform()) {
-        await FirebaseAuthentication.signOut();
+        await FirebaseAuthentication.signOut().catch(() => {});
       }
-      await signOut(auth);
+      await signOut(auth).catch(() => {});
       
-      // Nettoyage complet des tokens Workspace stockés en local
+      // Nettoyage radical de tous les tokens et clés de stockage local
       GoogleAuthService.clearToken();
+      localStorage.removeItem('google_workspace_access_token');
+      localStorage.removeItem('google_access_token');
       
-      console.log("Déconnexion complète effectuée avec succès !");
+      setUser(null);
+      console.log("Déconnexion réussie, rechargement de l'application...");
+
+      // Force le rechargement pour réinitialiser toute l'interface et cacher les modules Workspace
+      window.location.reload();
     } catch (error: any) {
-      console.error("Erreur de déconnexion :", error);
+      console.error("Erreur lors de la déconnexion :", error);
+      // Même en cas d'erreur, on force le nettoyage et le rechargement local
+      GoogleAuthService.clearToken();
+      localStorage.clear();
+      window.location.reload();
     }
   };
 
@@ -118,10 +137,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <h2 className="text-xs font-bold uppercase tracking-wider text-white">Compte Google Workspace</h2>
           </div>
 
-          {user ? (
+          {hasActiveSession ? (
             <div className="flex items-center justify-between pt-2">
               <div className="flex items-center space-x-3">
-                {user.photoURL ? (
+                {user?.photoURL ? (
                   <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full border border-indigo-500" />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white">
@@ -129,8 +148,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   </div>
                 )}
                 <div>
-                  <div className="font-bold text-white text-xs">{user.displayName}</div>
-                  <div className="text-[10px] text-slate-400">{user.email}</div>
+                  <div className="font-bold text-white text-xs">{user?.displayName || 'Utilisateur Google'}</div>
+                  <div className="text-[10px] text-slate-400">{user?.email || 'Connecté via Workspace'}</div>
                 </div>
               </div>
 

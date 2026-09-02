@@ -295,17 +295,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '95625812104-r
             </button>
           )}
 
-          {/* Email ou statut utilisateur */}
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-teal-500/30 text-teal-300 text-[10px] font-mono">
-            {currentUser?.photoURL ? (
-              <img src={currentUser.photoURL} alt="Avatar" className="w-4 h-4 rounded-full object-cover" />
-            ) : (
-              <User className="w-3.5 h-3.5 text-teal-400" />
-            )}
-            <span className="truncate max-w-[150px]">
-              {currentUser ? currentUser.email || currentUser.displayName : 'Non connecté'}
-            </span>
-          </div>
+         
 
           {/* COMPOSANT DE CONNEXION GOOGLE WORKSPACE PERSISTANT */}
           <WorkspaceAuth 

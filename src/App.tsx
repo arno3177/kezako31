@@ -31,7 +31,9 @@ export function App() {
   const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [, setUser] = useState<User | null>(null);
+  
+  // Correction ici : l'état 'user' est désormais stocké et actif
+  const [user, setUser] = useState<User | null>(null);
 
   // Remonter automatiquement tout en haut de la page lors d'un changement d'onglet
   useEffect(() => {
@@ -252,7 +254,7 @@ export function App() {
         )}
       </main>
 
-      {/* CyberDock Flottant */}
+      {/* CyberDock Flottant avec transmission de l'état user */}
       <CyberDock
         currentView={activeTab as any}
         setCurrentView={(view: any) => setActiveTab(view)}
@@ -260,6 +262,7 @@ export function App() {
         savedCount={savedArticleIds.length}
         onOpenSaved={() => setActiveTab('saved')}
         onOpenShortcuts={() => setActiveTab('shortcuts')}
+        user={user}
       />
 
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { auth, googleProvider } from '../firebase';
-import { signInWithPopup, onAuthStateChanged } from 'firebase/auth';
-import { Calendar, Mail, CheckSquare, ExternalLink, User, Plus, Trash2, HardDrive, RefreshCw, Terminal } from 'lucide-react';
+import { auth } from '../firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { Calendar, Mail, CheckSquare, ExternalLink, User as UserIcon, Plus, Trash2, HardDrive, RefreshCw } from 'lucide-react';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
+import { GoogleAuthService } from '../service/googleAuthService';
 
 interface Task {
   id: string;
@@ -12,14 +13,13 @@ interface Task {
 }
 
 export const WorkspacePage: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
   
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
   const [isCheckingGmail, setIsCheckingGmail] = useState<boolean>(false);
-  const [debugLog, setDebugLog] = useState<string>('En attente de connexion...');
   
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => {
-    return localStorage.getItem('google_access_token');
+    return GoogleAuthService.getStoredToken();
   });
 
   const [tasks, setTasks] = useState<Task[]>(() => {
@@ -43,48 +43,16 @@ export const WorkspacePage: React.FC = () => {
     localStorage.setItem('workspace_tasks', JSON.stringify(tasks));
   }, [tasks]);
 
-  // Connexion Google et capture des tokens
-  const handleGoogleLogin = async () => {
-    try {
-      setDebugLog('Tentative de connexion Google avec scope Gmail...');
-      googleProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
-      googleProvider.setCustomParameters({ prompt: 'select_account' });
-
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      const credential = (window as any).firebase?.auth?.GoogleAuthProvider?.credentialFromResult(result);
-      let token = result ? (credential?.accessToken || (result as any)._tokenResponse?.oauthAccessToken) : null;
-      
-      if (!token && (result as any)._tokenResponse?.oauthAccessToken) {
-        token = (result as any)._tokenResponse.oauthAccessToken;
-      }
-
-      if (token) {
-        setGoogleAccessToken(token);
-        localStorage.setItem('google_access_token', token);
-        setDebugLog(`Token récupéré avec succès : ${token.substring(0, 15)}...`);
-        fetchUnreadEmailsCount(token);
-      } else {
-        setDebugLog('Connexion réussie mais token OAuth Gmail introuvable dans la réponse.');
-      }
-    } catch (error: any) {
-      console.error("Erreur de connexion Google:", error);
-      setDebugLog(`Erreur de connexion : ${error.message || error}`);
-    }
-  };
-
-  // Interrogation de l'API Gmail avec journalisation
+  // Interrogation de l'API Gmail avec le token stocké
   const fetchUnreadEmailsCount = async (token?: string) => {
-    const tokenToUse = token || googleAccessToken;
+    const tokenToUse = token || googleAccessToken || GoogleAuthService.getStoredToken();
     if (!tokenToUse) {
-      setDebugLog('Aucun googleAccessToken disponible pour effectuer le fetch.');
       setUnreadCount(null);
       setIsCheckingGmail(false);
       return;
     }
 
     setIsCheckingGmail(true);
-    setDebugLog('Appel de l\'API Gmail (labels/UNREAD)...');
 
     try {
       const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/labels/UNREAD', {
@@ -96,18 +64,14 @@ export const WorkspacePage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setUnreadCount(data.messagesUnread ?? 0);
-        setDebugLog(`Succès API ! Réponse brute : ${JSON.stringify(data)}`);
       } else {
-        const errorText = await response.text();
-        setDebugLog(`Erreur API Gmail [Statut ${response.status}] : ${errorText}`);
         if (response.status === 401) {
           setGoogleAccessToken(null);
-          localStorage.removeItem('google_access_token');
+          GoogleAuthService.clearToken();
         }
         setUnreadCount(null);
       }
     } catch (error: any) {
-      setDebugLog(`Erreur réseau : ${error.message || error}`);
       setUnreadCount(null);
     } finally {
       setIsCheckingGmail(false);
@@ -115,14 +79,22 @@ export const WorkspacePage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (googleAccessToken && currentUser) {
-      fetchUnreadEmailsCount(googleAccessToken);
+    const token = GoogleAuthService.getStoredToken();
+    if (token) {
+      setGoogleAccessToken(token);
+      fetchUnreadEmailsCount(token);
     }
-  }, [googleAccessToken, currentUser]);
+  }, []);
 
   const handleGmailClick = async () => {
-    if (!googleAccessToken) {
-      await handleGoogleLogin();
+    const token = GoogleAuthService.getStoredToken();
+    if (!token) {
+      // Si pas de token workspace, on tente de le récupérer via ton service unifié
+      const newToken = await GoogleAuthService.signIn();
+      if (newToken) {
+        setGoogleAccessToken(newToken);
+        fetchUnreadEmailsCount(newToken);
+      }
       return;
     }
 
@@ -156,32 +128,17 @@ export const WorkspacePage: React.FC = () => {
     }
   };
 
-  const handleAddTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskText.trim()) return;
-    setTasks(prev => [...prev, { id: Date.now().toString(), text: newTaskText.trim(), completed: false }]);
-    setNewTaskText('');
-  };
-
-  const toggleTask = (id: string) => {
-    tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
-  };
-
-  const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  };
-
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in text-xs pb-10">
       
-      {/* EN-TÊTE DU TABLEAU DE BORD */}
+      {/* EN-TÊTE DU TABLEAU DE BORD (Bouton de connexion retiré) */}
       <div className="bg-gradient-to-r from-[#16182a] via-[#1a1f38] to-[#16182a] border border-indigo-500/30 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center shadow-lg">
             {currentUser?.photoURL ? (
               <img src={currentUser.photoURL} alt="Avatar" className="w-10 h-10 rounded-xl object-cover" />
             ) : (
-              <User className="w-6 h-6" />
+              <UserIcon className="w-6 h-6" />
             )}
           </div>
           <div>
@@ -193,28 +150,9 @@ export const WorkspacePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {currentUser ? (
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Google: Connecté
-              </span>
-              {!googleAccessToken && (
-                <button
-                  onClick={handleGoogleLogin}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md cursor-pointer text-[10px]"
-                >
-                  Autoriser Gmail
-                </button>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={handleGoogleLogin}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-md cursor-pointer"
-            >
-              Se connecter avec Google
-            </button>
-          )}
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Workspace Actif
+          </span>
         </div>
       </div>
 
@@ -238,24 +176,22 @@ export const WorkspacePage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold text-white">Gmail</h2>
-                {googleAccessToken && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fetchUnreadEmailsCount();
-                    }}
-                    className="text-slate-400 hover:text-indigo-400 p-0.5 transition-colors"
-                    title="Actualiser les messages non lus"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGmail ? 'animate-spin text-indigo-400' : ''}`} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fetchUnreadEmailsCount();
+                  }}
+                  className="text-slate-400 hover:text-indigo-400 p-0.5 transition-colors"
+                  title="Actualiser les messages non lus"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGmail ? 'animate-spin text-indigo-400' : ''}`} />
+                </button>
               </div>
               <p className="text-[10px] text-slate-400">
                 {unreadCount !== null
                   ? (unreadCount > 0 ? `${unreadCount} message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}` : 'Aucun message non lu')
-                  : (googleAccessToken ? 'Vérification...' : 'Cliquez pour lier Gmail')}
+                  : 'Vérification des messages...'}
               </p>
             </div>
           </div>
@@ -302,29 +238,6 @@ export const WorkspacePage: React.FC = () => {
           <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
         </div>
 
-      </div>
-
-      {/* CONSOLE DE DÉBOGAGE GMAIL / TOKEN */}
-      <div className="bg-[#0b0e14] border border-indigo-500/30 rounded-2xl p-4 shadow-lg space-y-2 font-mono">
-        <div className="flex items-center justify-between border-b border-indigo-950 pb-2">
-          <span className="text-indigo-400 font-bold flex items-center gap-1.5 text-[11px]">
-            <Terminal className="w-3.5 h-3.5" /> Console de Débogage OAuth & Gmail API
-          </span>
-          <button
-            onClick={() => fetchUnreadEmailsCount()}
-            className="px-2.5 py-1 rounded bg-indigo-950 text-indigo-300 hover:bg-indigo-900 transition-colors text-[9px]"
-          >
-            Tester l'appel API
-          </button>
-        </div>
-        <div className="space-y-1 text-[10px]">
-          <p className="text-slate-400">
-            <strong className="text-slate-200">Token stocké :</strong> {googleAccessToken ? `${googleAccessToken.substring(0, 25)}...` : 'Aucun (null)'}
-          </p>
-          <p className="text-slate-400">
-            <strong className="text-slate-200">Statut / Log :</strong> <span className="text-emerald-300">{debugLog}</span>
-          </p>
-        </div>
       </div>
 
     </div>

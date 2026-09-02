@@ -3,6 +3,7 @@ import { Home, CloudSun, Navigation, Briefcase, Cpu, X, Newspaper, Bookmark, Set
 import { PageView } from '../types';
 import { auth } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { GoogleAuthService } from '../service/googleAuthService';
 
 interface CyberDockProps {
   currentView: string;
@@ -11,6 +12,7 @@ interface CyberDockProps {
   savedCount?: number;
   onOpenSaved?: () => void;
   onOpenShortcuts?: () => void;
+  user?: User | null;
 }
 
 export const CyberDock: React.FC<CyberDockProps> = ({ 
@@ -18,17 +20,49 @@ export const CyberDock: React.FC<CyberDockProps> = ({
   setCurrentView, 
   savedCount = 0,
   onOpenSaved,
-  onOpenShortcuts
+  onOpenShortcuts,
+  user: propUser
 }) => {
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(propUser !== undefined ? propUser : null);
+  const [, setTokenTrigger] = useState<number>(0);
 
   useEffect(() => {
+    if (propUser !== undefined) {
+      setUser(propUser);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
+
     return () => unsubscribe();
+  }, [propUser]);
+
+  // Écouteur réactif pour rafraîchir instantanément le dock dès qu'un token change
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setTokenTrigger(prev => prev + 1);
+      setUser(auth.currentUser);
+    };
+
+    window.addEventListener('storage', handleAuthChange);
+    window.addEventListener('workspace-auth-changed', handleAuthChange);
+
+    return () => {
+      window.removeEventListener('storage', handleAuthChange);
+      window.removeEventListener('workspace-auth-changed', handleAuthChange);
+    };
   }, []);
+
+  // Vérification stricte et synchro avec la page de réglages (sans forçage à true)
+  const isWorkspaceConnected = 
+    user !== null || 
+    auth.currentUser !== null || 
+    GoogleAuthService.getStoredToken() !== null ||
+    localStorage.getItem('google_workspace_access_token') !== null ||
+    localStorage.getItem('google_access_token') !== null;
 
   const handleNavigate = (view: string) => {
     setCurrentView(view as any);
@@ -105,10 +139,10 @@ export const CyberDock: React.FC<CyberDockProps> = ({
                 <h3 className="text-xs font-bold text-white">Réglages</h3>
               </div>
 
-              {user && (
+              {isWorkspaceConnected && (
                 <div onClick={() => handleNavigate('workspace')} className="p-4 rounded-2xl bg-[#101320] border border-slate-800 hover:border-indigo-500/40 cursor-pointer col-span-2">
                   <div className="flex items-center gap-2 mb-2">
-                    {user.photoURL ? (
+                    {user?.photoURL ? (
                       <img src={user.photoURL} alt="Avatar" className="w-5 h-5 rounded-full border border-purple-400" />
                     ) : (
                       <Briefcase className="w-5 h-5 text-purple-400" />
@@ -163,18 +197,16 @@ export const CyberDock: React.FC<CyberDockProps> = ({
           <span className="text-[8px] font-mono tracking-wider">TRAJETS</span>
         </button>
 
-        {/* WORKSPACE AVEC PHOTO GOOGLE DU USER */}
-        {user && (
+        {/* WORKSPACE */}
+        {isWorkspaceConnected && (
           <button onClick={() => setCurrentView('workspace')} className={`relative flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${currentView === 'workspace' ? 'text-purple-400 scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
             
-            {/* Badge vert pulsant */}
             <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 z-10">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-black"></span>
             </span>
 
-            {/* Photo de profil de l'utilisateur Google */}
-            {user.photoURL ? (
+            {user?.photoURL ? (
               <img 
                 src={user.photoURL} 
                 alt="Avatar Google" 
@@ -182,7 +214,7 @@ export const CyberDock: React.FC<CyberDockProps> = ({
               />
             ) : (
               <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[8px] font-bold text-white">
-                {user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon className="w-2.5 h-2.5" />}
+                {user?.displayName ? user.displayName.charAt(0).toUpperCase() : <UserIcon className="w-2.5 h-2.5" />}
               </div>
             )}
 
