@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Article, AppSettings } from '../types';
 import { getTranslation } from '../utils/translations';
 import { 
   Bookmark, Clock, ChevronRight, 
   ArrowLeft, ExternalLink, Terminal, Newspaper,
-  Car, Bus, Sun, Briefcase, Building2, ShieldAlert, Zap, Globe
+  Car, Bus, Sun, Briefcase, Building2, ShieldAlert, Zap, Globe, RefreshCw, CheckCircle2
 } from 'lucide-react';
 
 interface SourcesNewsPageProps {
@@ -28,36 +28,82 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
   const [activeSourceFilter, setActiveSourceFilter] = useState<'all' | 'franceinfo' | 'essentiel'>('all');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fonction pour attribuer un thème de couleur subtil selon la source
+  // État pour la popup et les titres des NOUVEAUX articles uniquement
+  const [showPopup, setShowPopup] = useState(false);
+  const [newFetchedArticles, setNewFetchedArticles] = useState<Article[]>([]);
+
+  // Garde en mémoire les IDs des articles déjà connus au chargement initial
+  const knownArticleIdsRef = useRef<Set<string>>(new Set(articles.map(a => a.id)));
+
+  // État pour suivre la position exacte du scroll
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Action de rafraîchissement : isole uniquement les articles jamais vus/chargés auparavant
+  const handleRefreshNews = () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setActiveSourceFilter('all');
+    setActiveCategory('all');
+    setSearchFilter('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Détecte les articles présents dans le state global qui ne sont PAS dans la liste des connus
+    const brandNewArticles = articles.filter(art => !knownArticleIdsRef.current.has(art.id));
+
+    // Met à jour la liste des connus avec les nouveaux articles trouvés
+    articles.forEach(art => knownArticleIdsRef.current.add(art.id));
+
+    setNewFetchedArticles(brandNewArticles);
+    setShowPopup(true);
+
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
+
+    // Masque la popup après 5 secondes exactes
+    setTimeout(() => {
+      setShowPopup(false);
+    }, 5000);
+  };
+
+  // Attribuer un thème de couleur subtil selon la source
   const getSourceTheme = (source = '') => {
     const src = source.toLowerCase();
     if (src.includes('franceinfo') || src.includes('france')) {
       return {
-        badge: 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300',
-        border: 'border-indigo-500/40 hover:border-indigo-400',
+        badge: 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.3)]',
+        border: 'border-indigo-500/40 hover:border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.15)]',
         accentText: 'text-indigo-400',
-        glow: 'from-indigo-950/40 to-[#05080f]'
+        glow: 'from-indigo-950/60 via-[#070b14] to-[#05080f]'
       };
     }
     if (src.includes('essentiel')) {
       return {
-        badge: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300',
-        border: 'border-emerald-500/40 hover:border-emerald-400',
+        badge: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]',
+        border: 'border-emerald-500/40 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]',
         accentText: 'text-emerald-400',
-        glow: 'from-emerald-950/40 to-[#05080f]'
+        glow: 'from-emerald-950/60 via-[#070b14] to-[#05080f]'
       };
     }
-    // Thème par défaut (Cyber Cyan)
     return {
-      badge: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300',
-      border: 'border-cyan-500/40 hover:border-cyan-400',
+      badge: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]',
+      border: 'border-cyan-500/40 hover:border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.15)]',
       accentText: 'text-cyan-400',
-      glow: 'from-cyan-950/40 to-[#05080f]'
+      glow: 'from-cyan-950/60 via-[#070b14] to-[#05080f]'
     };
   };
 
-  // Fonction pour déterminer l'icône selon la thématique de l'article
+  // Déterminer l'icône selon la thématique de l'article
   const getCategoryIcon = (title = '', source = '') => {
     const text = (title + ' ' + source).toLowerCase();
     if (text.includes('trafic') || text.includes('bus') || text.includes('route') || text.includes('train')) return <Bus className="w-3.5 h-3.5 text-sky-400" />;
@@ -103,9 +149,55 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
   const centerTheme = centerArticle ? getSourceTheme(centerArticle.source) : null;
 
   return (
-    <div className="space-y-6 animate-fade-in text-xs w-full max-w-7xl mx-auto pb-16 px-4">
+    <div className="space-y-6 animate-fade-in text-xs w-full max-w-7xl mx-auto pb-32 px-4 relative">
       
-      {/* 1. HEADER HUD / EN-TÊTE TYPE MANCHETTE DE GAZETTE */}
+      {/* POPUP DE NOTIFICATION (5 SECONDES - UNIQUEMENT LES NOUVEAUX ARTICLES) */}
+      {showPopup && (
+        <div className="fixed inset-x-0 top-6 z-[9999999] flex justify-center pointer-events-none px-4 animate-fade-in">
+          <div className="bg-[#090d16]/95 border-2 border-cyan-400 text-cyan-200 p-5 rounded-2xl shadow-[0_0_40px_rgba(6,182,212,0.8)] backdrop-blur-xl max-w-lg w-full font-mono space-y-3">
+            <div className="flex items-center gap-3 border-b border-cyan-500/30 pb-2">
+              <CheckCircle2 className="w-5 h-5 text-cyan-400 animate-pulse shrink-0" />
+              <div>
+                <p className="font-bold uppercase tracking-wider text-white text-xs">[REFRESH_DONE]</p>
+                <p className="text-[10px] text-cyan-300">
+                  {newFetchedArticles.length > 0 
+                    ? `+${newFetchedArticles.length} nouveaux articles détectés :` 
+                    : "Aucun nouvel article pour le moment."}
+                </p>
+              </div>
+            </div>
+            {newFetchedArticles.length > 0 && (
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {newFetchedArticles.map((art) => (
+                  <div key={art.id} className="text-[11px] text-slate-300 bg-cyan-950/40 border border-cyan-500/20 rounded-lg p-2 flex items-start gap-2">
+                    <span className="text-cyan-400 font-bold shrink-0">&gt;</span>
+                    <span className="line-clamp-1 font-serif text-white">{art.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* BOUTON DE REFRESH RÉDUIT ET FLOTTANT AU RYTHME DU SCROLL */}
+      <div 
+        className="fixed right-5 z-[999999] pointer-events-auto"
+        style={{ 
+          top: `calc(50vh + ${scrollY}px)` 
+        }}
+      >
+        <button
+          onClick={handleRefreshNews}
+          disabled={isRefreshing}
+          className="p-2.5 rounded-xl bg-[#090d16]/95 hover:bg-cyan-950 border border-cyan-400/80 text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.6)] backdrop-blur-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group active:scale-95"
+          title="Rafraîchir le flux d'actualités"
+        >
+          <RefreshCw className={`w-4 h-4 transition-transform duration-700 ${isRefreshing ? 'animate-spin text-white' : 'group-hover:rotate-180'}`} />
+        </button>
+      </div>
+
+      {/* 1. HEADER HUD / EN-TÊTE ÉPURÉ */}
       <div className="relative bg-gradient-to-r from-[#090d16] via-[#0d1527] to-[#090d16] border-2 border-cyan-500/40 rounded-3xl p-6 md:p-8 shadow-[0_0_50px_rgba(6,182,212,0.1)] overflow-hidden text-center">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -154,17 +246,13 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
           </div>
         </div>
 
-        {/* TITRE PRINCIPAL STYLE CHRONICLE */}
+        {/* TITRE PRINCIPAL : NEWS FEED + DATE */}
         <div className="space-y-2 border-y-2 border-cyan-500/40 py-4 my-2 relative z-10">
           <div className="flex items-center justify-center gap-2 text-cyan-400 font-mono text-[10px] tracking-widest uppercase">
-            <span>[ EDITION SPECIALE ]</span>
-            <span>•</span>
-            <span>WORLD NEWS GLOBAL HEADLINES</span>
-            <span>•</span>
             <span>{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</span>
           </div>
           <h1 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase font-serif">
-            THE CYBER CHRONICLE
+            NEWS FEED
           </h1>
         </div>
 
@@ -174,7 +262,7 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
             <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400" />
             <input
               type="text"
-              placeholder="rechercher dans les archives de la chronicle..."
+              placeholder="rechercher dans le flux d'actualités..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
               className="w-full bg-[#05080f]/90 border border-cyan-500/30 rounded-2xl pl-11 pr-4 py-3 text-xs md:text-sm text-cyan-200 placeholder-cyan-700 focus:outline-none focus:border-cyan-400 font-mono transition-all shadow-inner"
@@ -374,7 +462,7 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
             <div className="pt-4 space-y-3">
               <div className="border-b border-cyan-500/30 pb-2">
                 <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
-                  // ARCHIVES SUPPLÉMENTAIRES DE LA CHRONICLE
+                  // ARCHIVES SUPPLÉMENTAIRES
                 </span>
               </div>
 
@@ -416,7 +504,7 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
       ) : (
         <div className="bg-[#090d16] border border-cyan-500/30 rounded-3xl p-12 text-center space-y-3 font-mono">
           <Newspaper className="w-10 h-10 text-cyan-500 mx-auto animate-pulse" />
-          <p className="text-sm text-cyan-300">[!] AUCUNE CHRONIQUE DISPONIBLE.</p>
+          <p className="text-sm text-cyan-300">[!] AUCUN ARTICLE DISPONIBLE.</p>
         </div>
       )}
 
