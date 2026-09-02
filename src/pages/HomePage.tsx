@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { auth } from '../firebase';
-import { WorkspaceAuth } from '../components/WorkspaceAuth';
+import { GoogleAuthService } from '../service/googleAuthService';
 import { fetchUnreadEmailCount } from '../service/gmailService';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
@@ -11,7 +11,7 @@ import {
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Trash2, Info, User, Mail
+  ExternalLink, Trash2, Info, Mail, UserCheck, UserX
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
@@ -99,18 +99,39 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const currentUser = auth.currentUser;
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  const [isWorkspaceConnected, setIsWorkspaceConnected] = useState<boolean>(() => {
+    return GoogleAuthService.getStoredToken() !== null || localStorage.getItem('google_workspace_access_token') !== null;
+  });
 
-  // Récupération sécurisée du client ID Web depuis le fichier .env
-  // Forcer la lecture directe ou utiliser une valeur de secours en dur si le .env n'est pas chargé
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com';
+  useEffect(() => {
+    const checkToken = () => {
+      const token = GoogleAuthService.getStoredToken() || localStorage.getItem('google_workspace_access_token');
+      setIsWorkspaceConnected(!!token);
+      if (token) {
+        fetchUnreadEmailCount(token).then(count => setUnreadCount(count)).catch(() => setUnreadCount(0));
+      }
+    };
+    checkToken();
 
-  const handleAuthenticated = async (token: string) => {
+    window.addEventListener('storage', checkToken);
+    window.addEventListener('workspace-auth-changed', checkToken);
+    return () => {
+      window.removeEventListener('storage', checkToken);
+      window.removeEventListener('workspace-auth-changed', checkToken);
+    };
+  }, []);
+
+  const handleGoogleLogin = async () => {
     try {
-      const count = await fetchUnreadEmailCount(token);
-      setUnreadCount(count);
+      const token = await GoogleAuthService.signIn();
+      if (token) {
+        setIsWorkspaceConnected(true);
+        const count = await fetchUnreadEmailCount(token);
+        setUnreadCount(count);
+        window.dispatchEvent(new Event('workspace-auth-changed'));
+      }
     } catch (error) {
-      console.error("Erreur lors de la récupération des e-mails :", error);
-      setUnreadCount(0);
+      console.error("Erreur de connexion Google:", error);
     }
   };
 
@@ -265,7 +286,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '95625812104-r
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* EN-TÊTE : CARTE AVEC GMAIL & WORKSPACE AUTH */}
+      {/* EN-TÊTE : CARTE AVEC GMAIL & BOUTON ICÔNE MINIMALISTE */}
       <div className="bg-gradient-to-r from-slate-900 via-teal-950/50 to-slate-900 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-indigo-500 shadow-[0_0_10px_#2dd4bf]" />
         
@@ -295,13 +316,34 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '95625812104-r
             </button>
           )}
 
-         
-
-          {/* COMPOSANT DE CONNEXION GOOGLE WORKSPACE PERSISTANT */}
-          <WorkspaceAuth 
-            clientId={GOOGLE_CLIENT_ID} 
-            onAuthenticated={handleAuthenticated} 
-          />
+          {/* ICÔNE D'ÉTAT DE CONNEXION WORKSPACE (CLiquable pour se connecter si déconnecté) */}
+          {!isWorkspaceConnected ? (
+            <button 
+              onClick={handleGoogleLogin}
+              className="relative p-2 rounded-xl bg-[#121622] hover:bg-[#1a1f30] border border-slate-800 hover:border-indigo-500/40 text-slate-400 hover:text-white transition-all cursor-pointer shadow-sm group"
+              title="Se connecter à Google Workspace"
+            >
+              <UserX className="w-4 h-4 group-hover:scale-110 transition-transform text-slate-400" />
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+            </button>
+          ) : (
+            <div 
+              className="relative p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 flex items-center justify-center shadow-sm"
+              title="Workspace Connecté"
+            >
+              {currentUser?.photoURL ? (
+                <img src={currentUser.photoURL} alt="Avatar" className="w-4 h-4 rounded-full object-cover" />
+              ) : (
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+              )}
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+              </span>
+            </div>
+          )}
 
           <div className="bg-black/50 border border-teal-500/20 px-3 py-1.5 rounded-xl text-right flex-shrink-0">
             <span className="text-[11px] font-mono font-black text-teal-300 block">
