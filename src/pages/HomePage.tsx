@@ -103,6 +103,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     return GoogleAuthService.getStoredToken() !== null || localStorage.getItem('google_workspace_access_token') !== null;
   });
 
+  // État de log visuel pour éviter et tracer le crash à l'écran
+  const [debugLog, setDebugLog] = useState<string | null>(null);
+
   useEffect(() => {
     const checkToken = () => {
       const token = GoogleAuthService.getStoredToken() || localStorage.getItem('google_workspace_access_token');
@@ -123,15 +126,20 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const handleGoogleLogin = async () => {
     try {
+      setDebugLog("Tentative d'authentification Google...");
       const token = await GoogleAuthService.signIn();
       if (token) {
         setIsWorkspaceConnected(true);
         const count = await fetchUnreadEmailCount(token);
         setUnreadCount(count);
         window.dispatchEvent(new Event('workspace-auth-changed'));
+        setDebugLog("Connexion Google réussie !");
+        setTimeout(() => setDebugLog(null), 3000);
       }
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.message || JSON.stringify(error) || "Erreur inconnue";
       console.error("Erreur de connexion Google:", error);
+      setDebugLog(`CRASH ÉVITÉ - Erreur : ${errorMessage}`);
     }
   };
 
@@ -286,6 +294,22 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
+      {/* CONSOLE DE LOG VISUELLE (POUR CAPTURER LE CRASH GOOGLE AUTH) */}
+      {debugLog && (
+        <div className="bg-rose-950/95 border-2 border-rose-500 text-rose-200 p-4 rounded-2xl shadow-[0_0_30px_rgba(244,63,94,0.6)] relative z-50 my-2 break-all flex items-start justify-between gap-3 font-mono">
+          <div>
+            <span className="font-bold text-white block text-sm">[LOG_DEBUG_GOOGLE]</span>
+            <p className="mt-1 text-xs">{debugLog}</p>
+          </div>
+          <button 
+            onClick={() => setDebugLog(null)}
+            className="text-rose-400 hover:text-white font-bold px-2 py-1 rounded-lg bg-black/40 text-xs shrink-0 cursor-pointer"
+          >
+            Fermer ✕
+          </button>
+        </div>
+      )}
+
       {/* EN-TÊTE : CARTE AVEC GMAIL & BOUTON ICÔNE MINIMALISTE */}
       <div className="bg-gradient-to-r from-slate-900 via-teal-950/50 to-slate-900 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-indigo-500 shadow-[0_0_10px_#2dd4bf]" />
@@ -316,7 +340,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           )}
 
-          {/* ICÔNE D'ÉTAT DE CONNEXION WORKSPACE (CLiquable pour se connecter si déconnecté) */}
+          {/* ICÔNE D'ÉTAT DE CONNEXION WORKSPACE */}
           {!isWorkspaceConnected ? (
             <button 
               onClick={handleGoogleLogin}
