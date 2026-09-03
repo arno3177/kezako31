@@ -6,6 +6,7 @@ import { getTranslation } from './utils/translations';
 import { Article, PageView, TemperatureUnit, AppSettings } from './types';
 import { auth } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { GoogleAuthService } from './service/googleAuthService'; // <--- Import indispensable
 import { HomePage } from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
@@ -32,8 +33,15 @@ export function App() {
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  // Correction ici : l'état 'user' est désormais stocké et actif
   const [user, setUser] = useState<User | null>(null);
+
+  // --- INITIALISATION OBLIGATOIRE DU PONT NATIF GOOGLE AUTH ---
+  useEffect(() => {
+    GoogleAuthService.init().catch(err => {
+      console.error("Erreur lors de l'initialisation de GoogleAuth:", err);
+    });
+  }, []);
+  // -----------------------------------------------------------
 
   // Remonter automatiquement tout en haut de la page lors d'un changement d'onglet
   useEffect(() => {
@@ -254,7 +262,6 @@ export function App() {
         )}
       </main>
 
-      {/* CyberDock Flottant avec transmission de l'état user */}
       <CyberDock
         currentView={activeTab as any}
         setCurrentView={(view: any) => setActiveTab(view)}
@@ -267,7 +274,6 @@ export function App() {
 
       <Footer onOpenNewsletter={() => setIsNewsletterOpen(true)} />
 
-      {/* MODALE ARTICLE */}
       {selectedArticle && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
           <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl p-5 space-y-4 text-xs relative my-auto flex flex-col">
