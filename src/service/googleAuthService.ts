@@ -32,18 +32,18 @@ const loadGoogleScript = (): Promise<void> => {
 
 export const GoogleAuthService = {
   async init() {
-    console.log("[Auth] Init démarrée. Natif :", Capacitor.isNativePlatform());
+    //console.log("[Auth] Init démarrée. Natif :", Capacitor.isNativePlatform());
     if (Capacitor.isNativePlatform()) {
       try {
-        console.log("[Auth] Appel de GoogleAuth.initialize()...");
+        //console.log("[Auth] Appel de GoogleAuth.initialize()...");
         await GoogleAuth.initialize({
           clientId: '95625812104-rp6p68va6ob5ev2i3vp80he98p4uukgd.apps.googleusercontent.com',
           scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
           grantOfflineAccess: true,
         });
-        console.log("[Auth] GoogleAuth.initialize() réussi !");
+        //console.log("[Auth] GoogleAuth.initialize() réussi !");
       } catch (e: any) {
-        console.error("[Auth] Erreur init GoogleAuth natif:", JSON.stringify(e));
+        //console.error("[Auth] Erreur init GoogleAuth natif:", JSON.stringify(e));
       }
     } else {
       await loadGoogleScript();
@@ -74,25 +74,23 @@ export const GoogleAuthService = {
 
   async signIn(): Promise<string | null> {
     try {
-      console.log("[Auth] signIn() déclenché.");
+      //console.log("[Auth] signIn() déclenché.");
       
       if (Capacitor.isNativePlatform()) {
-        console.log("[Auth] Avant GoogleAuth.signIn()...");
+        //console.log("[Auth] Avant GoogleAuth.signIn()...");
         
-        // Forcer l'appel natif avec un timeout de sécurité pour voir s'il freeze
+       // Forcer l'appel natif avec un timeout de sécurité pour voir s'il freeze
         const googleUser = await GoogleAuth.signIn();
         
-        console.log("[Auth] Après GoogleAuth.signIn() ! Réponse :", JSON.stringify(googleUser));
+        //console.log("[Auth] Après GoogleAuth.signIn() ! Réponse :", JSON.stringify(googleUser));
         
         const accessToken = googleUser?.authentication?.accessToken;
         if (accessToken) {
           this.storeToken(accessToken);
           return accessToken;
-        } else {
-          console.error("[Auth] AccessToken introuvable dans l'objet retourné.");
         }
       } else {
-        console.log("[Auth] Mode Web détecté.");
+        ////console.log("[Auth] Mode Web détecté.");
         await loadGoogleScript();
         
         return new Promise((resolve) => {
@@ -114,8 +112,7 @@ export const GoogleAuthService = {
       return null;
     } catch (error: any) {
       const errStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
-      console.error("[Auth] ERREUR CATCHEE dans signIn :", errStr);
-      return null;
+     return null;
     }
   }
 };

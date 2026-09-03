@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Article, AppSettings } from '../types';
-import { getTranslation } from '../utils/translations';
+
 import { 
   Bookmark, Clock, ChevronRight, 
   ArrowLeft, ExternalLink, Terminal, Newspaper,
@@ -24,7 +24,6 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
   onBackToHome,
   language = 'en'
 }) => {
-  const t = getTranslation(language);
   const [activeSourceFilter, setActiveSourceFilter] = useState<'all' | 'franceinfo' | 'essentiel'>('all');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState('');
