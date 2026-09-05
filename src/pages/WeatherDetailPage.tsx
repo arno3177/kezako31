@@ -6,7 +6,7 @@ import {
   Calendar, ChevronDown, ChevronUp, 
   BarChart3, Activity, Bike, Dumbbell, Trees, Trophy, Gauge, SunMedium,
   Thermometer, Umbrella, Compass, Flower2, Clock, X, Plus, Trash2, ShieldCheck, Info,
-  RefreshCw, CheckCircle2, Award, Leaf, Sprout, Flower
+  RefreshCw, CheckCircle2, Award, Leaf, Sprout, Flower, Navigation, CloudSnow, CloudLightning
 } from 'lucide-react';
 
 interface WeatherDetailPageProps {
@@ -70,6 +70,38 @@ const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
   );
 };
 
+// Composant de points verticaux (Vert pour 5 -> Rouge pour 1) sans valeur chiffrée
+const ConfidenceDotsIndicator: React.FC<{ level: number }> = ({ level }) => {
+  const safeLevel = Math.max(1, Math.min(5, Math.round(level)));
+
+  const getDotStyle = (dotIndex: number, isLit: boolean) => {
+    if (!isLit) return 'bg-slate-800/60';
+    
+    switch (dotIndex) {
+      case 5: return 'bg-emerald-400 shadow-[0_0_8px_#34d399]';
+      case 4: return 'bg-lime-400 shadow-[0_0_8px_#a3e635]';
+      case 3: return 'bg-amber-400 shadow-[0_0_8px_#fbbf24]';
+      case 2: return 'bg-orange-500 shadow-[0_0_8px_#f97316]';
+      case 1: return 'bg-red-500 shadow-[0_0_8px_#ef4444]';
+      default: return 'bg-emerald-400';
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 p-1 bg-black/60 rounded-xl border border-amber-500/30 backdrop-blur-xs w-7 py-2 shadow-lg" title={`Indice de confiance : ${safeLevel}/5`}>
+      {[5, 4, 3, 2, 1].map((dotIndex) => {
+        const isLit = dotIndex <= safeLevel;
+        return (
+          <div
+            key={dotIndex}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${getDotStyle(dotIndex, isLit)}`}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 const getWeatherIcon = (condition: string = '', sizeClass: string = "w-4 h-4") => {
   const c = condition.toLowerCase();
   if (c.includes('pluie') || c.includes('rain') || c.includes('averses')) {
@@ -90,6 +122,56 @@ const getPollenIcon = (val: number, sizeClass: string = "w-3 h-3") => {
   return <span title="Pollen faible (Arbres)"><Leaf className={`${sizeClass} text-emerald-400`} /></span>;
 };
 
+const getPrecipitationIcon = (type: string = 'rain', amount: number = 0, sizeClass: string = "w-3 h-3") => {
+  const t = type.toLowerCase();
+  
+  if (t.includes('neige') || t.includes('snow')) {
+    if (amount > 5) {
+      return <span title={`Forte neige (${amount} mm)`}><CloudSnow className={`${sizeClass} text-white animate-pulse`} /></span>;
+    }
+    return <span title={`Neige légère (${amount} mm)`}><CloudSnow className={`${sizeClass} text-sky-200`} /></span>;
+  }
+  
+  if (t.includes('glace') || t.includes('grêle') || t.includes('ice') || t.includes('hail')) {
+    return <span title={`Glace / Grêle (${amount} mm)`}><span className={`${sizeClass} inline-flex items-center justify-center font-black text-cyan-300 text-[11px]`}>•</span></span>;
+  }
+
+  if (amount > 7.5) {
+    return <span title={`Forte averse / Orage (${amount} mm)`}><CloudLightning className={`${sizeClass} text-amber-400 animate-bounce`} /></span>;
+  } else if (amount >= 2.0) {
+    return <span title={`Pluie modérée (${amount} mm)`}><CloudRain className={`${sizeClass} text-teal-400`} /></span>;
+  } else if (amount > 0) {
+    return <span title={`Bruine / Pluie faible (${amount} mm)`}><Droplets className={`${sizeClass} text-teal-200`} /></span>;
+  }
+  
+  return <span title="Pas de précipitation"><Droplets className={`${sizeClass} text-slate-600 opacity-50`} /></span>;
+};
+
+const getWindDirectionIcon = (dir: string | number = 'N', sizeClass: string = "w-3 h-3") => {
+  let rotation = 0;
+  if (typeof dir === 'number') {
+    rotation = dir;
+  } else {
+    const d = typeof dir === 'string' ? dir.toUpperCase() : 'N';
+    if (d.includes('NE')) rotation = 45;
+    else if (d.includes('E')) rotation = 90;
+    else if (d.includes('SE')) rotation = 135;
+    else if (d.includes('S')) rotation = 180;
+    else if (d.includes('SO') || d.includes('SW')) rotation = 225;
+    else if (d.includes('O') || d.includes('W')) rotation = 270;
+    else if (d.includes('NO') || d.includes('NW')) rotation = 315;
+  }
+
+  return (
+    <span title={`Direction du vent : ${dir}`} className="inline-flex items-center justify-center">
+      <Navigation 
+        className={`${sizeClass} text-sky-400 transition-transform duration-300`} 
+        style={{ transform: `rotate(${rotation}deg)` }} 
+      />
+    </span>
+  );
+};
+
 export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   currentWeather,
   citiesList = [],
@@ -106,9 +188,9 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const [selectedActivity, setSelectedActivity] = useState<'fitness' | 'tennis' | 'cycling' | 'forestWalk'>('fitness');
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
 
-  // États pour le rafraîchissement météo et la popup HUD
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
@@ -123,6 +205,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     if (isRefreshing) return;
     setIsRefreshing(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    setRefreshTrigger(prev => prev + 1);
 
     if (activeCity) {
       onSelectCity(activeCity);
@@ -230,28 +314,27 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
   const hourlyData = useMemo(() => {
     const now = new Date();
-    const currentHour = now.getMinutes() > 30 ? (now.getHours() + 1) % 24 : now.getHours();
+    const startHour = now.getMinutes() > 30 ? (now.getHours() + 1) % 24 : now.getHours();
 
     if (rawHourlyData.length > 0) {
       const startIndex = rawHourlyData.findIndex((item: any) => {
         const itemHour = parseInt(item.time.split(':')[0], 10);
-        return itemHour === currentHour;
+        return itemHour === startHour;
       });
       if (startIndex !== -1) {
         return rawHourlyData.slice(startIndex, startIndex + 16);
       }
-      return rawHourlyData.slice(0, 16);
     }
 
     return Array.from({ length: 16 }).map((_, index) => {
-      const targetHour = (currentHour + index) % 24;
+      const targetHour = (startHour + index) % 24;
       return {
         time: `${targetHour.toString().padStart(2, '0')}:00`,
         temp: Number((currentWeather as any)?.temperature ?? 20),
         condition: currentWeather?.condition || 'Ensoleillé'
       };
     });
-  }, [rawHourlyData, currentWeather]);
+  }, [rawHourlyData, currentWeather, refreshTrigger]);
 
   const currentTemp = Number((currentWeather as any)?.temperature ?? 20);
   const currentWind = Number(currentWeather?.windSpeed ?? 10);
@@ -292,61 +375,72 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
       const dayIndex = baseList.length + i;
       baseList.push({
         day: `J+${dayIndex}`,
-        tempMin: 14 + (i % 3),
-        tempMax: 23 + (i % 4),
-        condition: i % 2 === 0 ? 'Ensoleillé' : 'Partiellement nuageux',
-        mornTemp: 15 + (i % 2),
-        eveTemp: 22 + (i % 3),
+        tempMin: 14,
+        tempMax: 23,
+        condition: 'Ensoleillé',
+        mornTemp: 15,
+        eveTemp: 22,
         mornCondition: 'Ensoleillé',
         eveCondition: 'Ensoleillé',
-        aqiMorn: 30 + i,
-        aqiEve: 45 + i,
-        uvMorn: Math.max(1, 5 - Math.floor(i / 3)),
-        uvEve: Math.max(1, 6 - Math.floor(i / 3)),
+        aqiMorn: 30,
+        aqiEve: 45,
+        uvMorn: 2,
+        uvEve: 5,
         feelsMorn: 15,
         feelsEve: 23,
-        precipMorn: i % 3 === 0 ? 0.5 : 0,
-        precipEve: i % 4 === 0 ? 1.0 : 0,
+        precipMorn: 0,
+        precipEve: 0,
         windMorn: 10,
         windEve: 14,
-        pollenMorn: (i % 3),
-        pollenEve: (i % 4) + 1,
-        confidence: Math.max(2, 5 - Math.floor(dayIndex / 3)),
-        activityScores: {
+        windDirMorn: 'N',
+        windDirEve: 'NE',
+        pollenMorn: 1,
+        pollenEve: 2
+      });
+    }
+
+    return baseList.slice(0, 15).map((d: any, idx: number) => {
+      const rawCondition = (d.condition || d.eveCondition || '').toLowerCase();
+      let detectedPrecipType = 'rain';
+      if (rawCondition.includes('neige') || rawCondition.includes('snow') || (d.eveTemp !== undefined && d.eveTemp <= 0)) {
+        detectedPrecipType = 'snow';
+      } else if (rawCondition.includes('glace') || rawCondition.includes('grêle') || rawCondition.includes('ice')) {
+        detectedPrecipType = 'ice';
+      }
+
+      const calculatedConfidence = Math.max(1, 5 - Math.floor(idx / 3));
+
+      return {
+        ...d,
+        mornTemp: d.mornTemp ?? d.tempMin ?? 15,
+        eveTemp: d.eveTemp ?? d.tempMax ?? 24,
+        mornCondition: d.mornCondition ?? d.condition ?? 'Ensoleillé',
+        eveCondition: d.eveCondition ?? d.condition ?? 'Ensoleillé',
+        aqiMorn: d.aqiMorn ?? 30,
+        aqiEve: d.aqiEve ?? 45,
+        uvMorn: d.uvMorn ?? 2,
+        uvEve: d.uvEve ?? 5,
+        feelsMorn: d.feelsMorn ?? 15,
+        feelsEve: d.feelsEve ?? 23,
+        precipMorn: Number(d.precipMorn ?? d.precipitationSumMorn ?? 0),
+        precipEve: Number(d.precipEve ?? d.precipitationSumEve ?? d.precipitation ?? 0),
+        precipTypeMorn: d.precipTypeMorn ?? detectedPrecipType,
+        precipTypeEve: d.precipTypeEve ?? detectedPrecipType,
+        windMorn: d.windMorn ?? 10,
+        windEve: d.windEve ?? 14,
+        windDirMorn: d.windDirMorn ?? 'N',
+        windDirEve: d.windDirEve ?? 'NE',
+        pollenMorn: d.pollenMorn ?? 1,
+        pollenEve: d.pollenEve ?? 2,
+        confidence: d.confidence ?? calculatedConfidence,
+        activityScores: d.activityScores ?? {
           fitness: { morn: 80, eve: 70 },
           tennis: { morn: 85, eve: 60 },
           cycling: { morn: 75, eve: 65 },
           forestWalk: { morn: 90, eve: 80 }
         }
-      });
-    }
-
-    return baseList.slice(0, 15).map((d: any, idx: number) => ({
-      ...d,
-      mornTemp: d.mornTemp ?? d.tempMin ?? 15,
-      eveTemp: d.eveTemp ?? d.tempMax ?? 24,
-      mornCondition: d.mornCondition ?? d.condition ?? 'Ensoleillé',
-      eveCondition: d.eveCondition ?? d.condition ?? 'Ensoleillé',
-      aqiMorn: d.aqiMorn ?? 30,
-      aqiEve: d.aqiEve ?? 45,
-      uvMorn: d.uvMorn ?? 2,
-      uvEve: d.uvEve ?? 5,
-      feelsMorn: d.feelsMorn ?? 15,
-      feelsEve: d.feelsEve ?? 23,
-      precipMorn: d.precipMorn ?? 0,
-      precipEve: d.precipEve ?? 0.5,
-      windMorn: d.windMorn ?? 10,
-      windEve: d.windEve ?? 14,
-      pollenMorn: d.pollenMorn ?? 1,
-      pollenEve: d.pollenEve ?? 2,
-      confidence: d.confidence ?? Math.max(2, 5 - Math.floor(idx / 3)),
-      activityScores: d.activityScores ?? {
-        fitness: { morn: 80, eve: 70 },
-        tennis: { morn: 85, eve: 60 },
-        cycling: { morn: 75, eve: 65 },
-        forestWalk: { morn: 90, eve: 80 }
-      }
-    }));
+      };
+    });
   }, [forecastData]);
 
   const maxDaily = Math.max(...fifteenDaysData.map((d: any) => Math.max(d.mornTemp ?? 30, d.eveTemp ?? 30)), 30);
@@ -376,7 +470,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   return (
     <div className="space-y-2 text-xs animate-fade-in text-slate-200 w-full pb-20 px-0">
       
-      {/* POPUP DE NOTIFICATION DE REFRESH MÉTÉO */}
       {showPopup && (
         <div className="fixed inset-x-0 top-3 z-[9999999] flex justify-center pointer-events-none px-2 animate-fade-in">
           <div className="bg-[#090d16]/95 border-2 border-teal-400 text-teal-200 p-3 rounded-2xl shadow-[0_0_40px_rgba(20,184,166,0.8)] backdrop-blur-xl max-w-sm w-full font-mono flex items-center gap-3">
@@ -389,7 +482,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       )}
 
-      {/* BOUTON DE REFRESH FLOTTANT AU RYTHME DU SCROLL */}
       <div 
         className="fixed right-2 z-[999999] pointer-events-auto"
         style={{ 
@@ -784,7 +876,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       </div>
 
-      {/* 5. DÉTAILS AVANCÉS */}
+      {/* 5. DÉTAILS AVANCÉS (TOUS SUR 15 JOURS) */}
       <div className="bg-[#151824] border-y sm:border sm:rounded-2xl border-slate-800 overflow-hidden shadow-xl">
         <button
           type="button"
@@ -793,7 +885,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         >
           <div className="flex items-center space-x-2 text-teal-400 font-bold text-[11px] uppercase tracking-wider">
             <Calendar className="w-4 h-4" />
-            <span className="text-white">Graphiques Avancés (Indice de Confiance, Temp. Ressentie, Précipitations, Vent, Pollen)</span>
+            <span className="text-white">Graphiques Avancés (Temp. Ressentie, Précipitations, Vent, Pollen, Indice de Confiance)</span>
           </div>
           {isDetailsOpen ? <ChevronUp className="w-4 h-4 text-teal-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
         </button>
@@ -801,41 +893,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {isDetailsOpen && (
           <div className="p-3 border-t border-slate-800 space-y-4 animate-fade-in">
             
-            {/* Indice de Confiance */}
-            <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-teal-500/30 shadow-lg">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-amber-400" /> Indice de Confiance Météo (Échelle /5)
-                </span>
-                <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
-                  Fiabilité Prévisions
-                </span>
-              </div>
-              <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
-                {fifteenDaysData.map((day: any, idx: number) => {
-                  const conf = day.confidence ?? 3;
-                  const h = Math.max(30, Math.min(100, Math.round((conf / 5) * 100)));
-                  const confidenceLedLevel = Math.max(1, Math.min(9, Math.round((conf / 5) * 8) + 1));
-                  return (
-                    <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1.5 h-full justify-end border border-amber-500/20 rounded-lg p-1 bg-[#121420]/60">
-                      <div className="h-4 flex items-center justify-center">
-                        <LedLevelIndicator level={confidenceLedLevel} />
-                      </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-end rounded-t-lg overflow-hidden shadow-[0_0_12px_rgba(251,191,36,0.3)] bg-gradient-to-t from-amber-700 via-yellow-500 to-amber-300 p-1">
-                        <span className="text-[9px] font-black text-slate-950 text-center drop-shadow-sm">{conf}/5</span>
-                      </div>
-                      <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Ressentie */}
+            {/* Ressentie (15 jours) */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
-                  <Thermometer className="w-4 h-4 text-orange-400" /> Ressentie (Matin & Soir)
+                  <Thermometer className="w-4 h-4 text-orange-400" /> Ressentie (15 Jours)
                 </span>
                 <div className="flex items-center gap-2 text-[9px] font-bold">
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-800 inline-block"></span> Matin</span>
@@ -865,25 +927,30 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
             </div>
 
-            {/* Précipitations */}
+            {/* Précipitations (15 jours) avec données réelles et icônes par seuils */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
-                  <Umbrella className="w-4 h-4 text-teal-400" /> Précipitations (Matin & Soir)
+                  <Umbrella className="w-4 h-4 text-teal-400" /> Précipitations (15 Jours)
                 </span>
-                <div className="flex items-center gap-2 text-[9px] font-bold">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-900 inline-block"></span> Matin</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-400 inline-block"></span> Soir/Apm</span>
+                
+                <div className="flex items-center gap-3 text-[9px] text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800">
+                  <span className="flex items-center gap-1"><Droplets className="w-3 h-3 text-teal-200" /> Bruine (&lt;2mm)</span>
+                  <span className="flex items-center gap-1"><CloudRain className="w-3 h-3 text-teal-400" /> Modérée (2-7.5mm)</span>
+                  <span className="flex items-center gap-1"><CloudLightning className="w-3 h-3 text-amber-400" /> Forte (&gt;7.5mm)</span>
                 </div>
               </div>
+
               <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((Math.max(day.precipEve, 0.1) / 8) * 100)));
                   const precipLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.precipEve / 8) * 4)));
+                  
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <div className="h-4 flex items-center justify-center">
+                      <div className="h-4 flex items-center justify-center gap-0.5">
                         <LedLevelIndicator level={precipLedLevel} />
+                        {getPrecipitationIcon(day.precipTypeEve ?? 'rain', day.precipEve ?? 0, "w-3 h-3")}
                       </div>
                       <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-teal-500 to-emerald-400 flex items-center justify-center">
@@ -900,11 +967,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
             </div>
 
-            {/* Vent */}
+            {/* Vent (15 jours) */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
-                  <Compass className="w-4 h-4 text-emerald-400" /> Vent (Matin & Soir)
+                  <Compass className="w-4 h-4 text-emerald-400" /> Vent & Direction (15 Jours)
                 </span>
                 <div className="flex items-center gap-2 text-[9px] font-bold">
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-900 inline-block"></span> Matin</span>
@@ -915,10 +982,12 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((day.windEve / 35) * 100)));
                   const windLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.windEve / 35) * 4)));
+                  
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <div className="h-4 flex items-center justify-center">
+                      <div className="h-4 flex items-center justify-center gap-1">
                         <LedLevelIndicator level={windLedLevel} />
+                        {getWindDirectionIcon(day.windDirEve ?? 'N', "w-3 h-3")}
                       </div>
                       <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-sky-500 to-cyan-400 flex items-center justify-center">
@@ -935,14 +1004,13 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
             </div>
 
-            {/* POLLEN (AVEC LÉGENDE ET LOGIQUE CORRIGÉE : HAUT = ORANGE/ROUGE, BAS = VERT) */}
+            {/* Pollen (15 jours) */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
-                  <Flower2 className="w-4 h-4 text-yellow-400" /> Pollen (Matin & Soir)
+                  <Flower2 className="w-4 h-4 text-yellow-400" /> Pollen (15 Jours)
                 </span>
                 
-                {/* Légende des types de pollen */}
                 <div className="flex items-center gap-3 text-[9px] text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800">
                   <span className="flex items-center gap-1"><Leaf className="w-3 h-3 text-emerald-400" /> Arbres (Faible)</span>
                   <span className="flex items-center gap-1"><Sprout className="w-3 h-3 text-amber-400" /> Graminées (Modéré)</span>
@@ -953,7 +1021,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((day.pollenEve / 5) * 100)));
-                  // Correction de la logique : Plus l'indice est haut, plus le niveau LED monte vers le rouge (9). Plus il est bas, plus il est vert (1).
                   const pollenLedLevel = Math.max(1, Math.min(9, Math.round((day.pollenEve / 5) * 8) + 1));
                   
                   return (
@@ -969,6 +1036,32 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                         <div className="flex-1 bg-gradient-to-t from-purple-950 to-purple-800 flex items-center justify-center border-t border-white/40">
                           <span className="text-[8px] font-black text-white">{day.pollenMorn}</span>
                         </div>
+                      </div>
+                      <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Indice de Confiance (15 jours) - Déplacé tout en bas */}
+            <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-teal-500/30 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-amber-400" /> Indice de Confiance Météo (15 Jours)
+                </span>
+                <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                  Fiabilité Vert -&gt; Rouge
+                </span>
+              </div>
+              <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
+                {fifteenDaysData.map((day: any, idx: number) => {
+                  const conf = day.confidence ?? 3;
+                  
+                  return (
+                    <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-2 h-full justify-end border border-amber-500/20 rounded-lg p-1 bg-[#121420]/60">
+                      <div className="flex-1 flex items-center justify-center">
+                        <ConfidenceDotsIndicator level={conf} />
                       </div>
                       <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
                     </div>
