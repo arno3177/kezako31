@@ -6,7 +6,7 @@ import {
   Calendar, ChevronDown, ChevronUp, 
   BarChart3, Activity, Bike, Dumbbell, Trees, Trophy, Gauge, SunMedium,
   Thermometer, Umbrella, Compass, Flower2, Clock, X, Plus, Trash2, ShieldCheck, Info,
-  RefreshCw, CheckCircle2
+  RefreshCw, CheckCircle2, Award, Leaf, Sprout, Flower
 } from 'lucide-react';
 
 interface WeatherDetailPageProps {
@@ -70,22 +70,6 @@ const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
   );
 };
 
-const ConfidenceIndicator: React.FC<{ confidence: number }> = ({ confidence }) => {
-  const safeConf = Math.max(1, Math.min(5, Math.round(confidence)));
-  return (
-    <div className="flex items-center justify-center gap-0.5 mb-0.5" title={`Indice de confiance météo : ${safeConf}/5`}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <span
-          key={star}
-          className={`w-1 h-1 rounded-full transition-all ${
-            star <= safeConf ? 'bg-amber-400 shadow-[0_0_4px_#fbbf24]' : 'bg-slate-700/50'
-          }`}
-        />
-      ))}
-    </div>
-  );
-};
-
 const getWeatherIcon = (condition: string = '', sizeClass: string = "w-4 h-4") => {
   const c = condition.toLowerCase();
   if (c.includes('pluie') || c.includes('rain') || c.includes('averses')) {
@@ -98,6 +82,12 @@ const getWeatherIcon = (condition: string = '', sizeClass: string = "w-4 h-4") =
     return <Sun className={`${sizeClass} text-emerald-300 drop-shadow-md`} />;
   }
   return <CloudSun className={`${sizeClass} text-teal-100 drop-shadow-md`} />;
+};
+
+const getPollenIcon = (val: number, sizeClass: string = "w-3 h-3") => {
+  if (val >= 4) return <span title="Pollen abondant (Herbacées/Fleurs)"><Flower className={`${sizeClass} text-rose-400`} /></span>;
+  if (val >= 2) return <span title="Pollen modéré (Graminées)"><Sprout className={`${sizeClass} text-amber-400`} /></span>;
+  return <span title="Pollen faible (Arbres)"><Leaf className={`${sizeClass} text-emerald-400`} /></span>;
 };
 
 export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
@@ -238,13 +228,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const forecastData = currentWeather?.forecast || [];
   const rawHourlyData = currentWeather?.hourly || [];
 
-  // Calcule l'heure de départ dynamique (si minute > 30, commence à l'heure suivante)
   const hourlyData = useMemo(() => {
     const now = new Date();
     const currentHour = now.getMinutes() > 30 ? (now.getHours() + 1) % 24 : now.getHours();
 
     if (rawHourlyData.length > 0) {
-      // Si l'API fournit un tableau brut, on filtre/ décale pour commencer à l'heure calculée
       const startIndex = rawHourlyData.findIndex((item: any) => {
         const itemHour = parseInt(item.time.split(':')[0], 10);
         return itemHour === currentHour;
@@ -321,8 +309,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         precipEve: i % 4 === 0 ? 1.0 : 0,
         windMorn: 10,
         windEve: 14,
-        pollenMorn: 2,
-        pollenEve: 3,
+        pollenMorn: (i % 3),
+        pollenEve: (i % 4) + 1,
         confidence: Math.max(2, 5 - Math.floor(dayIndex / 3)),
         activityScores: {
           fitness: { morn: 80, eve: 70 },
@@ -349,8 +337,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
       precipEve: d.precipEve ?? 0.5,
       windMorn: d.windMorn ?? 10,
       windEve: d.windEve ?? 14,
-      pollenMorn: d.pollenMorn ?? 2,
-      pollenEve: d.pollenEve ?? 3,
+      pollenMorn: d.pollenMorn ?? 1,
+      pollenEve: d.pollenEve ?? 2,
       confidence: d.confidence ?? Math.max(2, 5 - Math.floor(idx / 3)),
       activityScores: d.activityScores ?? {
         fitness: { morn: 80, eve: 70 },
@@ -670,7 +658,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </button>
       </div>
 
-      {/* 4. DIAGRAMME PRINCIPAL (15 Jours + Confiance) */}
+      {/* 4. DIAGRAMME PRINCIPAL (15 Jours) */}
       <div className="bg-[#151824] border-y sm:border sm:rounded-2xl border-slate-800 p-2.5 shadow-xl space-y-2.5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <h2 className="text-[11px] font-bold uppercase text-teal-400 flex items-center gap-1.5">
@@ -749,8 +737,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 key={idx} 
                 className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1.5 h-full justify-end border border-teal-500/15 rounded-xl p-1 bg-[#121420]/40 hover:bg-[#16192a] transition-all"
               >
-                <ConfidenceIndicator confidence={day.confidence} />
-
                 <div className="h-4 flex items-center justify-center animate-fade-in">
                   <LedLevelIndicator level={ledLevel} />
                 </div>
@@ -807,7 +793,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         >
           <div className="flex items-center space-x-2 text-teal-400 font-bold text-[11px] uppercase tracking-wider">
             <Calendar className="w-4 h-4" />
-            <span className="text-white">Graphiques Avancés (Temp. Ressentie, Précipitations, Vent, Pollen)</span>
+            <span className="text-white">Graphiques Avancés (Indice de Confiance, Temp. Ressentie, Précipitations, Vent, Pollen)</span>
           </div>
           {isDetailsOpen ? <ChevronUp className="w-4 h-4 text-teal-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
         </button>
@@ -815,6 +801,36 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {isDetailsOpen && (
           <div className="p-3 border-t border-slate-800 space-y-4 animate-fade-in">
             
+            {/* Indice de Confiance */}
+            <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-teal-500/30 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-amber-400" /> Indice de Confiance Météo (Échelle /5)
+                </span>
+                <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                  Fiabilité Prévisions
+                </span>
+              </div>
+              <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
+                {fifteenDaysData.map((day: any, idx: number) => {
+                  const conf = day.confidence ?? 3;
+                  const h = Math.max(30, Math.min(100, Math.round((conf / 5) * 100)));
+                  const confidenceLedLevel = Math.max(1, Math.min(9, Math.round((conf / 5) * 8) + 1));
+                  return (
+                    <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1.5 h-full justify-end border border-amber-500/20 rounded-lg p-1 bg-[#121420]/60">
+                      <div className="h-4 flex items-center justify-center">
+                        <LedLevelIndicator level={confidenceLedLevel} />
+                      </div>
+                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-end rounded-t-lg overflow-hidden shadow-[0_0_12px_rgba(251,191,36,0.3)] bg-gradient-to-t from-amber-700 via-yellow-500 to-amber-300 p-1">
+                        <span className="text-[9px] font-black text-slate-950 text-center drop-shadow-sm">{conf}/5</span>
+                      </div>
+                      <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Ressentie */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
@@ -831,7 +847,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   const h = Math.max(35, Math.min(100, Math.round(((day.feelsEve + 5) / 45) * 100)));
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
                         <LedLevelIndicator level={getLedLevelForTemp(day.feelsEve)} />
                       </div>
@@ -864,11 +879,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((Math.max(day.precipEve, 0.1) / 8) * 100)));
+                  const precipLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.precipEve / 8) * 4)));
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
-                        <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round(9 - (day.precipEve / 7) * 8)))} />
+                        <LedLevelIndicator level={precipLedLevel} />
                       </div>
                       <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-teal-500 to-emerald-400 flex items-center justify-center">
@@ -899,11 +914,11 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((day.windEve / 35) * 100)));
+                  const windLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.windEve / 35) * 4)));
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
-                        <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round(10 - (day.windEve / 35) * 9)))} />
+                        <LedLevelIndicator level={windLedLevel} />
                       </div>
                       <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-sky-500 to-cyan-400 flex items-center justify-center">
@@ -920,25 +935,32 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
             </div>
 
-            {/* Pollen */}
+            {/* POLLEN (AVEC LÉGENDE ET LOGIQUE CORRIGÉE : HAUT = ORANGE/ROUGE, BAS = VERT) */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
                   <Flower2 className="w-4 h-4 text-yellow-400" /> Pollen (Matin & Soir)
                 </span>
-                <div className="flex items-center gap-2 text-[9px] font-bold">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-900 inline-block"></span> Matin</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-rose-400 inline-block"></span> Soir/Apm</span>
+                
+                {/* Légende des types de pollen */}
+                <div className="flex items-center gap-3 text-[9px] text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800">
+                  <span className="flex items-center gap-1"><Leaf className="w-3 h-3 text-emerald-400" /> Arbres (Faible)</span>
+                  <span className="flex items-center gap-1"><Sprout className="w-3 h-3 text-amber-400" /> Graminées (Modéré)</span>
+                  <span className="flex items-center gap-1"><Flower className="w-3 h-3 text-rose-400" /> Herbacées (Abondant)</span>
                 </div>
               </div>
+
               <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((day.pollenEve / 5) * 100)));
+                  // Correction de la logique : Plus l'indice est haut, plus le niveau LED monte vers le rouge (9). Plus il est bas, plus il est vert (1).
+                  const pollenLedLevel = Math.max(1, Math.min(9, Math.round((day.pollenEve / 5) * 8) + 1));
+                  
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <ConfidenceIndicator confidence={day.confidence} />
-                      <div className="h-4 flex items-center justify-center">
-                        <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round(10 - (day.pollenEve / 5) * 8)))} />
+                      <div className="h-4 flex items-center justify-center gap-0.5" title={`Niveau : ${day.pollenEve}`}>
+                        <LedLevelIndicator level={pollenLedLevel} />
+                        {getPollenIcon(day.pollenEve, "w-3 h-3")}
                       </div>
                       <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-rose-500 to-pink-400 flex items-center justify-center">
