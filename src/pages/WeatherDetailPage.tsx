@@ -893,7 +893,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         {isDetailsOpen && (
           <div className="p-3 border-t border-slate-800 space-y-4 animate-fade-in">
             
-            {/* Ressentie (15 jours) */}
+            {/* Ressentie (15 jours) avec visage expressif fixe */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
@@ -907,11 +907,43 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               <div className="h-52 flex items-end justify-between gap-1 pt-3 pb-1 overflow-x-auto">
                 {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round(((day.feelsEve + 5) / 45) * 100)));
+                  const feelsLedLevel = getLedLevelForTemp(day.feelsEve);
+                  const tempVal = day.feelsEve ?? 20;
+
+                  let faceIcon = '😌';
+                  let faceTitle = `Température ressentie : ${tempVal}°C (Confortable)`;
+                  let faceColor = 'text-emerald-400';
+
+                  if (tempVal < 5) {
+                    faceIcon = '🥶';
+                    faceTitle = `Température ressentie : ${tempVal}°C (Très froid)`;
+                    faceColor = 'text-cyan-400';
+                  } else if (tempVal >= 5 && tempVal < 15) {
+                    faceIcon = '🧥';
+                    faceTitle = `Température ressentie : ${tempVal}°C (Frais)`;
+                    faceColor = 'text-sky-300';
+                  } else if (tempVal >= 23 && tempVal < 28) {
+                    faceIcon = '😅';
+                    faceTitle = `Température ressentie : ${tempVal}°C (Chaud)`;
+                    faceColor = 'text-amber-400';
+                  } else if (tempVal >= 28) {
+                    faceIcon = '🥵';
+                    faceTitle = `Température ressentie : ${tempVal}°C (Fortes chaleurs !)`;
+                    faceColor = 'text-red-500';
+                  }
+
                   return (
                     <div key={idx} className="flex-1 min-w-[46px] max-w-[54px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
-                      <div className="h-4 flex items-center justify-center">
-                        <LedLevelIndicator level={getLedLevelForTemp(day.feelsEve)} />
+                      <div className="h-4 flex items-center justify-center gap-0.5">
+                        <LedLevelIndicator level={feelsLedLevel} />
+                        <span 
+                          className={`text-[11px] select-none inline-flex items-center justify-center ${faceColor}`}
+                          title={faceTitle}
+                        >
+                          {faceIcon}
+                        </span>
                       </div>
+
                       <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-orange-600 to-amber-400 flex items-center justify-center">
                           <span className="text-[8px] font-black text-slate-950">{day.feelsEve}°</span>
@@ -1044,7 +1076,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               </div>
             </div>
 
-            {/* Indice de Confiance (15 jours) - Déplacé tout en bas */}
+            {/* Indice de Confiance (15 jours) - Tout en bas de la section pliable */}
             <div className="space-y-1.5 bg-[#0d0f17] p-2.5 rounded-xl border border-teal-500/30 shadow-lg">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-[11px] flex items-center gap-1.5">

@@ -11,7 +11,8 @@ import {
   Car, Bus, Navigation,
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Trash2, Info, Mail, UserCheck, UserX
+  ExternalLink, Trash2, Info, Mail, UserCheck, UserX,
+  Shirt
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
@@ -31,6 +32,7 @@ interface HomePageProps {
   onViewSourcesNews: () => void;
   onViewTrips?: (mode?: 'car' | 'bus') => void;
   onViewShortcuts?: () => void;
+  onViewAssistant?: () => void; // Prop optionnelle pour ouvrir la page dédiée de l'assistant
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   language?: AppSettings['language'];
@@ -91,6 +93,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onViewSourcesNews,
   onViewTrips,
   onViewShortcuts,
+  onViewAssistant,
   searchQuery,
   language = 'en'
 }) => {
@@ -103,7 +106,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     return GoogleAuthService.getStoredToken() !== null || localStorage.getItem('google_workspace_access_token') !== null;
   });
 
-  // Popup de notification (Succès ou Erreur) de 2 secondes
   const [popupMessage, setPopupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
@@ -133,7 +135,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         setUnreadCount(count);
         window.dispatchEvent(new Event('workspace-auth-changed'));
         
-        // Popup succès (2 secondes)
         setPopupMessage({ text: "Connexion Google réussie !", type: 'success' });
         setTimeout(() => setPopupMessage(null), 2000);
       } else {
@@ -142,7 +143,6 @@ export const HomePage: React.FC<HomePageProps> = ({
       }
     } catch (error: any) {
       console.error("Erreur de connexion Google:", error);
-      // Popup erreur (2 secondes)
       setPopupMessage({ text: "Erreur lors de la connexion Google.", type: 'error' });
       setTimeout(() => setPopupMessage(null), 2000);
     }
@@ -169,16 +169,17 @@ export const HomePage: React.FC<HomePageProps> = ({
     return hour >= 18 || hour < 5 ? 'Bonsoir, ravi de vous retrouver' : 'Bonjour, ravi de vous retrouver';
   };
 
+  const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 20) : 20;
+
   const activePrevention = useMemo(() => {
     if (!currentWeather) return null;
-    const temp = Number(currentWeather.temperature ?? 20);
     const wind = Number(currentWeather.windSpeed ?? 10);
 
-    if (temp > 32) return { type: 'Chaleur', badgeColor: 'bg-amber-500/20 border-amber-500/40 text-amber-300', icon: <Info className="w-3 h-3 text-amber-400" /> };
-    if (temp < 4) return { type: 'Froid', badgeColor: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', icon: <Info className="w-3 h-3 text-cyan-400" /> };
+    if (currentTemp > 32) return { type: 'Chaleur', badgeColor: 'bg-amber-500/20 border-amber-500/40 text-amber-300', icon: <Info className="w-3 h-3 text-amber-400" /> };
+    if (currentTemp < 4) return { type: 'Froid', badgeColor: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300', icon: <Info className="w-3 h-3 text-cyan-400" /> };
     if (wind > 45) return { type: 'Vent', badgeColor: 'bg-sky-500/20 border-sky-500/40 text-sky-300', icon: <Info className="w-3 h-3 text-sky-400" /> };
     return null;
-  }, [currentWeather]);
+  }, [currentWeather, currentTemp]);
 
   const [links, setLinks] = useState<Shortcut[]>(() => {
     const saved = localStorage.getItem(SHORTCUTS_STORAGE_KEY);
@@ -293,13 +294,12 @@ export const HomePage: React.FC<HomePageProps> = ({
   const originQuery = encodeURIComponent(mainTrip?.origin || 'Kopstal');
   const destQuery = encodeURIComponent(mainTrip?.destination || 'Luxembourg');
 
-  const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 20) : 20;
   const currentLedLevel = getLedLevelForTemp(currentTemp);
 
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* POPUP DE NOTIFICATION SUCCÈS / ERREUR (DISPARAÎT EN 2 SECONDES) */}
+      {/* POPUP DE NOTIFICATION SUCCÈS / ERREUR */}
       {popupMessage && (
         <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2.5 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 animate-bounce transition-all ${
           popupMessage.type === 'success' 
@@ -326,7 +326,6 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         <div className="flex items-center gap-2.5 pl-2 sm:pl-0 flex-wrap">
           
-          {/* BOUTON ENVELOPPE GMAIL AVEC COMPTEUR NON LU */}
           {unreadCount !== null && unreadCount > 0 && (
             <button
               onClick={handleOpenGmail}
@@ -340,7 +339,6 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           )}
 
-          {/* ICÔNE D'ÉTAT DE CONNEXION WORKSPACE */}
           {!isWorkspaceConnected ? (
             <button 
               onClick={handleGoogleLogin}
@@ -458,6 +456,40 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
         </div>
       )}
+
+      {/* 1.5. ENCADRÉ ASSISTANT DU JOUR (SOUS LA MÉTÉO, AU-DESSUS DU TRAJET) */}
+      <div 
+        onClick={onViewAssistant}
+        className="bg-gradient-to-r from-teal-950/80 via-[#16182a] to-indigo-950/80 border border-teal-500/40 rounded-2xl p-3.5 shadow-xl hover:border-teal-400 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+      >
+        <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-teal-500/10 rounded-full blur-xl pointer-events-none" />
+        
+        <div className="flex items-center justify-between gap-3 relative z-10">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-300 flex-shrink-0 group-hover:scale-110 transition-transform">
+              <Shirt className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-[11px] font-extrabold text-white uppercase tracking-wider">Assistant Tenues & Sorties</h2>
+                <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Actif</span>
+              </div>
+              <p className="text-[10px] text-teal-200/80 truncate font-medium pt-0.5">
+                {currentTemp < 10 
+                  ? "Prévoir manteau chaud & écharpe • Idéal pour l'école" 
+                  : currentTemp > 25 
+                  ? "Temps estival • Privilégier des vêtements légers et hydratation" 
+                  : "Veste légère conseillée • Parfait pour une sortie après 14h"}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1 text-[10px] font-bold text-teal-400 group-hover:translate-x-1 transition-transform flex-shrink-0 bg-black/40 px-2.5 py-2 rounded-xl border border-teal-500/20">
+            <span>Explorer</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </div>
+        </div>
+      </div>
 
       {/* 2. TRAJET PRINCIPAL */}
       {mainTrip && (
