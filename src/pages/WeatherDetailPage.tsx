@@ -69,6 +69,23 @@ const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
   );
 };
 
+// Indicateur de confiance sur 5 (points lumineux dorés)
+const ConfidenceIndicator: React.FC<{ confidence: number }> = ({ confidence }) => {
+  const safeConf = Math.max(1, Math.min(5, Math.round(confidence)));
+  return (
+    <div className="flex items-center justify-center gap-0.5 mb-0.5" title={`Indice de confiance météo : ${safeConf}/5`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span
+          key={star}
+          className={`w-1 h-1 rounded-full transition-all ${
+            star <= safeConf ? 'bg-amber-400 shadow-[0_0_4px_#fbbf24]' : 'bg-slate-700/50'
+          }`}
+        />
+      ))}
+    </div>
+  );
+};
+
 const getWeatherIcon = (condition: string = '', sizeClass: string = "w-4 h-4") => {
   const c = condition.toLowerCase();
   if (c.includes('pluie') || c.includes('rain') || c.includes('averses')) {
@@ -234,40 +251,54 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     return null;
   }, [currentTemp, currentWind]);
 
-  const tenDaysData = useMemo(() => {
-    if (forecastData.length > 0) return forecastData;
-    return Array.from({ length: 7 }).map((_, index) => ({
-      day: index === 0 ? "Aujourd'hui" : `J-${index + 1}`,
-      tempMin: 14,
-      tempMax: 24,
-      condition: 'Ensoleillé',
-      mornTemp: 16,
-      eveTemp: 23,
-      mornCondition: 'Ensoleillé',
-      eveCondition: 'Ensoleillé',
-      aqiMorn: 30,
-      aqiEve: 45,
-      uvMorn: 2,
-      uvEve: 5,
-      feelsMorn: 15,
-      feelsEve: 24,
-      precipMorn: 0,
-      precipEve: 0.5,
-      windMorn: 10,
-      windEve: 14,
-      pollenMorn: 2,
-      pollenEve: 3,
-      activityScores: {
-        fitness: { morn: 80, eve: 70 },
-        tennis: { morn: 85, eve: 60 },
-        cycling: { morn: 75, eve: 65 },
-        forestWalk: { morn: 90, eve: 80 }
-      }
+  // Génération sur 15 jours si l'API ne fournit pas les 15 jours complets
+  const fifteenDaysData = useMemo(() => {
+    if (forecastData.length >= 15) return forecastData.slice(0, 15);
+    
+    const baseList = [...forecastData];
+    const needed = 15 - baseList.length;
+    
+    for (let i = 0; i < needed; i++) {
+      const dayIndex = baseList.length + i;
+      baseList.push({
+        day: `J+${dayIndex}`,
+        tempMin: 14 + (i % 3),
+        tempMax: 23 + (i % 4),
+        condition: i % 2 === 0 ? 'Ensoleillé' : 'Partiellement nuageux',
+        mornTemp: 15 + (i % 2),
+        eveTemp: 22 + (i % 3),
+        mornCondition: 'Ensoleillé',
+        eveCondition: 'Ensoleillé',
+        aqiMorn: 30 + i,
+        aqiEve: 45 + i,
+        uvMorn: Math.max(1, 5 - Math.floor(i / 3)),
+        uvEve: Math.max(1, 6 - Math.floor(i / 3)),
+        feelsMorn: 15,
+        feelsEve: 23,
+        precipMorn: i % 3 === 0 ? 0.5 : 0,
+        precipEve: i % 4 === 0 ? 1.0 : 0,
+        windMorn: 10,
+        windEve: 14,
+        pollenMorn: 2,
+        pollenEve: 3,
+        confidence: Math.max(2, 5 - Math.floor(dayIndex / 3)), // Indice de confiance sur 5 dégressif
+        activityScores: {
+          fitness: { morn: 80, eve: 70 },
+          tennis: { morn: 85, eve: 60 },
+          cycling: { morn: 75, eve: 65 },
+          forestWalk: { morn: 90, eve: 80 }
+        }
+      });
+    }
+    // S'assurer que chaque élément a une propriété 'confidence'
+    return baseList.map((d: any, idx: number) => ({
+      ...d,
+      confidence: d.confidence ?? Math.max(2, 5 - Math.floor(idx / 3))
     }));
   }, [forecastData]);
 
-  const maxDaily = Math.max(...tenDaysData.map((d: any) => Math.max(d.mornTemp ?? d.tempMax ?? 30, d.eveTemp ?? d.tempMax ?? 30)), 30);
-  const minDaily = Math.min(...tenDaysData.map((d: any) => Math.min(d.mornTemp ?? d.tempMin ?? 10, d.eveTemp ?? d.tempMin ?? 10)), 5);
+  const maxDaily = Math.max(...fifteenDaysData.map((d: any) => Math.max(d.mornTemp ?? d.tempMax ?? 30, d.eveTemp ?? d.tempMax ?? 30)), 30);
+  const minDaily = Math.min(...fifteenDaysData.map((d: any) => Math.min(d.mornTemp ?? d.tempMin ?? 10, d.eveTemp ?? d.tempMin ?? 10)), 5);
   const tempRange = Math.max(maxDaily - minDaily, 1);
 
   const hourlyTemps = hourlyData.map((h: any) => h.temp);
@@ -293,7 +324,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   return (
     <div className="space-y-4 text-xs animate-fade-in text-slate-200 w-full max-w-full overflow-x-hidden pb-10 px-2 relative">
       
-      {/* MODALE PLACÉE EN HAUT (Même taille max-w-lg et mêmes couleurs Météo Teal) */}
+      {/* MODALE PLACÉE EN HAUT */}
       {showCitySettings && (
         <div className="fixed inset-0 z-[99999] flex items-start justify-center pt-12 bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-[#121622] border border-teal-500/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
@@ -323,7 +354,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                 />
               </div>
 
-              {/* Suggestions d'autocomplétion en direct */}
               {suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0f17] border border-teal-500/40 rounded-xl shadow-2xl z-50 overflow-hidden max-h-44 overflow-y-auto">
                   {suggestions.map((item, idx) => (
@@ -465,7 +495,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       )}
 
-      {/* 2. MÉTÉO HEURE PAR HEURE */}
+      {/* 2. MÉTÉO HEURE PAR HEURE (Optimisé mobile) */}
       <div className="space-y-2 bg-[#151824] p-4 rounded-2xl border border-slate-800 shadow-xl">
         <div className="flex items-center justify-between">
           <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
@@ -473,7 +503,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </span>
           <span className="text-[9px] text-slate-400">°C</span>
         </div>
-        <div className="h-48 flex items-end justify-between gap-2.5 pt-4 pb-2 bg-[#090d16] p-3.5 rounded-xl border border-slate-800/80 overflow-x-auto">
+        <div className="h-48 flex items-end justify-between gap-1.5 pt-4 pb-2 bg-[#090d16] p-2.5 rounded-xl border border-slate-800/80 overflow-x-auto">
           {hourlyData.length === 0 ? (
             <div className="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">
               Chargement des données horaires de l'API...
@@ -486,26 +516,26 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
               return (
                 <div 
                   key={idx} 
-                  className="flex-1 min-w-[65px] flex flex-col items-center gap-2 h-full justify-end border border-teal-500/20 hover:border-teal-400/50 rounded-2xl p-2 bg-gradient-to-b from-[#0f172a]/90 to-[#090d16] shadow-[0_8px_20px_rgb(0,0,0,0.4)] backdrop-blur-md transition-all duration-300 group"
+                  className="flex-1 min-w-[48px] max-w-[56px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/20 hover:border-teal-400/50 rounded-xl p-1.5 bg-gradient-to-b from-[#0f172a]/90 to-[#090d16] shadow-[0_4px_12px_rgb(0,0,0,0.4)] backdrop-blur-md transition-all duration-300 group"
                 >
-                  <div className="h-5 flex items-center justify-center">
+                  <div className="h-4 flex items-center justify-center">
                     <LedLevelIndicator level={hourlyLedLevel} />
                   </div>
 
                   <div 
                     style={{ height: `${h}%` }} 
-                    className="w-full max-w-[34px] flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_20px_rgba(20,184,166,0.3)] border border-teal-300/30 bg-slate-950 relative group-hover:shadow-[0_0_25px_rgba(52,211,153,0.5)] transition-all"
+                    className="w-full max-w-[24px] flex flex-col justify-between rounded-lg overflow-hidden shadow-[0_0_15px_rgba(20,184,166,0.3)] border border-teal-300/30 bg-slate-950 relative group-hover:shadow-[0_0_20px_rgba(52,211,153,0.5)] transition-all"
                   >
-                    <div className="flex-1 bg-gradient-to-t from-emerald-500 via-teal-400 to-indigo-600 flex flex-col items-center justify-between py-2 px-0.5 relative overflow-hidden">
+                    <div className="flex-1 bg-gradient-to-t from-emerald-500 via-teal-400 to-indigo-600 flex flex-col items-center justify-between py-1.5 px-0.5 relative overflow-hidden">
                       <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none" />
-                      <span className="text-[10px] font-extrabold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] z-10">
+                      <span className="text-[9px] font-extrabold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] z-10">
                         {item.temp}°
                       </span>
-                      <div className="z-10">{getWeatherIcon(item.condition, "w-4 h-4")}</div>
+                      <div className="z-10">{getWeatherIcon(item.condition, "w-3.5 h-3.5")}</div>
                     </div>
                   </div>
 
-                  <span className="text-[9px] text-teal-200/80 font-bold border-t border-teal-900/40 pt-1 w-full text-center truncate">
+                  <span className="text-[8.5px] text-teal-200/80 font-bold border-t border-teal-900/40 pt-1 w-full text-center truncate">
                     {item.time}
                   </span>
                 </div>
@@ -550,15 +580,15 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </button>
       </div>
 
-      {/* 4. DIAGRAMME PRINCIPAL */}
+      {/* 4. DIAGRAMME PRINCIPAL (Optimisé mobile sur 15 jours + Indicateur de confiance) */}
       <div className="bg-[#151824] border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <h2 className="text-[11px] font-bold uppercase text-teal-400 flex items-center gap-2">
             <BarChart3 className="w-4 h-4" /> 
-            {activeTab === 'temp' && "Tendance Températures (Unifié Matin & Soir)"}
-            {activeTab === 'aqi' && "Qualité de l'Air AQI (Unifié Matin & Soir)"}
-            {activeTab === 'uv' && "Évolution Indice UV (Unifié Matin & Soir)"}
-            {activeTab === 'activities' && `Scores - ${activityMeta[selectedActivity].title} (Unifié Matin & Soir)`}
+            {activeTab === 'temp' && "Tendance Températures (15 Jours)"}
+            {activeTab === 'aqi' && "Qualité de l'Air AQI (15 Jours)"}
+            {activeTab === 'uv' && "Évolution Indice UV (15 Jours)"}
+            {activeTab === 'activities' && `Scores - ${activityMeta[selectedActivity].title} (15 Jours)`}
           </h2>
           
           <div className="flex items-center gap-3 text-[10px] font-bold">
@@ -591,8 +621,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
           </div>
         )}
 
-        <div className="h-52 flex items-end justify-between gap-2.5 pt-4 pb-2 bg-[#0d0f17] p-3.5 rounded-xl border border-slate-800 overflow-x-auto">
-          {tenDaysData.map((day: any, idx: number) => {
+        <div className="h-52 flex items-end justify-between gap-1.5 pt-4 pb-2 bg-[#0d0f17] p-3 rounded-xl border border-slate-800 overflow-x-auto">
+          {fifteenDaysData.map((day: any, idx: number) => {
             let evePercent = 50;
             let mornPercent = 50;
             let ledLevel = 5;
@@ -625,27 +655,33 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
             const mornShare = combinedVal > 0 ? (mornPercent / combinedVal) * 100 : 50;
 
             return (
-              <div key={idx} className="flex-1 min-w-[70px] flex flex-col items-center gap-2 h-full justify-end border border-teal-500/15 rounded-xl p-1.5 bg-[#121420]/40 hover:bg-[#16192a] transition-all">
+              <div 
+                key={idx} 
+                className="flex-1 min-w-[48px] max-w-[56px] flex flex-col items-center gap-1.5 h-full justify-end border border-teal-500/15 rounded-xl p-1 bg-[#121420]/40 hover:bg-[#16192a] transition-all"
+              >
+                {/* Indicateur de confiance sur 5 au-dessus de la barre de LED */}
+                <ConfidenceIndicator confidence={day.confidence} />
+
                 <div className="h-4 flex items-center justify-center animate-fade-in">
                   <LedLevelIndicator level={ledLevel} />
                 </div>
 
                 <div 
                   style={{ height: `${totalHeightPercent}%` }} 
-                  className="w-full max-w-[36px] flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.6)] border border-white/25 bg-slate-950/80 backdrop-blur-sm relative group transition-all duration-300"
+                  className="w-full max-w-[24px] flex flex-col justify-between rounded-lg overflow-hidden shadow-[0_4px_15px_rgba(0,0,0,0.6)] border border-white/25 bg-slate-950/80 backdrop-blur-sm relative group transition-all duration-300"
                 >
                   <div 
                     style={{ height: `${eveShare}%` }} 
                     className="bg-gradient-to-t from-amber-600 via-orange-500 to-yellow-400 flex flex-col items-center justify-center py-1 px-0.5 relative overflow-hidden transition-all duration-300"
                   >
                     <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/40 to-transparent pointer-events-none" />
-                    <span className="text-[9.5px] font-black text-slate-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] z-10">
+                    <span className="text-[9px] font-black text-slate-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] z-10">
                       {activeTab === 'temp' && `${eveVal}°`}
                       {activeTab === 'aqi' && day.aqiEve}
                       {activeTab === 'uv' && day.uvEve}
                       {activeTab === 'activities' && `${day.activityScores[selectedActivity].eve}%`}
                     </span>
-                    {activeTab === 'temp' && <div className="z-10">{getWeatherIcon(day.eveCondition, "w-3.5 h-3.5")}</div>}
+                    {activeTab === 'temp' && <div className="z-10">{getWeatherIcon(day.eveCondition, "w-3 h-3")}</div>}
                   </div>
 
                   <div className="w-full h-[1.5px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)] z-20 flex-shrink-0" />
@@ -654,8 +690,8 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                     style={{ height: `${mornShare}%` }} 
                     className="bg-gradient-to-t from-blue-950 via-indigo-700 to-blue-500 flex flex-col items-center justify-center py-1 px-0.5 relative overflow-hidden transition-all duration-300"
                   >
-                    {activeTab === 'temp' && <div className="z-10">{getWeatherIcon(day.mornCondition, "w-3.5 h-3.5")}</div>}
-                    <span className="text-[9.5px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] z-10">
+                    {activeTab === 'temp' && <div className="z-10">{getWeatherIcon(day.mornCondition, "w-3 h-3")}</div>}
+                    <span className="text-[9px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] z-10">
                       {activeTab === 'temp' && `${mornVal}°`}
                       {activeTab === 'aqi' && day.aqiMorn}
                       {activeTab === 'uv' && day.uvMorn}
@@ -664,7 +700,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   </div>
                 </div>
 
-                <span className="text-[9px] text-slate-200 font-extrabold border-t border-slate-800/80 pt-1 w-full text-center truncate">
+                <span className="text-[8.5px] text-slate-200 font-extrabold border-t border-slate-800/80 pt-1 w-full text-center truncate">
                   {day.day}
                 </span>
               </div>
@@ -701,20 +737,21 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-orange-400 inline-block"></span> Soir/Apm</span>
                 </div>
               </div>
-              <div className="h-52 flex items-end justify-between gap-2.5 pt-4 pb-1 overflow-x-auto">
-                {tenDaysData.map((day: any, idx: number) => {
+              <div className="h-52 flex items-end justify-between gap-1.5 pt-4 pb-1 overflow-x-auto">
+                {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round(((day.feelsEve + 5) / 45) * 100)));
                   return (
-                    <div key={idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                    <div key={idx} className="flex-1 min-w-[48px] max-w-[56px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
                         <LedLevelIndicator level={getLedLevelForTemp(day.feelsEve)} />
                       </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[32px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
+                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-orange-600 to-amber-400 flex items-center justify-center">
-                          <span className="text-[8.5px] font-black text-slate-950">{day.feelsEve}°</span>
+                          <span className="text-[8px] font-black text-slate-950">{day.feelsEve}°</span>
                         </div>
                         <div className="flex-1 bg-gradient-to-t from-amber-950 to-amber-700 flex items-center justify-center border-t border-white/40">
-                          <span className="text-[8.5px] font-black text-white">{day.feelsMorn}°</span>
+                          <span className="text-[8px] font-black text-white">{day.feelsMorn}°</span>
                         </div>
                       </div>
                       <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
@@ -735,20 +772,21 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-emerald-400 inline-block"></span> Soir/Apm</span>
                 </div>
               </div>
-              <div className="h-52 flex items-end justify-between gap-2.5 pt-4 pb-1 overflow-x-auto">
-                {tenDaysData.map((day: any, idx: number) => {
+              <div className="h-52 flex items-end justify-between gap-1.5 pt-4 pb-1 overflow-x-auto">
+                {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((Math.max(day.precipEve, 0.1) / 8) * 100)));
                   return (
-                    <div key={idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                    <div key={idx} className="flex-1 min-w-[48px] max-w-[56px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
                         <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round(9 - (day.precipEve / 7) * 8)))} />
                       </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[32px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
+                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-teal-500 to-emerald-400 flex items-center justify-center">
-                          <span className="text-[8.5px] font-black text-slate-950">{day.precipEve}</span>
+                          <span className="text-[8px] font-black text-slate-950">{day.precipEve}</span>
                         </div>
                         <div className="flex-1 bg-gradient-to-t from-emerald-950 to-emerald-800 flex items-center justify-center border-t border-white/40">
-                          <span className="text-[8.5px] font-black text-white">{day.precipMorn}</span>
+                          <span className="text-[8px] font-black text-white">{day.precipMorn}</span>
                         </div>
                       </div>
                       <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
@@ -769,20 +807,21 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-sky-400 inline-block"></span> Soir/Apm</span>
                 </div>
               </div>
-              <div className="h-52 flex items-end justify-between gap-2.5 pt-4 pb-1 overflow-x-auto">
-                {tenDaysData.map((day: any, idx: number) => {
+              <div className="h-52 flex items-end justify-between gap-1.5 pt-4 pb-1 overflow-x-auto">
+                {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((day.windEve / 35) * 100)));
                   return (
-                    <div key={idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                    <div key={idx} className="flex-1 min-w-[48px] max-w-[56px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
                         <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round(10 - (day.windEve / 35) * 9)))} />
                       </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[32px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
+                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-sky-500 to-cyan-400 flex items-center justify-center">
-                          <span className="text-[8.5px] font-black text-slate-950">{day.windEve}</span>
+                          <span className="text-[8px] font-black text-slate-950">{day.windEve}</span>
                         </div>
                         <div className="flex-1 bg-gradient-to-t from-blue-950 to-blue-700 flex items-center justify-center border-t border-white/40">
-                          <span className="text-[8.5px] font-black text-white">{day.windMorn}</span>
+                          <span className="text-[8px] font-black text-white">{day.windMorn}</span>
                         </div>
                       </div>
                       <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
@@ -803,20 +842,21 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-rose-400 inline-block"></span> Soir/Apm</span>
                 </div>
               </div>
-              <div className="h-52 flex items-end justify-between gap-2.5 pt-4 pb-1 overflow-x-auto">
-                {tenDaysData.map((day: any, idx: number) => {
+              <div className="h-52 flex items-end justify-between gap-1.5 pt-4 pb-1 overflow-x-auto">
+                {fifteenDaysData.map((day: any, idx: number) => {
                   const h = Math.max(35, Math.min(100, Math.round((day.pollenEve / 5) * 100)));
                   return (
-                    <div key={idx} className="flex-1 min-w-[60px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                    <div key={idx} className="flex-1 min-w-[48px] max-w-[56px] flex flex-col items-center gap-1 h-full justify-end border border-teal-500/15 rounded-lg p-1 bg-[#121420]/40">
+                      <ConfidenceIndicator confidence={day.confidence} />
                       <div className="h-4 flex items-center justify-center">
                         <LedLevelIndicator level={Math.max(1, Math.min(9, Math.round(10 - (day.pollenEve / 5) * 8)))} />
                       </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[32px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
+                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] flex flex-col justify-between rounded-t-lg overflow-hidden shadow-md">
                         <div className="flex-1 bg-gradient-to-t from-rose-500 to-pink-400 flex items-center justify-center">
-                          <span className="text-[8.5px] font-black text-slate-950">{day.pollenEve}</span>
+                          <span className="text-[8px] font-black text-slate-950">{day.pollenEve}</span>
                         </div>
                         <div className="flex-1 bg-gradient-to-t from-purple-950 to-purple-800 flex items-center justify-center border-t border-white/40">
-                          <span className="text-[8.5px] font-black text-white">{day.pollenMorn}</span>
+                          <span className="text-[8px] font-black text-white">{day.pollenMorn}</span>
                         </div>
                       </div>
                       <span className="text-[8.5px] text-slate-300 font-bold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>

@@ -103,8 +103,8 @@ export const HomePage: React.FC<HomePageProps> = ({
     return GoogleAuthService.getStoredToken() !== null || localStorage.getItem('google_workspace_access_token') !== null;
   });
 
-  // État de log visuel pour éviter et tracer le crash à l'écran
-  const [debugLog, setDebugLog] = useState<string | null>(null);
+  // Popup de notification (Succès ou Erreur) de 2 secondes
+  const [popupMessage, setPopupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     const checkToken = () => {
@@ -126,20 +126,25 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const handleGoogleLogin = async () => {
     try {
-      setDebugLog("Tentative d'authentification Google...");
       const token = await GoogleAuthService.signIn();
       if (token) {
         setIsWorkspaceConnected(true);
         const count = await fetchUnreadEmailCount(token);
         setUnreadCount(count);
         window.dispatchEvent(new Event('workspace-auth-changed'));
-        setDebugLog("Connexion Google réussie !");
-        setTimeout(() => setDebugLog(null), 3000);
+        
+        // Popup succès (2 secondes)
+        setPopupMessage({ text: "Connexion Google réussie !", type: 'success' });
+        setTimeout(() => setPopupMessage(null), 2000);
+      } else {
+        setPopupMessage({ text: "Connexion annulée ou échouée.", type: 'error' });
+        setTimeout(() => setPopupMessage(null), 2000);
       }
     } catch (error: any) {
-      const errorMessage = error?.message || JSON.stringify(error) || "Erreur inconnue";
       console.error("Erreur de connexion Google:", error);
-      setDebugLog(`CRASH ÉVITÉ - Erreur : ${errorMessage}`);
+      // Popup erreur (2 secondes)
+      setPopupMessage({ text: "Erreur lors de la connexion Google.", type: 'error' });
+      setTimeout(() => setPopupMessage(null), 2000);
     }
   };
 
@@ -294,19 +299,14 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-8 relative">
 
-      {/* CONSOLE DE LOG VISUELLE (POUR CAPTURER LE CRASH GOOGLE AUTH) */}
-      {debugLog && (
-        <div className="bg-rose-950/95 border-2 border-rose-500 text-rose-200 p-4 rounded-2xl shadow-[0_0_30px_rgba(244,63,94,0.6)] relative z-50 my-2 break-all flex items-start justify-between gap-3 font-mono">
-          <div>
-            <span className="font-bold text-white block text-sm">[LOG_DEBUG_GOOGLE]</span>
-            <p className="mt-1 text-xs">{debugLog}</p>
-          </div>
-          <button 
-            onClick={() => setDebugLog(null)}
-            className="text-rose-400 hover:text-white font-bold px-2 py-1 rounded-lg bg-black/40 text-xs shrink-0 cursor-pointer"
-          >
-            Fermer ✕
-          </button>
+      {/* POPUP DE NOTIFICATION SUCCÈS / ERREUR (DISPARAÎT EN 2 SECONDES) */}
+      {popupMessage && (
+        <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2.5 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 animate-bounce transition-all ${
+          popupMessage.type === 'success' 
+            ? 'bg-emerald-950/95 border-emerald-500 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.4)]' 
+            : 'bg-rose-950/95 border-rose-500 text-rose-200 shadow-[0_0_20px_rgba(244,63,94,0.4)]'
+        }`}>
+          <span>{popupMessage.text}</span>
         </div>
       )}
 
