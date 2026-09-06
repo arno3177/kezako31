@@ -6,7 +6,7 @@ import { getTranslation } from './utils/translations';
 import { Article, PageView, TemperatureUnit, AppSettings } from './types';
 import { auth } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { GoogleAuthService } from './service/googleAuthService'; // <--- Import indispensable
+import { GoogleAuthService } from './service/googleAuthService';
 import { HomePage } from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
@@ -15,6 +15,7 @@ import { TripsPage } from './pages/TripsPage';
 import { WorkspacePage } from './pages/WorkspacePage';
 import { SavedArticlesPage } from './pages/SavedArticlesPage';
 import { ShortcutsPage } from './pages/ShortcutsPage';
+import { AssistantDetailPage } from './pages/AssistantDetailPage';
 import { AddCityModal } from './components/AddCityModal';
 import { Footer } from './components/Footer';
 import { SavedArticlesModal } from './components/SavedArticlesModal';
@@ -29,7 +30,7 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings' | 'assistant'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
@@ -240,6 +241,13 @@ export function App() {
         {activeTab === 'workspace' && (
           <WorkspacePage />
         )}
+        {activeTab === 'assistant' && (
+          <AssistantDetailPage
+            currentWeather={currentWeather}
+            onBack={() => setActiveTab('home')}
+            language={settings.language}
+          />
+        )}
         {activeTab === 'home' && (
           <HomePage
             articles={articles}
@@ -255,6 +263,7 @@ export function App() {
             onViewSourcesNews={() => setActiveTab('sources-news')}
             onViewShortcuts={() => setActiveTab('shortcuts')} 
             onViewTrips={handleViewTrips}
+            onViewAssistant={() => setActiveTab('assistant')} // <--- Connexion du clic de l'encadré vers la page dédiée
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             language={settings.language}

@@ -12,7 +12,7 @@ import {
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
   ExternalLink, Trash2, Info, Mail, UserCheck, UserX,
-  Shirt
+  Shirt, Umbrella, Glasses, Sparkle
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
@@ -32,7 +32,7 @@ interface HomePageProps {
   onViewSourcesNews: () => void;
   onViewTrips?: (mode?: 'car' | 'bus') => void;
   onViewShortcuts?: () => void;
-  onViewAssistant?: () => void; // Prop optionnelle pour ouvrir la page dédiée de l'assistant
+  onViewAssistant?: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   language?: AppSettings['language'];
@@ -170,6 +170,52 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 20) : 20;
+
+  // Assistant intelligent contextuel (Matin / Apm / Soir + Demain)
+  const assistantSummary = useMemo(() => {
+    const hour = new Date().getHours();
+    const forecast = currentWeather?.forecast || [];
+    const tomorrow = forecast[1] || { tempMax: 20, condition: 'Ensoleillé' };
+    const tomorrowTemp = tomorrow.tempMax ?? 20;
+
+    // Logique selon l'heure
+    if (hour < 12) {
+      // Matin : Conseil global ou détaillé si variation
+      if (currentTemp < 10) {
+        return {
+          title: "Matinée fraîche • Journée couverte",
+          text: "Matin : Manteau chaud & écharpe | Apm : Veste | Soir : Pull",
+          icons: ["🧥", "🧣"]
+        };
+      } else if (currentTemp > 24) {
+        return {
+          title: "Matinée douce • Belle journée ensoleillée",
+          text: "Matin : T-shirt | Apm : Lunettes de soleil & casquette | Soir : Léger",
+          icons: ["👕", "🕶️"]
+        };
+      } else {
+        return {
+            title: "Matinée agréable • Temps stable",
+            text: "Matin : Pull léger | Apm : T-shirt | Soir : Veste",
+            icons: ["🧥", "🌤️"]
+        };
+      }
+    } else if (hour >= 12 && hour < 18) {
+      // Après 12PM : Apm / Soir + Aperçu demain
+      return {
+        title: `Apm & Soir • Demain : ${tomorrowTemp}°C`,
+        text: `Apm : Idéal en extérieur | Soir : Prévoir une petite veste. Demain : ${tomorrow.condition}`,
+        icons: ["🌤️", "🧥", "📅"]
+      };
+    } else {
+      // Soir (après 18h) : Focus soirée + Demain
+      return {
+        title: `Soirée calme • Demain : ${tomorrowTemp}°C`,
+        text: `Soir : Fraîcheur nocturne. Demain : Prévoyez une tenue adaptée (${tomorrow.condition})`,
+        icons: ["🌙", "🧥", "📅"]
+      };
+    }
+  }, [currentWeather, currentTemp]);
 
   const activePrevention = useMemo(() => {
     if (!currentWeather) return null;
@@ -457,37 +503,75 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 1.5. ENCADRÉ ASSISTANT DU JOUR (SOUS LA MÉTÉO, AU-DESSUS DU TRAJET) */}
+      {/* 1.5. ENCADRÉ ASSISTANT INTELLIGENT AVEC ACCESSOIRES DÉTAILLÉS */}
       <div 
         onClick={onViewAssistant}
-        className="bg-gradient-to-r from-teal-950/80 via-[#16182a] to-indigo-950/80 border border-teal-500/40 rounded-2xl p-3.5 shadow-xl hover:border-teal-400 transition-all duration-300 cursor-pointer group relative overflow-hidden"
+        className="bg-gradient-to-r from-teal-950/90 via-[#15192c] to-indigo-950/90 border-2 border-teal-500/50 rounded-2xl p-4 shadow-2xl hover:border-teal-400 transition-all duration-300 cursor-pointer group relative overflow-hidden"
       >
-        <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-teal-500/10 rounded-full blur-xl pointer-events-none" />
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
         
-        <div className="flex items-center justify-between gap-3 relative z-10">
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="p-2.5 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-300 flex-shrink-0 group-hover:scale-110 transition-transform">
-              <Shirt className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-[11px] font-extrabold text-white uppercase tracking-wider">Assistant Tenues & Sorties</h2>
-                <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Actif</span>
-              </div>
-              <p className="text-[10px] text-teal-200/80 truncate font-medium pt-0.5">
-                {currentTemp < 10 
-                  ? "Prévoir manteau chaud & écharpe • Idéal pour l'école" 
-                  : currentTemp > 25 
-                  ? "Temps estival • Privilégier des vêtements légers et hydratation" 
-                  : "Veste légère conseillée • Parfait pour une sortie après 14h"}
-              </p>
-            </div>
-          </div>
+        <div className="space-y-3 relative z-10">
           
-          <div className="flex items-center gap-1 text-[10px] font-bold text-teal-400 group-hover:translate-x-1 transition-transform flex-shrink-0 bg-black/40 px-2.5 py-2 rounded-xl border border-teal-500/20">
-            <span>Explorer</span>
-            <ChevronRight className="w-3.5 h-3.5" />
+          {/* En-tête de la carte */}
+          <div className="flex items-center justify-between border-b border-teal-500/20 pb-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-base">🎒</span>
+              <h2 className="text-xs font-black text-white uppercase tracking-wider">Assistant Tenues & Accessoires</h2>
+              <span className="text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-teal-500/25 text-teal-300 border border-teal-500/40">
+                {new Date().getHours() < 12 ? "Matin / Apm / Soir" : "Apm, Soir & Demain"}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-1 text-[10px] font-bold text-teal-400 group-hover:translate-x-1 transition-transform bg-black/40 px-2 py-1 rounded-xl border border-teal-500/20">
+              <span>Explorer</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
           </div>
+
+          {/* Grille des 3 périodes avec accessoires dynamiques */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            
+            {/* Colonne 1 : Matin ou Après-midi */}
+            <div className="bg-black/40 border border-teal-500/20 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 group-hover:border-teal-500/40 transition-colors">
+              <span className="text-[9px] font-extrabold text-teal-300/80 uppercase">
+                {new Date().getHours() < 12 ? "Matin" : "Après-midi"}
+              </span>
+              <div className="text-2xl py-0.5 drop-shadow-md">
+                {currentTemp < 10 ? "🧥🧣" : currentTemp > 26 ? "🕶️🧴" : "👔☂️"}
+              </div>
+              <span className="text-[9.5px] font-bold text-white truncate w-full">
+                {currentTemp < 10 ? "Manteau & Écharpe" : currentTemp > 26 ? "Lunettes & Crème" : "Veste & Parapluie"}
+              </span>
+            </div>
+
+            {/* Colonne 2 : Après-midi ou Soirée */}
+            <div className="bg-black/40 border border-teal-500/20 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 group-hover:border-teal-500/40 transition-colors">
+              <span className="text-[9px] font-extrabold text-amber-300/80 uppercase">
+                {new Date().getHours() < 12 ? "Après-midi" : "Soirée"}
+              </span>
+              <div className="text-2xl py-0.5 drop-shadow-md">
+                {currentWeather?.condition?.toLowerCase().includes('pluie') ? "☂️" : currentTemp > 25 ? "🧴☀️" : "🕶️🧢"}
+              </div>
+              <span className="text-[9.5px] font-bold text-white truncate w-full">
+                {currentWeather?.condition?.toLowerCase().includes('pluie') ? "Prévoir parapluie" : currentTemp > 25 ? "Crème solaire" : "Lunettes / Casquette"}
+              </span>
+            </div>
+
+            {/* Colonne 3 : Soirée ou Demain */}
+            <div className="bg-black/40 border border-indigo-500/30 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 bg-gradient-to-b from-indigo-950/40 to-black/40 group-hover:border-indigo-400/50 transition-colors">
+              <span className="text-[9px] font-extrabold text-indigo-300 uppercase">
+                {new Date().getHours() < 12 ? "Soirée" : "Demain 📅"}
+              </span>
+              <div className="text-2xl py-0.5 drop-shadow-md">
+                {new Date().getHours() < 12 ? "🧥" : "☂️🧢"}
+              </div>
+              <span className="text-[9.5px] font-bold text-white truncate w-full">
+                {new Date().getHours() < 12 ? "Petite laine" : "Vérifier imperméable"}
+              </span>
+            </div>
+
+          </div>
+
         </div>
       </div>
 
