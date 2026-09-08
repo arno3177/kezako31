@@ -12,7 +12,7 @@ import {
   Sunrise, Sunset, Sparkles, Clock,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
   ExternalLink, Trash2, Info, Mail, UserCheck, UserX,
-  Shirt, Umbrella, Glasses, Sparkle
+  Shirt, Umbrella, Glasses, Sparkle, Home, Flame, CheckCircle2
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
@@ -33,6 +33,7 @@ interface HomePageProps {
   onViewTrips?: (mode?: 'car' | 'bus') => void;
   onViewShortcuts?: () => void;
   onViewAssistant?: () => void;
+  onViewEnergyComfort?: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   language?: AppSettings['language'];
@@ -94,6 +95,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onViewTrips,
   onViewShortcuts,
   onViewAssistant,
+  onViewEnergyComfort,
   searchQuery,
   language = 'en'
 }) => {
@@ -170,52 +172,41 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 20) : 20;
+  const humidity = currentWeather ? Number(currentWeather.humidity ?? 75) : 75;
 
-  // Assistant intelligent contextuel (Matin / Apm / Soir + Demain)
-  const assistantSummary = useMemo(() => {
-    const hour = new Date().getHours();
-    const forecast = currentWeather?.forecast || [];
-    const tomorrow = forecast[1] || { tempMax: 20, condition: 'Ensoleillé' };
-    const tomorrowTemp = tomorrow.tempMax ?? 20;
+  // Températures max et min (récupérées depuis currentWeather ou estimées par défaut)
+  const tempMax = (currentWeather as any)?.tempMax !== undefined ? Number((currentWeather as any).tempMax) : currentTemp + 3;
+  const tempMin = (currentWeather as any)?.tempMin !== undefined ? Number((currentWeather as any).tempMin) : currentTemp - 4;
 
-    // Logique selon l'heure
-    if (hour < 12) {
-      // Matin : Conseil global ou détaillé si variation
-      if (currentTemp < 10) {
-        return {
-          title: "Matinée fraîche • Journée couverte",
-          text: "Matin : Manteau chaud & écharpe | Apm : Veste | Soir : Pull",
-          icons: ["🧥", "🧣"]
-        };
-      } else if (currentTemp > 24) {
-        return {
-          title: "Matinée douce • Belle journée ensoleillée",
-          text: "Matin : T-shirt | Apm : Lunettes de soleil & casquette | Soir : Léger",
-          icons: ["👕", "🕶️"]
-        };
-      } else {
-        return {
-            title: "Matinée agréable • Temps stable",
-            text: "Matin : Pull léger | Apm : T-shirt | Soir : Veste",
-            icons: ["🧥", "🌤️"]
-        };
-      }
-    } else if (hour >= 12 && hour < 18) {
-      // Après 12PM : Apm / Soir + Aperçu demain
+  const getEnergyAndComfortStatus = () => {
+    if (currentTemp < 12) {
       return {
-        title: `Apm & Soir • Demain : ${tomorrowTemp}°C`,
-        text: `Apm : Idéal en extérieur | Soir : Prévoir une petite veste. Demain : ${tomorrow.condition}`,
-        icons: ["🌤️", "🧥", "📅"]
+        title: "Chauffage & Isolation Recommandés",
+        desc: `Température extérieure fraîche (${currentTemp}°C). Veillez à maintenir les volets fermés dès la tombée de la nuit pour préserver l'inertie thermique de la maison.`,
+        icon: <Flame className="w-4 h-4 text-amber-400" />,
+        badgeBg: "bg-amber-500/20 border-amber-500/30 text-amber-300",
+        action: "Optimisation Thermique Active"
+      };
+    } else if (currentTemp >= 22) {
+      return {
+        title: "Aération Matinale Conseillée",
+        desc: `Chaleur extérieure marquée (${currentTemp}°C). Aérez tôt le matin (avant 9h) puis baissez les stores pour garder la maison au frais sans surconsommer.`,
+        icon: <Zap className="w-4 h-4 text-teal-400" />,
+        badgeBg: "bg-teal-500/20 border-teal-500/30 text-teal-300",
+        action: "Gestion Fraîcheur Active"
       };
     } else {
-      // Soir (après 18h) : Focus soirée + Demain
       return {
-        title: `Soirée calme • Demain : ${tomorrowTemp}°C`,
-        text: `Soir : Fraîcheur nocturne. Demain : Prévoyez une tenue adaptée (${tomorrow.condition})`,
-        icons: ["🌙", "🧥", "📅"]
+        title: "Aération Idéale (10 min max)",
+        desc: `Conditions extérieures stables (${currentTemp}°C, humidité ${humidity}%). C'est le moment parfait pour faire un courant d'air rapide et renouveler l'air intérieur.`,
+        icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />,
+        badgeBg: "bg-emerald-500/20 border-emerald-500/30 text-emerald-300",
+        action: "Renouvellement d'air optimal"
       };
     }
-  }, [currentWeather, currentTemp]);
+  };
+
+  const energy = getEnergyAndComfortStatus();
 
   const activePrevention = useMemo(() => {
     if (!currentWeather) return null;
@@ -472,8 +463,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                <span className="text-2xl font-black text-white">{currentWeather.temperature}°C</span>
+              {/* Température actuelle avec Max au-dessus et Min en dessous à droite */}
+              <div className="flex items-center space-x-2.5 flex-shrink-0">
+                <span className="text-2xl font-black text-white">{currentTemp}°C</span>
+                <div className="flex flex-col text-[10px] font-bold leading-tight pl-1 border-l border-sky-400/30">
+                  <span className="text-amber-300" title="Température maximale">▲ {tempMax}°</span>
+                  <span className="text-sky-300" title="Température minimale">▼ {tempMin}°</span>
+                </div>
               </div>
             </div>
 
@@ -503,7 +499,29 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 1.5. ENCADRÉ ASSISTANT INTELLIGENT AVEC ACCESSOIRES DÉTAILLÉS */}
+      {/* 2. MODULE : SUIVI ÉNERGÉTIQUE & CONFORT MAISON */}
+      <div 
+        onClick={onViewEnergyComfort}
+        className="bg-[#151824] border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 shadow-xl space-y-2.5 transition-all duration-300 cursor-pointer group"
+      >
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h2 className="text-[11px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
+            <Home className="w-4 h-4 text-amber-400" /> Suivi Énergétique & Confort Maison
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${energy.badgeBg}`}>
+              {energy.icon}
+              <span>{energy.action}</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-amber-400 transition-all" />
+          </div>
+        </div>
+        <p className="text-[10px] text-slate-300 leading-relaxed">
+          {energy.desc}
+        </p>
+      </div>
+
+      {/* 2.5. ENCADRÉ ASSISTANT INTELLIGENT AVEC ACCESSOIRES DÉTAILLÉS */}
       <div 
         onClick={onViewAssistant}
         className="bg-gradient-to-r from-teal-950/90 via-[#15192c] to-indigo-950/90 border-2 border-teal-500/50 rounded-2xl p-4 shadow-2xl hover:border-teal-400 transition-all duration-300 cursor-pointer group relative overflow-hidden"
@@ -512,7 +530,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         
         <div className="space-y-3 relative z-10">
           
-          {/* En-tête de la carte */}
           <div className="flex items-center justify-between border-b border-teal-500/20 pb-2">
             <div className="flex items-center space-x-2">
               <span className="text-base">🎒</span>
@@ -528,10 +545,8 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
 
-          {/* Grille des 3 périodes avec accessoires dynamiques */}
           <div className="grid grid-cols-3 gap-2 pt-1">
             
-            {/* Colonne 1 : Matin ou Après-midi */}
             <div className="bg-black/40 border border-teal-500/20 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 group-hover:border-teal-500/40 transition-colors">
               <span className="text-[9px] font-extrabold text-teal-300/80 uppercase">
                 {new Date().getHours() < 12 ? "Matin" : "Après-midi"}
@@ -544,7 +559,6 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
             </div>
 
-            {/* Colonne 2 : Après-midi ou Soirée */}
             <div className="bg-black/40 border border-teal-500/20 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 group-hover:border-teal-500/40 transition-colors">
               <span className="text-[9px] font-extrabold text-amber-300/80 uppercase">
                 {new Date().getHours() < 12 ? "Après-midi" : "Soirée"}
@@ -557,7 +571,6 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
             </div>
 
-            {/* Colonne 3 : Soirée ou Demain */}
             <div className="bg-black/40 border border-indigo-500/30 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1 bg-gradient-to-b from-indigo-950/40 to-black/40 group-hover:border-indigo-400/50 transition-colors">
               <span className="text-[9px] font-extrabold text-indigo-300 uppercase">
                 {new Date().getHours() < 12 ? "Soirée" : "Demain 📅"}
@@ -575,7 +588,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 2. TRAJET PRINCIPAL */}
+      {/* 3. TRAJET PRINCIPAL */}
       {mainTrip && (
         <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
           <div className="flex items-center justify-between border-b border-emerald-900/30 pb-2">
@@ -638,7 +651,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 2.5. SECTION : RACCOURCIS FAVORIS */}
+      {/* 4. SECTION : RACCOURCIS FAVORIS */}
       <div className="bg-[#1c1114] border border-rose-500/30 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
         <div className="flex items-center justify-between border-b border-rose-900/30 pb-2">
           <div className="flex items-center space-x-2 text-white font-bold text-xs">
@@ -691,7 +704,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 3. SECTION ACTUALITÉS */}
+      {/* 5. SECTION ACTUALITÉS */}
       <div className="bg-gradient-to-r from-[#0e1713] via-[#121f19] to-[#0c1411] border-2 border-emerald-600/50 rounded-2xl p-3.5 shadow-2xl space-y-3 w-full">
         <div className="flex items-center justify-between border-b border-emerald-600/25 pb-2">
           <div className="flex items-center space-x-2 text-emerald-300">

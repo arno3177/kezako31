@@ -16,6 +16,7 @@ import { WorkspacePage } from './pages/WorkspacePage';
 import { SavedArticlesPage } from './pages/SavedArticlesPage';
 import { ShortcutsPage } from './pages/ShortcutsPage';
 import { AssistantDetailPage } from './pages/AssistantDetailPage';
+import { EnergyComfortDetailPage } from './pages/EnergyComfortDetailPage'; // <-- Import de ta nouvelle page de détails
 import { AddCityModal } from './components/AddCityModal';
 import { Footer } from './components/Footer';
 import { SavedArticlesModal } from './components/SavedArticlesModal';
@@ -30,7 +31,7 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings' | 'assistant'>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings' | 'assistant' | 'energy-comfort'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
@@ -246,6 +247,16 @@ export function App() {
             currentWeather={currentWeather}
             onBack={() => setActiveTab('home')}
             language={settings.language}
+           
+          />
+        )}
+        {/* NOUVELLE PAGE DE DÉTAILS : Suivi Énergétique & Confort Maison */}
+        {activeTab === 'energy-comfort' && (
+          <EnergyComfortDetailPage
+            currentWeather={currentWeather}
+            onBack={() => setActiveTab('home')}
+            language={settings.language}
+             settings={settings}
           />
         )}
         {activeTab === 'home' && (
@@ -263,7 +274,8 @@ export function App() {
             onViewSourcesNews={() => setActiveTab('sources-news')}
             onViewShortcuts={() => setActiveTab('shortcuts')} 
             onViewTrips={handleViewTrips}
-            onViewAssistant={() => setActiveTab('assistant')} // <--- Connexion du clic de l'encadré vers la page dédiée
+            onViewAssistant={() => setActiveTab('assistant')}
+            onViewEnergyComfort={() => setActiveTab('energy-comfort')} // <--- Connexion du clic de la carte vers la page de détails
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             language={settings.language}

@@ -9,7 +9,8 @@ import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
-  Thermometer, ArrowLeft, ShieldCheck, LogOut, User as UserIcon
+  Thermometer, ArrowLeft, ShieldCheck, LogOut, User as UserIcon,
+  Home, Flame, Layers, Building, Sparkles, Loader2, AlertCircle, Eye, EyeOff, Maximize2, Compass, Award, Sun, DoorClosed, Wind 
 } from 'lucide-react';
 
 interface SettingsPageProps { 
@@ -52,7 +53,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const [user, setUser] = useState<User | null>(auth.currentUser);
 
-  // Écoute de l'état d'authentification Firebase
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('user_ai_api_key') || '');
+  const [showKey, setShowKey] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -60,7 +66,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Vérification combinée et large : Firebase, service Google ou localStorage direct
   const hasActiveSession = 
     user !== null || 
     auth.currentUser !== null || 
@@ -70,25 +75,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleLogout = async () => {
     try {
-      console.log("Début de la déconnexion...");
       if (Capacitor.isNativePlatform()) {
         await FirebaseAuthentication.signOut().catch(() => {});
       }
       await signOut(auth).catch(() => {});
       
-      // Nettoyage radical de tous les tokens et clés de stockage local
       GoogleAuthService.clearToken();
       localStorage.removeItem('google_workspace_access_token');
       localStorage.removeItem('google_access_token');
       
       setUser(null);
-      console.log("Déconnexion réussie, rechargement de l'application...");
-
-      // Force le rechargement pour réinitialiser toute l'interface et cacher les modules Workspace
       window.location.reload();
     } catch (error: any) {
-      console.error("Erreur lors de la déconnexion :", error);
-      // Même en cas d'erreur, on force le nettoyage et le rechargement local
       GoogleAuthService.clearToken();
       localStorage.clear();
       window.location.reload();
@@ -103,6 +101,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       country: newCountry,
       busApi: isLux ? 'mobiliteit' : 'maps'
     });
+  };
+
+  const handleTestKey = async () => {
+    const keyToTest = apiKey.trim();
+    if (!keyToTest) {
+      setTestStatus('error');
+      setErrorMessage('Veuillez d\'abord saisir une clé API.');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestStatus('idle');
+    setErrorMessage('');
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${keyToTest}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: "Test" }] }]
+          })
+        }
+      );
+
+      if (response.ok) {
+        setTestStatus('success');
+        localStorage.setItem('user_ai_api_key', keyToTest);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setTestStatus('error');
+        setErrorMessage(errData?.error?.message || 'Clé API invalide ou non autorisée.');
+      }
+    } catch (err) {
+      setTestStatus('error');
+      setErrorMessage('Erreur de connexion au service IA.');
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   return (
@@ -130,44 +168,182 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {t.generalSettings}
         </div>
 
-        {/* SECTION COMPTE GOOGLE / DÉCONNEXION */}
-        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Compte Google Workspace</h2>
+        {/* SECTION : ÉNERGIE & HABITAT */}
+        <div className="bg-[#151824] border border-emerald-500/30 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="flex items-center space-x-2 text-emerald-400 border-b border-slate-800 pb-2">
+            <Award className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Passeport Énergétique & Caractéristiques</h2>
           </div>
 
-          {hasActiveSession ? (
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center space-x-3">
-                {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full border border-indigo-500" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-                    <UserIcon className="w-4 h-4" />
-                  </div>
-                )}
-                <div>
-                  <div className="font-bold text-white text-xs">{user?.displayName || 'Utilisateur Google'}</div>
-                  <div className="text-[10px] text-slate-400">{user?.email || 'Connecté via Workspace'}</div>
-                </div>
-              </div>
+          {/* 1. Classe du Passeport Énergétique */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Award className="w-3 h-3 text-emerald-400" /> Classe du Passeport Énergétique
+            </label>
+            <select
+              value={settings.energyClass || 'AAA'}
+              onChange={(e) => onUpdateSettings({ energyClass: e.target.value as any })}
+              className="w-full bg-[#0d0f17] text-emerald-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
+            >
+              {['AAA', 'AA', 'A', 'B', 'C', 'D', 'E', 'F', 'G'].map(cl => (
+                <option key={cl} value={cl}>Classe {cl}</option>
+              ))}
+            </select>
+          </div>
 
-              <button
-                onClick={handleLogout}
-                className="px-3.5 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/50 text-rose-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Se déconnecter</span>
-              </button>
+          {/* 2. Surface Habitable */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Maximize2 className="w-3 h-3 text-cyan-400" /> Surface habitable (m²)
+            </label>
+            <div className="flex items-center space-x-3 pt-1">
+              <input
+                type="range"
+                min="20"
+                max="250"
+                step="5"
+                value={settings.apartmentSurface || 75}
+                onChange={(e) => onUpdateSettings({ apartmentSurface: Number(e.target.value) })}
+                className="w-full accent-cyan-400 cursor-pointer bg-slate-800 h-2 rounded-lg"
+              />
+              <span className="text-sm font-black text-cyan-400 w-16 text-right">
+                {settings.apartmentSurface || 75} m²
+              </span>
             </div>
-          ) : (
-            <div className="pt-1">
-              <p className="text-slate-400 text-[11px] italic">
-                Aucun compte Google connecté pour le moment.
-              </p>
+          </div>
+
+          {/* 3. Surface Vitrée */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Sun className="w-3 h-3 text-amber-400" /> Surface vitrée totale (m²)
+            </label>
+            <div className="flex items-center space-x-3 pt-1">
+              <input
+                type="range"
+                min="2"
+                max="40"
+                step="1"
+                value={settings.glassSurface || 14}
+                onChange={(e) => onUpdateSettings({ glassSurface: Number(e.target.value) })}
+                className="w-full accent-amber-400 cursor-pointer bg-slate-800 h-2 rounded-lg"
+              />
+              <span className="text-sm font-black text-amber-400 w-16 text-right">
+                {settings.glassSurface || 14} m²
+              </span>
             </div>
-          )}
+          </div>
+
+          {/* 4. Hauteur sous plafond */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Maximize2 className="w-3 h-3 text-cyan-400" /> Hauteur sous plafond (m)
+            </label>
+            <div className="flex items-center space-x-3 pt-1">
+              <input
+                type="range"
+                min="2.2"
+                max="4.0"
+                step="0.1"
+                value={settings.ceilingHeight || 2.6}
+                onChange={(e) => onUpdateSettings({ ceilingHeight: Number(e.target.value) })}
+                className="w-full accent-cyan-400 cursor-pointer bg-slate-800 h-2 rounded-lg"
+              />
+              <span className="text-sm font-black text-cyan-400 w-16 text-right">
+                {settings.ceilingHeight || 2.6} m
+              </span>
+            </div>
+          </div>
+
+          {/* 5. Pièces exposées */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <DoorClosed className="w-3 h-3 text-indigo-400" /> Pièces exposées
+            </label>
+            <select
+              value={settings.roomsCount || 3}
+              onChange={(e) => onUpdateSettings({ roomsCount: Number(e.target.value) })}
+              className="w-full bg-[#0d0f17] text-indigo-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+            >
+              {[1, 2, 3, 4, 5, 6].map(num => (
+                <option key={num} value={num}>{num} {num > 1 ? 'pièces exposées' : 'pièce exposée'}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 6. Orientation principale */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Compass className="w-3 h-3 text-amber-400" /> Orientation principale (Façade / Vitres)
+            </label>
+            <select
+              value={settings.orientation || 'S'}
+              onChange={(e) => onUpdateSettings({ orientation: e.target.value as any })}
+              className="w-full bg-[#0d0f17] text-amber-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+            >
+              {[
+                { code: 'N', label: 'Nord (N)' },
+                { code: 'NE', label: 'Nord-Est (NE)' },
+                { code: 'E', label: 'Est (E)' },
+                { code: 'SE', label: 'Sud-Est (SE)' },
+                { code: 'S', label: 'Sud (S)' },
+                { code: 'SW', label: 'Sud-Ouest (SW)' },
+                { code: 'W', label: 'Ouest (W)' },
+                { code: 'NW', label: 'Nord-Ouest (NW)' }
+              ].map(dir => (
+                <option key={dir.code} value={dir.code}>{dir.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 7. Type de Ventilation */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Wind className="w-3 h-3 text-sky-400" /> Type de ventilation
+            </label>
+            <select
+              value={settings.ventilationType || 'double_flux'}
+              onChange={(e) => onUpdateSettings({ ventilationType: e.target.value as any })}
+              className="w-full bg-[#0d0f17] text-sky-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
+            >
+              <option value="double_flux">VMC Double Flux avec échangeur (Standard AAA)</option>
+              <option value="simple_flux">VMC Simple Flux</option>
+              <option value="natural">Ventilation naturelle / Ouvertures</option>
+            </select>
+          </div>
+
+          {/* 8. Protection Solaire Extérieure */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Sun className="w-3 h-3 text-amber-400" /> Protection Solaire Extérieure
+            </label>
+            <select
+              value={settings.sunProtection || 'bso'}
+              onChange={(e) => onUpdateSettings({ sunProtection: e.target.value as any })}
+              className="w-full bg-[#0d0f17] text-amber-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+            >
+              <option value="bso">Brise-Soleil Orientables (BSO)</option>
+              <option value="shutters">Volets roulants extérieurs</option>
+              <option value="indoor">Stores intérieurs (Tissu)</option>
+              <option value="none">Aucune protection</option>
+            </select>
+          </div>
+
+          {/* 9. Position dans l'immeuble */}
+          <div className="space-y-2 pt-2">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Building className="w-3 h-3 text-emerald-400" /> Position dans l'immeuble
+            </label>
+            <select
+              value={settings.buildingPosition || 'intermediate'}
+              onChange={(e) => onUpdateSettings({ buildingPosition: e.target.value as any })}
+              className="w-full bg-[#0d0f17] text-emerald-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
+            >
+              <option value="intermediate">Étage intermédiaire (Mitoyen haut & bas)</option>
+              <option value="top_floor">Dernier étage (Exposé toiture)</option>
+              <option value="ground_floor">Rez-de-chaussée (Sol froid)</option>
+              <option value="corner">Appartement d'angle (Multi-exposé)</option>
+            </select>
+          </div>
         </div>
 
         {/* PAYS */}
@@ -212,43 +388,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               );
             })}
           </div>
-        </div>
-
-        {/* API BUS */}
-        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
-            <Bus className="w-4 h-4" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white">{t.busApiTitle}</h2>
-          </div>
-          {isLuxembourg ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <button
-                onClick={() => onUpdateSettings({ busApi: 'mobiliteit' })}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  settings.busApi === 'mobiliteit'
-                    ? 'bg-emerald-950/30 border-emerald-500 text-white'
-                    : 'bg-[#0d0f17] border-slate-800 text-slate-400'
-                }`}
-              >
-                <div className="font-extrabold text-white">Mobiliteit.lu</div>
-              </button>
-
-              <button
-                onClick={() => onUpdateSettings({ busApi: 'maps' })}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  settings.busApi === 'maps'
-                    ? 'bg-indigo-950/30 border-indigo-500 text-white'
-                    : 'bg-[#0d0f17] border-slate-800 text-slate-400'
-                }`}
-              >
-                <div className="font-extrabold text-white">Google Maps API</div>
-              </button>
-            </div>
-          ) : (
-            <div className="p-3 rounded-xl bg-[#0d0f17] border border-slate-800 text-slate-300">
-              <div className="font-bold text-indigo-400">Google Maps API</div>
-            </div>
-          )}
         </div>
 
         {/* UNITÉ DE TEMPÉRATURE */}

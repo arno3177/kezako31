@@ -16,6 +16,7 @@ export interface DailyForecast {
   precipitation: number;
   uvIndex: number;
 }
+
 export interface Article {
   id: string;
   title: string;
@@ -23,7 +24,7 @@ export interface Article {
   content: string;
   category: string;
   source: string;
-  url?: string; // <--- Ajoutez cette ligne
+  url?: string;
   publishedAt: string;
   imageUrl: string;
   readTime: string;
@@ -34,6 +35,7 @@ export interface Article {
     avatar: string;
   };
 }
+
 export interface ActivitySuitability {
   fitness: { ideal: boolean; score: number; label: string };
   cycling: { ideal: boolean; score: number; label: string };
@@ -60,7 +62,7 @@ export interface WeatherData {
   visibility: number;
   icon: string;
   airQuality: AirQuality;
-  alert?: {          // <-- Ajoute cette ligne ici
+  alert?: {          
     type: string;
     color: string;
     details: string;
@@ -83,8 +85,8 @@ export interface RouteTrip {
 
 export type TemperatureUnit = 'C' | 'F';
 
-// Ajout des vues 'trips' et 'settings' pour la navigation complète
-export type PageView = 'home' | 'weather-detail' | 'sources-news' | 'trips' | 'settings'[];
+// Correction de PageView (correction du tableau 'settings'[] en string littéral)
+export type PageView = 'home' | 'weather-detail' | 'sources-news' | 'trips' | 'settings' | 'energy-comfort';
 
 export interface AppSettings {
   temperatureUnit: TemperatureUnit;
@@ -93,8 +95,19 @@ export interface AppSettings {
   notifications: boolean;
   autoRefresh: boolean;
   refreshInterval: number; // en minutes
-  // Vos nouveaux paramètres généraux :
   country: string;
   language: 'fr' | 'en' | 'de' | 'es';
   busApi: 'maps' | 'mobiliteit' | 'default';
+  heatingType?: 'electric' | 'floor' | 'oil' | 'chimney';
+  glazingType?: 'triple' | 'double' | 'single';
+  buildingType?: 'house' | 'apartment';
+  apartmentSurface?: number; // en m² (ex: 75)
+  orientation?: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+  energyClass?: 'AAA' | 'AA' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+  glassSurface?: number;     // <--- NOUVEAU : Surface vitrée totale en m²
+  roomsCount?: number;       // <--- NOUVEAU : Nombre de pièces
+  ceilingHeight?: number;                // 1. Hauteur sous plafond (ex: 2.6m)
+  ventilationType?: 'double_flux' | 'simple_flux' | 'natural'; // 2. Type de ventilation
+  sunProtection?: 'bso' | 'shutters' | 'indoor' | 'none';      // 3. Type de protection solaire
+  buildingPosition?: 'intermediate' | 'top_floor' | 'ground_floor' | 'corner'; // 4. Position dans l'immeuble
 }
