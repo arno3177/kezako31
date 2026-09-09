@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { WeatherData, AppSettings } from '../types';
 import { getTranslation } from '../utils/translations';
-import { SolarWeatherService } from '../service/solarWeatherService';
 import { 
-  ChevronLeft, Thermometer, ShieldCheck, Activity, 
-  SlidersHorizontal, Cloud, TrendingUp, SunDim, Compass, Award, Sun, Wind, Sparkles, Loader2, Clock, ArrowRight, Home 
+  ChevronLeft, Thermometer, Activity, 
+  SlidersHorizontal, Cloud, TrendingUp, SunDim, Award, Clock, Home, Sparkles, Loader2, Wind 
 } from 'lucide-react';
 
 interface EnergyComfortDetailPageProps {
@@ -14,7 +13,6 @@ interface EnergyComfortDetailPageProps {
   settings?: AppSettings;
 }
 
-// Utilitaire de conversion des codes météo WMO Open-Meteo en libellés clairs
 const getConditionFromWmoCode = (code: number): string => {
   if (code === 0) return 'Ensoleillé';
   if ([1, 2, 3].includes(code)) return 'Partiellement nuageux';
@@ -26,6 +24,23 @@ const getConditionFromWmoCode = (code: number): string => {
   return 'Nuageux';
 };
 
+const getRegionalClimateProfile = (country: string) => {
+  switch (country.toLowerCase()) {
+    case 'luxembourg':
+    case 'france':
+    case 'suisse':
+    case 'belgique':
+      return { summerPeakRef: 32, inertiaBaseFactor: 0.03 };
+    case 'canada':
+      return { summerPeakRef: 28, inertiaBaseFactor: 0.025 };
+    case 'italie':
+    case 'espagne':
+      return { summerPeakRef: 35, inertiaBaseFactor: 0.035 };
+    default:
+      return { summerPeakRef: 30, inertiaBaseFactor: 0.03 };
+  }
+};
+
 export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = ({
   currentWeather,
   onBack,
@@ -34,29 +49,24 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
 }) => {
   const _t = getTranslation(language);
 
-  // 1. Récupération de la ville de référence "Maison" définie dans la page Météo
   const homeCityName = localStorage.getItem('weather_home_city') || currentWeather?.city || 'Kopstal';
 
   const [homeWeatherData, setHomeWeatherData] = useState<any | null>(null);
   const [isLoadingSolar, setIsLoadingSolar] = useState<boolean>(true);
 
-  // États pour l'analyse IA
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
 
-  // 2. Chargement automatique de la météo et de l'irradiation solaire de la ville de référence
   useEffect(() => {
     const fetchHomeLocationWeather = async () => {
       setIsLoadingSolar(true);
       try {
-        // Géocodage de la ville de référence (ex: Kopstal)
         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(homeCityName)}&count=1&language=fr&format=json`);
         const geoData = await geoRes.json();
 
         if (geoData.results && geoData.results.length > 0) {
-          const { latitude, longitude } = geoData.results[0];
+          const { latitude, longitude, country } = geoData.results[0];
           
-          // Récupération des données météo & solaires pour ce point précis
           const weatherRes = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,shortwave_radiation,weather_code`
           );
@@ -64,6 +74,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
 
           setHomeWeatherData({
             city: homeCityName,
+            country: country || settings?.country || 'International',
             temperature: weatherJson.current.temperature_2m,
             windSpeed: weatherJson.current.wind_speed_10m,
             solarIrradiance: weatherJson.current.shortwave_radiation || 500,
@@ -78,33 +89,31 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
     };
 
     fetchHomeLocationWeather();
-  }, [homeCityName]);
+  }, [homeCityName, settings?.country]);
 
-  // Valeurs météo basées sur le lieu de référence "Maison" (avec repli sur les props)
+  const userCountry = homeWeatherData?.country || settings?.country || currentWeather?.country || 'Luxembourg';
+  const climateProfile = getRegionalClimateProfile(userCountry);
+
   const currentTemp = homeWeatherData ? homeWeatherData.temperature : (currentWeather ? Number(currentWeather.temperature ?? 25) : 25);
   const windSpeed = homeWeatherData ? homeWeatherData.windSpeed : (currentWeather ? Number(currentWeather.windSpeed ?? 10) : 10);
   const weatherCondition = homeWeatherData?.condition || currentWeather?.condition || 'Ensoleillé';
   const effectiveIrradiance = homeWeatherData?.solarIrradiance || 600; 
 
-  // --- PARAMÈTRES RÉCUPÉRÉS DES SETTINGS ---
   const energyClass = settings?.energyClass || 'AAA';
   const apartmentSurface = settings?.apartmentSurface || 75; 
   const glassSurface = settings?.glassSurface || 14; 
   const ceilingHeight = settings?.ceilingHeight || 2.6;
-  const roomsCount = settings?.roomsCount || 3;       
+  const roomsCount = settings?.roomsCount || 3;        
   const orientation = settings?.orientation || 'S'; 
   const ventilationType = settings?.ventilationType || 'double_flux';
   const sunProtection = settings?.sunProtection || 'bso';
   const buildingPosition = settings?.buildingPosition || 'intermediate';
 
-  // --- ÉTATS INTERACTIFS ---
   const [storeState, setStoreState] = useState<'open' | 'active' | 'closed'>('active'); 
   const [windowState, setWindowState] = useState<'closed' | 'ajar' | 'open'>('closed'); 
 
-  // 1. Volume d'air exact
   const apartmentVolume = Math.round(apartmentSurface * ceilingHeight);
 
-  // 2. Orientation
   const getOrientationMultiplier = (dir: string) => {
     switch (dir.toUpperCase()) {
       case 'S': return 1.0;    
@@ -117,20 +126,18 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   };
   const orientationMultiplier = getOrientationMultiplier(orientation);
 
-  // 3. Passeport Énergétique
   const getEnergyDampingFactor = (cls: string) => {
     switch (cls.toUpperCase()) {
-      case 'AAA': case 'AA': return 0.03; 
-      case 'A': return 0.08;
-      case 'B': return 0.18;
-      case 'C': case 'D': return 0.35;
-      default: return 0.55; 
+      case 'AAA': case 'AA': return climateProfile.inertiaBaseFactor; 
+      case 'A': return climateProfile.inertiaBaseFactor * 2.5;
+      case 'B': return climateProfile.inertiaBaseFactor * 6;
+      case 'C': case 'D': return climateProfile.inertiaBaseFactor * 11;
+      default: return climateProfile.inertiaBaseFactor * 18; 
     }
   };
   const energyDamping = getEnergyDampingFactor(energyClass);
   const isHighPerformance = ['AAA', 'AA', 'A'].includes(energyClass.toUpperCase());
 
-  // 4. Protection solaire
   const getSunProtectionCoeff = (state: string, prot: string) => {
     if (state === 'open') return 1.0; 
     if (state === 'closed') return 0.08; 
@@ -143,7 +150,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   };
   const protectionFactor = getSunProtectionCoeff(storeState, sunProtection);
 
-  // 5. Position de l'immeuble
   const getPositionLossMultiplier = (pos: string) => {
     switch (pos) {
       case 'top_floor': return 1.25;    
@@ -154,7 +160,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   };
   const positionMultiplier = getPositionLossMultiplier(buildingPosition);
 
-  // 6. Ventilation & Fenêtres
   const getVentilationFactor = (state: string, vent: string) => {
     if (state === 'open') return 14 + windSpeed * 1.5;     
     if (state === 'ajar') return 5 + windSpeed * 0.5;     
@@ -170,24 +175,33 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const calculatedSolarGains = Math.round(glassSurface * effectiveIrradiance * gFactor * protectionFactor * orientationMultiplier);
 
   const baseIndoorRef = 21.5;
-  const tempDelta = baseIndoorRef - currentTemp;
-  const baseConductionLosses = tempDelta * (apartmentSurface * 0.08) * positionMultiplier; 
-  const calculatedLosses = Math.round(baseConductionLosses + (tempDelta * ventilationLossFactor));
+  const tempDelta = currentTemp - baseIndoorRef; 
+
+  const baseConductionLosses = (baseIndoorRef - currentTemp) * (apartmentSurface * 0.08) * positionMultiplier; 
+  const calculatedLosses = Math.round(baseConductionLosses + ((baseIndoorRef - currentTemp) * ventilationLossFactor));
 
   const netThermalBalance = calculatedSolarGains - calculatedLosses;
   const thermalInertiaWhPerDegree = Math.round((apartmentSurface * 40) + (apartmentVolume * 0.33));
 
-  const rawRiseRate = netThermalBalance / thermalInertiaWhPerDegree;
-  const temperatureRiseRate = Number((rawRiseRate * energyDamping).toFixed(3));
+  let rawRiseRate = netThermalBalance / thermalInertiaWhPerDegree;
+  let temperatureRiseRate: number;
+
+  if (windowState === 'open') {
+    const convectionImpact = tempDelta * 0.15; 
+    temperatureRiseRate = Number(convectionImpact.toFixed(3));
+  } else if (windowState === 'ajar') {
+    const convectionImpact = tempDelta * 0.06;
+    temperatureRiseRate = Number(convectionImpact.toFixed(3));
+  } else {
+    temperatureRiseRate = Number((rawRiseRate * energyDamping).toFixed(3));
+  }
 
   const estimatedEquilibriumTemp = Number((baseIndoorRef + (temperatureRiseRate * 2)).toFixed(1));
   const targetEstimatedTemp = Math.min(35, Math.max(15, estimatedEquilibriumTemp));
 
-  // --- CALCULS PRÉVISIONNELS À +3H ET +6H ---
   const tempPlus3h = Number((targetEstimatedTemp + (temperatureRiseRate * 1.5)).toFixed(1));
   const tempPlus6h = Number((targetEstimatedTemp + (temperatureRiseRate * 2.8)).toFixed(1));
 
-  // --- FONCTION D'APPEL IA ---
   const handleRunAiAnalysis = async () => {
     const userApiKey = localStorage.getItem('user_ai_api_key');
     if (!userApiKey) {
@@ -199,16 +213,16 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
     setAiAnalysis(null);
 
     const promptText = `
-      Agis en tant qu'expert en thermique du bâtiment (certification passive / norme AAA au Luxembourg). 
-      Analyse ce logement situé à ${homeCityName} (lieu de référence / Maison) selon les paramètres physiques exacts et les projections sur 6 heures :
+      Agis en tant qu'expert en thermique du bâtiment (normes de certification énergétique en vigueur à ${userCountry}). 
+      Analyse ce logement situé à ${homeCityName} (${userCountry}) selon les paramètres physiques exacts et les projections sur 6 heures :
       - Classe énergétique : ${energyClass}
       - Surface habitable : ${apartmentSurface} m² (${apartmentVolume} m³)
       - Surface vitrée : ${glassSurface} m² orientée ${orientation}
       - Position dans l'immeuble : ${buildingPosition}
       - Ventilation : ${ventilationType}
       - Protection solaire : ${sunProtection} (État actuel stores : ${storeState})
-      - État des fenêtres : ${windowState} (Vent extérieur : ${windSpeed} km/h)
-      - Météo extérieure (${homeCityName}) : ${weatherCondition}, ${currentTemp}°C, Irradiation solaire : ${effectiveIrradiance} W/m²
+      - État des fenêtres : ${windowState} (Vent extérieur : ${windSpeed} km/h - Flux d'air actif)
+      - Météo extérieure (${homeCityName}, ${userCountry}) : ${weatherCondition}, ${currentTemp}°C, Irradiation solaire : ${effectiveIrradiance} W/m²
       - Température estimée actuelle : ${targetEstimatedTemp}°C
       - Projection thermique : à +3h : ${tempPlus3h}°C, à +6h : ${tempPlus6h}°C.
 
@@ -246,12 +260,12 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
     if (cond.includes('nuage') || cond.includes('cloud') || cond.includes('couvert') || cond.includes('stable')) {
       return (
         <g>
-          <circle cx="0" cy="0" r="16" fill="#94A3B8" />
-          <path d="M-15 5 C-15 -8 -2 -15 10 -10 C 18 -15 30 -8 28 2 C 35 8 32 20 22 20 C 15 20 -15 20 -15 5 Z" fill="#64748B" />
+          <circle cx="0" cy="0" r="22" fill="#94A3B8" />
+          <path d="M-20 6 C-20 -11 -3 -21 13 -13 C 24 -21 39 -11 36 2 C 45 11 41 26 28 26 C 20 26 -20 26 -20 6 Z" fill="#64748B" />
         </g>
       );
     }
-    return <circle cx="0" cy="0" r="18" fill="#F59E0B" />;
+    return <circle cx="0" cy="0" r="24" fill="#F59E0B" />;
   };
 
   const radius = 32;
@@ -259,10 +273,12 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const solarRatio = Math.min(1, calculatedSolarGains / 600);
   const solarOffset = circumference - solarRatio * circumference;
 
+  const isVentilationActive = windowState === 'open' || windowState === 'ajar';
+
   return (
     <div className="space-y-4 text-xs animate-fade-in text-slate-200 w-full pb-20 px-0">
       
-      {/* EN-TÊTE AVEC RAPPEL DU LIEU DE RÉFÉRENCE (MAISON) */}
+      {/* EN-TÊTE */}
       <div className="bg-gradient-to-r from-amber-950/90 via-[#16182a] to-emerald-950/90 border border-emerald-500/30 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
           <button
@@ -274,7 +290,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
           </button>
           <div>
             <h1 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-emerald-400" /> Bilan Thermique • <span className="text-amber-300 flex items-center gap-1"><Home className="w-3.5 h-3.5" /> {homeCityName}</span>
+              <Award className="w-4 h-4 text-emerald-400" /> Bilan Thermique • <span className="text-amber-300 flex items-center gap-1"><Home className="w-3.5 h-3.5" /> {homeCityName} ({userCountry})</span>
             </h1>
             <div className="text-[10px] text-emerald-300/85 flex items-center gap-2.5 flex-wrap mt-0.5">
               <span className="flex items-center gap-1 font-semibold text-white">
@@ -286,7 +302,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
           </div>
         </div>
 
-        {/* BOUTON ASSISTANT IA */}
         <button
           onClick={handleRunAiAnalysis}
           disabled={isAnalyzing}
@@ -306,7 +321,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         </button>
       </div>
 
-      {/* AFFICHAGE DU RAPPORT IA SI DISPONIBLE */}
       {aiAnalysis && (
         <div className="bg-[#151824] border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-2 animate-fade-in">
           <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
@@ -319,7 +333,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         </div>
       )}
 
-      {/* PANNEAU DE CONTRÔLE INTERACTIF */}
+      {/* PANNEAU DE CONTRÔLE */}
       <div className="bg-[#151824] border border-emerald-500/30 rounded-2xl p-4 shadow-xl space-y-3">
         <div className="flex items-center space-x-2 text-emerald-400 border-b border-slate-800 pb-2">
           <SlidersHorizontal className="w-4 h-4" />
@@ -327,7 +341,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          
           <div className="bg-[#0d0f17] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2">
             <span className="text-[10px] font-bold text-slate-400">Position des Stores ({sunProtection.toUpperCase()})</span>
             <div className="grid grid-cols-3 gap-1.5">
@@ -387,11 +400,10 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
               </button>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* --- SCHÉMA INTERACTIF DES FLUX --- */}
+      {/* SCHÉMA DE L'IMMEUBLE (POLICES TRÈS GROSSIES POUR MOBILE) */}
       <div className="bg-[#151824] border border-emerald-500/40 rounded-2xl p-4 shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center space-x-2">
@@ -405,93 +417,126 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-[9px] font-mono text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20 font-bold flex items-center gap-1">
-              <Award className="w-3 h-3 text-emerald-400" /> Classe {energyClass}
+            <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20 font-bold flex items-center gap-1">
+              <Award className="w-3.5 h-3.5 text-emerald-400" /> Classe {energyClass}
             </span>
           </div>
         </div>
 
-        <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-4 relative overflow-hidden flex flex-col items-center justify-center">
+        <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-2 relative overflow-hidden flex flex-col items-center justify-center">
           
           <style>{`
             @keyframes dashMoveIncoming { to { stroke-dashoffset: -20; } }
             @keyframes dashMoveOutgoing { to { stroke-dashoffset: -20; } }
+            @keyframes windWave { 
+              0% { transform: translateX(0); opacity: 0.4; }
+              50% { opacity: 1; }
+              100% { transform: translateX(12px); opacity: 0.4; }
+            }
             .animated-solar-beam { stroke-dasharray: 8 6; animation: dashMoveIncoming 1.2s linear infinite; }
             .animated-loss-beam { stroke-dasharray: 6 6; animation: dashMoveOutgoing 1.8s linear infinite; }
+            .wind-icon-anim { animation: windWave 1.2s ease-in-out infinite; }
           `}</style>
 
-          <svg className="w-full max-w-2xl h-52" viewBox="0 0 600 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* SVG : Immeuble avec polices grossies (16 à 28) */}
+          <svg className="w-full max-w-4xl h-80 sm:h-96" viewBox="10 0 580 210" fill="none" xmlns="http://www.w3.org/2000/svg">
             
-            <g transform="translate(70, 75)">
+            {/* MÉTÉO EXTÉRIEURE */}
+            <g transform="translate(70, 85)">
               {renderWeatherGraphic()}
-              <text x="-32" y="32" fill="#E2E8F0" fontSize="9.5" fontWeight="bold">{weatherCondition}</text>
-              <text x="-38" y="44" fill="#94A3B8" fontSize="8">{currentTemp}°C • {effectiveIrradiance}W/m²</text>
-              <text x="-32" y="56" fill="#38BDF8" fontSize="8" fontWeight="bold">🌬️ Vent: {windSpeed} km/h</text>
-            </g>
-
-            <g>
-              <path d="M 115 70 Q 170 35 225 75" stroke="#F59E0B" strokeWidth="3" className="animated-solar-beam" strokeLinecap="round" />
-              <rect x="120" y="25" width="115" height="22" rx="6" fill="#1E293B" stroke="#F59E0B" strokeWidth="1.5" />
-              <text x="127" y="40" fill="#F59E0B" fontSize="9" fontWeight="extrabold">ENTRANT : +{calculatedSolarGains} W</text>
-            </g>
-
-            <g transform="translate(230, 30)">
-              <rect x="0" y="40" width="160" height="115" rx="10" fill="#1E293B" stroke="#10B981" strokeWidth="2.5" />
-              <polygon points="-15,40 80,0 175,40" fill="#334155" stroke="#475569" strokeWidth="2" />
+              <text x="-48" y="42" fill="#E2E8F0" fontSize="17" fontWeight="bold">{weatherCondition}</text>
+              <text x="-55" y="64" fill="#94A3B8" fontSize="15">{currentTemp}°C • {effectiveIrradiance}W/m²</text>
+              <text x="-48" y="84" fill="#38BDF8" fontSize="15" fontWeight="bold">🌬️ Vent: {windSpeed} km/h</text>
               
-              <rect x="55" y="65" width="50" height="65" rx="6" fill="#10B981" fillOpacity="0.2" stroke="#10B981" strokeWidth="2" />
-              <text x="62" y="100" fill="#10B981" fontSize="9" fontWeight="black">{energyClass}</text>
-
-              <rect x="5" y="15" width="150" height="22" rx="6" fill="#0D0F17" stroke="#10B981" strokeWidth="1.2" />
-              <text x="12" y="30" fill="#10B981" fontSize="8.5" fontWeight="black">Est. Int : {targetEstimatedTemp}°C</text>
+              {/* --- ICÔNE DE VENT ANIMÉE SOUS LA VITESSE DU VENT --- */}
+              {isVentilationActive && windSpeed > 0 && (
+                <g transform="translate(-35, 95) scale(1.3)" className="wind-icon-anim" fill="none" stroke="#38BDF8" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.5 8H2m12.9-4a2 2 0 1 1 2.1 2H2" />
+                </g>
+              )}
             </g>
 
+            {/* APPORTS SOLAIRES */}
             <g>
-              <path d="M 390 110 Q 450 140 510 110" stroke="#10B981" strokeWidth="3" className="animated-loss-beam" strokeLinecap="round" />
-              <rect x="410" y="125" width="125" height="22" rx="6" fill="#1E293B" stroke="#10B981" strokeWidth="1.5" />
-              <text x="417" y="140" fill="#10B981" fontSize="8.5" fontWeight="extrabold">
-                {windowState !== 'closed' ? `rafraîchi : -${calculatedLosses} W` : `pertes (${energyClass}) : -${calculatedLosses} W`}
+              <path d="M 115 75 Q 175 25 235 75" stroke="#F59E0B" strokeWidth="4.5" className="animated-solar-beam" strokeLinecap="round" />
+              <rect x="75" y="5" width="215" height="38" rx="8" fill="#1E293B" stroke="#F59E0B" strokeWidth="2.5" />
+              <text x="88" y="30" fill="#F59E0B" fontSize="18" fontWeight="extrabold">ENTRANT : +{calculatedSolarGains} W</text>
+            </g>
+
+            {/* BUILDING / IMMEUBLE À TOIT TRIANGULAIRE & ÉTAGES DE FENÊTRES */}
+            <g transform="translate(235, 25)">
+              {/* Corps principal de l'immeuble */}
+              <rect x="0" y="45" width="150" height="125" rx="6" fill="#1E293B" stroke="#10B981" strokeWidth="3.2" />
+              {/* Toit triangulaire */}
+              <polygon points="-15,45 75,-10 165,45" fill="#334155" stroke="#475569" strokeWidth="2.8" />
+
+              {/* Lignes séparatrices d'étages */}
+              <line x1="0" y1="85" x2="150" y2="85" stroke="#334155" strokeWidth="2" />
+              <line x1="0" y1="130" x2="150" y2="130" stroke="#334155" strokeWidth="2" />
+
+              {/* Étage supérieur (3 fenêtres) */}
+              <rect x="15" y="55" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="61" y="55" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="107" y="55" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+
+              {/* Étage inférieur (3 fenêtres) */}
+              <rect x="15" y="140" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="61" y="140" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="107" y="140" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+
+              {/* Étage central (Appartement de l'utilisateur) */}
+              <rect x="38" y="90" width="74" height="36" rx="6" fill="#10B981" fillOpacity="0.25" stroke="#10B981" strokeWidth="2.8" />
+              <text x="50" y="117" fill="#10B981" fontSize="21" fontWeight="black">{energyClass}</text>
+
+              {/* Étiquette température intérieure au-dessus du toit */}
+              <rect x="-20" y="7" width="190" height="32" rx="6" fill="#0D0F17" stroke="#10B981" strokeWidth="2.2" />
+              <text x="-8" y="28" fill="#10B981" fontSize="16" fontWeight="black">Est. Int : {targetEstimatedTemp}°C</text>
+            </g>
+
+            {/* PERTES / FLUX DE RAFRAÎCHISSEMENT */}
+            <g>
+              <path d="M 395 110 Q 445 135 490 110" stroke={isVentilationActive ? "#38BDF8" : "#10B981"} strokeWidth="4.5" className="animated-loss-beam" strokeLinecap="round" />
+              <rect x="355" y="125" width="225" height="38" rx="8" fill="#1E293B" stroke={isVentilationActive ? "#38BDF8" : "#10B981"} strokeWidth="2.5" />
+              <text x="368" y="150" fill={isVentilationActive ? "#38BDF8" : "#10B981"} fontSize="17" fontWeight="extrabold">
+                {isVentilationActive ? `ventilation : -${calculatedLosses} W` : `pertes (${energyClass}) : -${calculatedLosses} W`}
               </text>
             </g>
 
-            <g transform="translate(430, 15)">
-              <rect x="0" y="10" width="140" height="95" rx="10" fill="#0D0F17" stroke="#10B981" strokeWidth="2" />
-              <text x="12" y="28" fill="#94A3B8" fontSize="8" fontWeight="bold">BILAN THERMIQUE NET</text>
-              <text x="12" y="52" fill="#10B981" fontSize="14" fontWeight="black">
+            {/* BILAN THERMIQUE NET */}
+            <g transform="translate(380, 0)">
+              <rect x="0" y="10" width="200" height="120" rx="10" fill="#0D0F17" stroke="#10B981" strokeWidth="3" />
+              <text x="12" y="32" fill="#94A3B8" fontSize="14" fontWeight="bold">BILAN THERMIQUE NET</text>
+              <text x="12" y="68" fill="#10B981" fontSize="28" fontWeight="black">
                 {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}
               </text>
-              <text x="12" y="72" fill="#E2E8F0" fontSize="8.5" fontWeight="bold">
+              <text x="12" y="93" fill="#E2E8F0" fontSize="17" fontWeight="bold">
                 Solde : {netThermalBalance} W
               </text>
-              <text x="12" y="88" fill="#10B981" fontSize="7.5">
-                🛡️ Enveloppe de classe {energyClass}
+              <text x="12" y="115" fill="#10B981" fontSize="14">
+                🛡️ Classe {energyClass}
               </text>
             </g>
-
           </svg>
 
-          {/* BARRE DE PROJECTIONS À +3H et +6H */}
-          <div className="w-full flex items-center justify-between pt-3 mt-1 border-t border-slate-800 text-[10px] flex-wrap gap-2">
-            <span className="text-emerald-300 font-bold flex items-center gap-1">
-              💡 Actuel : <strong>{targetEstimatedTemp}°C</strong>
+          <div className="w-full flex items-center justify-between pt-3 mt-1 border-t border-slate-800 text-xs flex-wrap gap-2">
+            <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+              💡 Actuel : <strong className="text-sm">{targetEstimatedTemp}°C</strong>
             </span>
             <div className="flex items-center space-x-3">
-              <span className="text-sky-300 font-bold flex items-center gap-1 bg-sky-500/10 px-2.5 py-1 rounded-xl border border-sky-500/20">
-                <Clock className="w-3 h-3 text-sky-400" /> +3h : <strong>{tempPlus3h}°C</strong>
+              <span className="text-sky-300 font-bold flex items-center gap-1.5 bg-sky-500/10 px-3 py-1.5 rounded-xl border border-sky-500/20">
+                <Clock className="w-4 h-4 text-sky-400" /> +3h : <strong className="text-sm">{tempPlus3h}°C</strong>
               </span>
-              <span className="text-indigo-300 font-bold flex items-center gap-1 bg-indigo-500/10 px-2.5 py-1 rounded-xl border border-indigo-500/20">
-                <Clock className="w-3 h-3 text-indigo-400" /> +6h : <strong>{tempPlus6h}°C</strong>
+              <span className="text-indigo-300 font-bold flex items-center gap-1.5 bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
+                <Clock className="w-4 h-4 text-indigo-400" /> +6h : <strong className="text-sm">{tempPlus6h}°C</strong>
               </span>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* --- CARTES DE RÉSULTATS & PROJECTIONS --- */}
+      {/* CARTES DE RÉSULTATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        {/* CARTE 1 : APPORTS SOLAIRES */}
         <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3">
           <div className="w-full flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-white flex items-center gap-1">
@@ -526,7 +571,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
           </div>
         </div>
 
-        {/* CARTE 2 : TEMPÉRATURE STABLE & PROJECTION */}
         <div className="bg-[#0d0f17] border border-emerald-500/40 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3">
           <div className="w-full flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-white flex items-center gap-1">
@@ -553,11 +597,10 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
           </div>
 
           <div className="w-full text-center text-[9.5px] text-emerald-300 font-medium bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-            ✨ Maintien optimisé par l'enveloppe {energyClass}.
+            ✨ {isVentilationActive ? `Ventilation active (${windSpeed} km/h).` : `Maintien optimisé par l'enveloppe ${energyClass}.`}
           </div>
         </div>
 
-        {/* CARTE 3 : VITESSE DE VARIATION */}
         <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3">
           <div className="w-full flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-white flex items-center gap-1">
@@ -577,7 +620,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
           </div>
 
           <div className="w-full text-[9.5px] text-slate-300 font-medium text-center">
-            💡 L'appartement régule ses flux thermiques.
+            💡 L'appartement réagit aux flux d'air extérieurs.
           </div>
         </div>
 

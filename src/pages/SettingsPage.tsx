@@ -1,16 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
-import { auth, signOut } from '../firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { GoogleAuthService } from '../service/googleAuthService';
-
-import { Capacitor } from '@capacitor/core';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
-  Thermometer, ArrowLeft, ShieldCheck, LogOut, User as UserIcon,
-  Home, Flame, Layers, Building, Sparkles, Loader2, AlertCircle, Eye, EyeOff, Maximize2, Compass, Award, Sun, DoorClosed, Wind 
+  Thermometer, ArrowLeft, Key, Sparkles, Building2
 } from 'lucide-react';
 
 interface SettingsPageProps { 
@@ -51,47 +44,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const t = getTranslation(settings.language);
   const isLuxembourg = settings.country === 'LU' || settings.country === 'Luxembourg';
 
-  const [user, setUser] = useState<User | null>(auth.currentUser);
-
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('user_ai_api_key') || '');
-  const [showKey, setShowKey] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const hasActiveSession = 
-    user !== null || 
-    auth.currentUser !== null || 
-    GoogleAuthService.getStoredToken() !== null ||
-    localStorage.getItem('google_workspace_access_token') !== null ||
-    localStorage.getItem('google_access_token') !== null;
-
-  const handleLogout = async () => {
-    try {
-      if (Capacitor.isNativePlatform()) {
-        await FirebaseAuthentication.signOut().catch(() => {});
-      }
-      await signOut(auth).catch(() => {});
-      
-      GoogleAuthService.clearToken();
-      localStorage.removeItem('google_workspace_access_token');
-      localStorage.removeItem('google_access_token');
-      
-      setUser(null);
-      window.location.reload();
-    } catch (error: any) {
-      GoogleAuthService.clearToken();
-      localStorage.clear();
-      window.location.reload();
-    }
-  };
+  const [apiKeyInput, setApiKeyInput] = useState<string>(() => {
+    return localStorage.getItem('user_ai_api_key') || '';
+  });
+  const [savedKeySuccess, setSavedKeySuccess] = useState<boolean>(false);
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCountry = e.target.value;
@@ -103,44 +59,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     });
   };
 
-  const handleTestKey = async () => {
-    const keyToTest = apiKey.trim();
-    if (!keyToTest) {
-      setTestStatus('error');
-      setErrorMessage('Veuillez d\'abord saisir une clé API.');
-      return;
-    }
-
-    setIsTesting(true);
-    setTestStatus('idle');
-    setErrorMessage('');
-
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${keyToTest}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: "Test" }] }]
-          })
-        }
-      );
-
-      if (response.ok) {
-        setTestStatus('success');
-        localStorage.setItem('user_ai_api_key', keyToTest);
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        setTestStatus('error');
-        setErrorMessage(errData?.error?.message || 'Clé API invalide ou non autorisée.');
-      }
-    } catch (err) {
-      setTestStatus('error');
-      setErrorMessage('Erreur de connexion au service IA.');
-    } finally {
-      setIsTesting(false);
-    }
+  const handleSaveApiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('user_ai_api_key', apiKeyInput.trim());
+    setSavedKeySuccess(true);
+    setTimeout(() => setSavedKeySuccess(false), 3000);
   };
 
   return (
@@ -168,183 +91,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {t.generalSettings}
         </div>
 
-        {/* SECTION : ÉNERGIE & HABITAT */}
-        <div className="bg-[#151824] border border-emerald-500/30 rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center space-x-2 text-emerald-400 border-b border-slate-800 pb-2">
-            <Award className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Passeport Énergétique & Caractéristiques</h2>
-          </div>
-
-          {/* 1. Classe du Passeport Énergétique */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Award className="w-3 h-3 text-emerald-400" /> Classe du Passeport Énergétique
-            </label>
-            <select
-              value={settings.energyClass || 'AAA'}
-              onChange={(e) => onUpdateSettings({ energyClass: e.target.value as any })}
-              className="w-full bg-[#0d0f17] text-emerald-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
-            >
-              {['AAA', 'AA', 'A', 'B', 'C', 'D', 'E', 'F', 'G'].map(cl => (
-                <option key={cl} value={cl}>Classe {cl}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 2. Surface Habitable */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Maximize2 className="w-3 h-3 text-cyan-400" /> Surface habitable (m²)
-            </label>
-            <div className="flex items-center space-x-3 pt-1">
-              <input
-                type="range"
-                min="20"
-                max="250"
-                step="5"
-                value={settings.apartmentSurface || 75}
-                onChange={(e) => onUpdateSettings({ apartmentSurface: Number(e.target.value) })}
-                className="w-full accent-cyan-400 cursor-pointer bg-slate-800 h-2 rounded-lg"
-              />
-              <span className="text-sm font-black text-cyan-400 w-16 text-right">
-                {settings.apartmentSurface || 75} m²
-              </span>
-            </div>
-          </div>
-
-          {/* 3. Surface Vitrée */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Sun className="w-3 h-3 text-amber-400" /> Surface vitrée totale (m²)
-            </label>
-            <div className="flex items-center space-x-3 pt-1">
-              <input
-                type="range"
-                min="2"
-                max="40"
-                step="1"
-                value={settings.glassSurface || 14}
-                onChange={(e) => onUpdateSettings({ glassSurface: Number(e.target.value) })}
-                className="w-full accent-amber-400 cursor-pointer bg-slate-800 h-2 rounded-lg"
-              />
-              <span className="text-sm font-black text-amber-400 w-16 text-right">
-                {settings.glassSurface || 14} m²
-              </span>
-            </div>
-          </div>
-
-          {/* 4. Hauteur sous plafond */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Maximize2 className="w-3 h-3 text-cyan-400" /> Hauteur sous plafond (m)
-            </label>
-            <div className="flex items-center space-x-3 pt-1">
-              <input
-                type="range"
-                min="2.2"
-                max="4.0"
-                step="0.1"
-                value={settings.ceilingHeight || 2.6}
-                onChange={(e) => onUpdateSettings({ ceilingHeight: Number(e.target.value) })}
-                className="w-full accent-cyan-400 cursor-pointer bg-slate-800 h-2 rounded-lg"
-              />
-              <span className="text-sm font-black text-cyan-400 w-16 text-right">
-                {settings.ceilingHeight || 2.6} m
-              </span>
-            </div>
-          </div>
-
-          {/* 5. Pièces exposées */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <DoorClosed className="w-3 h-3 text-indigo-400" /> Pièces exposées
-            </label>
-            <select
-              value={settings.roomsCount || 3}
-              onChange={(e) => onUpdateSettings({ roomsCount: Number(e.target.value) })}
-              className="w-full bg-[#0d0f17] text-indigo-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-            >
-              {[1, 2, 3, 4, 5, 6].map(num => (
-                <option key={num} value={num}>{num} {num > 1 ? 'pièces exposées' : 'pièce exposée'}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 6. Orientation principale */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Compass className="w-3 h-3 text-amber-400" /> Orientation principale (Façade / Vitres)
-            </label>
-            <select
-              value={settings.orientation || 'S'}
-              onChange={(e) => onUpdateSettings({ orientation: e.target.value as any })}
-              className="w-full bg-[#0d0f17] text-amber-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
-            >
-              {[
-                { code: 'N', label: 'Nord (N)' },
-                { code: 'NE', label: 'Nord-Est (NE)' },
-                { code: 'E', label: 'Est (E)' },
-                { code: 'SE', label: 'Sud-Est (SE)' },
-                { code: 'S', label: 'Sud (S)' },
-                { code: 'SW', label: 'Sud-Ouest (SW)' },
-                { code: 'W', label: 'Ouest (W)' },
-                { code: 'NW', label: 'Nord-Ouest (NW)' }
-              ].map(dir => (
-                <option key={dir.code} value={dir.code}>{dir.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 7. Type de Ventilation */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Wind className="w-3 h-3 text-sky-400" /> Type de ventilation
-            </label>
-            <select
-              value={settings.ventilationType || 'double_flux'}
-              onChange={(e) => onUpdateSettings({ ventilationType: e.target.value as any })}
-              className="w-full bg-[#0d0f17] text-sky-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
-            >
-              <option value="double_flux">VMC Double Flux avec échangeur (Standard AAA)</option>
-              <option value="simple_flux">VMC Simple Flux</option>
-              <option value="natural">Ventilation naturelle / Ouvertures</option>
-            </select>
-          </div>
-
-          {/* 8. Protection Solaire Extérieure */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Sun className="w-3 h-3 text-amber-400" /> Protection Solaire Extérieure
-            </label>
-            <select
-              value={settings.sunProtection || 'bso'}
-              onChange={(e) => onUpdateSettings({ sunProtection: e.target.value as any })}
-              className="w-full bg-[#0d0f17] text-amber-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
-            >
-              <option value="bso">Brise-Soleil Orientables (BSO)</option>
-              <option value="shutters">Volets roulants extérieurs</option>
-              <option value="indoor">Stores intérieurs (Tissu)</option>
-              <option value="none">Aucune protection</option>
-            </select>
-          </div>
-
-          {/* 9. Position dans l'immeuble */}
-          <div className="space-y-2 pt-2">
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Building className="w-3 h-3 text-emerald-400" /> Position dans l'immeuble
-            </label>
-            <select
-              value={settings.buildingPosition || 'intermediate'}
-              onChange={(e) => onUpdateSettings({ buildingPosition: e.target.value as any })}
-              className="w-full bg-[#0d0f17] text-emerald-300 font-extrabold p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
-            >
-              <option value="intermediate">Étage intermédiaire (Mitoyen haut & bas)</option>
-              <option value="top_floor">Dernier étage (Exposé toiture)</option>
-              <option value="ground_floor">Rez-de-chaussée (Sol froid)</option>
-              <option value="corner">Appartement d'angle (Multi-exposé)</option>
-            </select>
-          </div>
-        </div>
+        
 
         {/* PAYS */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
@@ -390,6 +137,43 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
 
+        {/* API BUS */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Bus className="w-4 h-4" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">{t.busApiTitle}</h2>
+          </div>
+          {isLuxembourg ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                onClick={() => onUpdateSettings({ busApi: 'mobiliteit' })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  settings.busApi === 'mobiliteit'
+                    ? 'bg-emerald-950/30 border-emerald-500 text-white'
+                    : 'bg-[#0d0f17] border-slate-800 text-slate-400'
+                }`}
+              >
+                <div className="font-extrabold text-white">Mobiliteit.lu</div>
+              </button>
+
+              <button
+                onClick={() => onUpdateSettings({ busApi: 'maps' })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  settings.busApi === 'maps'
+                    ? 'bg-indigo-950/30 border-indigo-500 text-white'
+                    : 'bg-[#0d0f17] border-slate-800 text-slate-400'
+                }`}
+              >
+                <div className="font-extrabold text-white">Google Maps API</div>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-[#0d0f17] border border-slate-800 text-slate-300">
+              <div className="font-bold text-indigo-400">Google Maps API</div>
+            </div>
+          )}
+        </div>
+
         {/* UNITÉ DE TEMPÉRATURE */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
@@ -416,6 +200,164 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
 
+        {/* --- PARAMÈTRES AVANCÉS DU LOGEMENT (CONFORT & ÉNERGIE) --- */}
+        <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1 pt-4">
+          Paramètres Avancés du Logement (Thermique & Bâtiment)
+        </div>
+
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Building2 className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Passeport Énergétique & Enveloppe</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Classe Énergétique */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-bold block">Classe Énergétique</label>
+              <select
+                value={settings.energyClass || 'AAA'}
+                onChange={(e) => onUpdateSettings({ energyClass: e.target.value as any })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                {['AAA', 'AA', 'A', 'B', 'C', 'D', 'E', 'F', 'G'].map((cls) => (
+                  <option key={cls} value={cls}>Classe {cls}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Orientation du vitrage */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-bold block">Orientation Principale</label>
+              <select
+                value={settings.orientation || 'S'}
+                onChange={(e) => onUpdateSettings({ orientation: e.target.value as any })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="S">Sud (Ensoleillement maximal)</option>
+                <option value="SW">Sud-Ouest</option>
+                <option value="SE">Sud-Est</option>
+                <option value="W">Ouest</option>
+                <option value="E">Est</option>
+                <option value="NW">Nord-Ouest</option>
+                <option value="NE">Nord-Est</option>
+                <option value="N">Nord (Minimal)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            {/* Surface habitable */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold">Surface habitable (m²)</label>
+              <input
+                type="number"
+                value={settings.apartmentSurface ?? 75}
+                onChange={(e) => onUpdateSettings({ apartmentSurface: parseFloat(e.target.value) || 75 })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs"
+              />
+            </div>
+
+            {/* Surface vitrée */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold">Surface Vitrée (m²)</label>
+              <input
+                type="number"
+                value={settings.glassSurface ?? 14}
+                onChange={(e) => onUpdateSettings({ glassSurface: parseFloat(e.target.value) || 14 })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs"
+              />
+            </div>
+
+            {/* Hauteur sous plafond */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold">Hauteur sous plafond (m)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={settings.ceilingHeight ?? 2.6}
+                onChange={(e) => onUpdateSettings({ ceilingHeight: parseFloat(e.target.value) || 2.6 })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            {/* Type de ventilation */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold">Système de Ventilation</label>
+              <select
+                value={settings.ventilationType || 'double_flux'}
+                onChange={(e) => onUpdateSettings({ ventilationType: e.target.value as any })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs cursor-pointer"
+              >
+                <option value="double_flux">Double flux (HR)</option>
+                <option value="simple_flux">Simple flux</option>
+                <option value="natural">Ventilation naturelle</option>
+              </select>
+            </div>
+
+            {/* Protection solaire */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold">Protection Solaire</label>
+              <select
+                value={settings.sunProtection || 'bso'}
+                onChange={(e) => onUpdateSettings({ sunProtection: e.target.value as any })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs cursor-pointer"
+              >
+                <option value="bso">BSO (Brise-soleil orientable)</option>
+                <option value="shutters">Volets extérieurs</option>
+                <option value="indoor">Stores intérieurs</option>
+                <option value="none">Aucune protection</option>
+              </select>
+            </div>
+
+            {/* Position dans l'immeuble */}
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold">Position dans l'Immeuble</label>
+              <select
+                value={settings.buildingPosition || 'intermediate'}
+                onChange={(e) => onUpdateSettings({ buildingPosition: e.target.value as any })}
+                className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs cursor-pointer"
+              >
+                <option value="intermediate">Étage intermédiaire</option>
+                <option value="top_floor">Dernier étage (+ exposition)</option>
+                <option value="ground_floor">Rez-de-chaussée</option>
+                <option value="corner">Appartement d'angle</option>
+              </select>
+            </div>
+          </div>
+        </div>
+{/* CLÉ API GEMINI */}
+        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
+            <Key className="w-4 h-4 text-amber-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">Clé API Gemini (Assistant IA)</h2>
+          </div>
+          <form onSubmit={handleSaveApiKey} className="space-y-2.5">
+            <div className="flex gap-2">
+              <input
+                type="password"
+                placeholder="Entrez votre clé API Gemini (AIza...)"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="flex-1 bg-[#0d0f17] text-white font-mono text-xs px-3.5 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all cursor-pointer shadow-md flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Enregistrer</span>
+              </button>
+            </div>
+            {savedKeySuccess && (
+              <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Clé API enregistrée avec succès !
+              </p>
+            )}
+          </form>
+        </div>
       </div>
     </div>
   );
