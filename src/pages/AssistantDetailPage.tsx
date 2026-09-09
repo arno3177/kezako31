@@ -93,7 +93,6 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
     }
   }, [cacheKey]);
 
-  // --- FONCTION D'APPEL AVEC CASCADE ÉTENDUE (4 MODÈLES) ---
   const handleRunAiOutfit = async () => {
     const cachedData = localStorage.getItem(cacheKey);
     if (cachedData) {
@@ -137,7 +136,6 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
     }
     `;
 
-    // Liste des 4 modèles testés en cascade
     const modelsToTry = [
       'gemini-3.5-flash',
       'gemini-3.5-flash-lite',
@@ -196,7 +194,6 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
     setIsGeneratingAi(false);
   };
 
-  // --- LOGIQUE STANDARD DE SECOURS ---
   const pick = (arr: string[], offset: number = 0) => {
     const index = Math.abs(Math.sin(seed + offset + arr.length * 53) * 10000) % arr.length;
     return arr[Math.floor(index)];
@@ -219,47 +216,47 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
   const isApmPassed = currentHour >= 17;
 
   return (
-    <div className="space-y-4 text-xs animate-fade-in text-slate-200 w-full pb-20 px-0">
+    <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full pb-20 px-0 bg-[#050811] min-h-screen">
       
-      {/* 1. EN-TÊTE */}
-      <div className="bg-gradient-to-r from-teal-950/90 via-[#16182a] to-indigo-950/90 border border-teal-500/30 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
-        <div className="flex items-center space-x-2.5">
+      {/* 1. EN-TÊTE UNIFIÉ (Camaïeu de bleus) */}
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/85 rounded-2xl p-4 shadow-md flex items-center justify-between backdrop-blur-md">
+        <div className="flex items-center space-x-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-teal-300 border border-teal-400/30 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-md"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Retour</span>
           </button>
           <div>
-            <h1 className="text-sm font-extrabold text-white flex items-center gap-1.5">
-              <Shirt className="w-4 h-4 text-teal-400" /> Assistant Tenues & Style
+            <h1 className="text-sm font-black text-white flex items-center gap-2">
+              <Shirt className="w-4 h-4 text-sky-300" /> Assistant Tenues & Style
             </h1>
-            <p className="text-[10px] text-teal-300/80">
+            <p className="text-[10px] text-slate-300 font-semibold mt-0.5">
               {currentTemp}°C • {condition} {isUsingAiMode && `• 🤖 IA (${usedModelName})`}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-[9px] font-bold text-slate-300" title="Requêtes restantes dans la minute">
-            <Zap className="w-3 h-3 text-amber-400" />
+          <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-[9px] font-bold text-slate-300 shadow-sm" title="Requêtes restantes dans la minute">
+            <Zap className="w-3 h-3 text-sky-300" />
             <span>{remainingQuota}/{MAX_RPM} req.</span>
           </div>
 
           <button
             onClick={handleRunAiOutfit}
             disabled={isGeneratingAi || remainingQuota <= 0}
-            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:bg-slate-800 text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-md text-[10px]"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400 disabled:border-slate-800 text-sky-200 font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm text-[10px]"
           >
             {isGeneratingAi ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-300" />
                 <span>Cascade IA...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <Sparkles className="w-3.5 h-3.5 text-sky-300" />
                 <span>{isUsingAiMode ? 'Actualiser Look' : 'Générer avec IA'}</span>
               </>
             )}
@@ -267,7 +264,7 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
 
           <button
             onClick={() => { setSeed(prev => prev + 1); setIsUsingAiMode(false); }}
-            className="p-2 rounded-xl bg-teal-600/20 hover:bg-teal-600/30 border border-teal-500/40 text-teal-300 flex items-center gap-1 font-bold transition-all cursor-pointer shadow"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-sky-400 text-sky-300 flex items-center gap-1 font-bold transition-all cursor-pointer shadow-sm"
             title="Varier les looks"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -276,56 +273,56 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
       </div>
 
       {aiError && (
-        <div className="bg-rose-950/40 border border-rose-800/50 rounded-xl p-3 text-rose-300 text-[11px] leading-relaxed">
+        <div className="bg-[#0f172a] border border-sky-400/60 rounded-xl p-3 text-sky-200 text-[11px] leading-relaxed shadow-md">
           {aiError}
         </div>
       )}
 
       {/* 2. SÉLECTEUR DE PROFIL */}
       <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-1.5 bg-[#12141f] p-1.5 border border-slate-800 rounded-2xl shadow-lg">
+        <div className="grid grid-cols-3 gap-1.5 bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] p-1.5 border border-slate-700/85 rounded-2xl shadow-md backdrop-blur-md">
           <button
             type="button"
             onClick={() => { setActiveProfile('adult'); setIsUsingAiMode(false); }}
-            className={`py-2 px-2 rounded-xl font-bold text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-              activeProfile === 'adult' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-400 hover:text-white bg-[#0d0f17]'
+            className={`py-2 px-2 rounded-xl font-black text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
+              activeProfile === 'adult' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-transparent text-slate-300 hover:text-white bg-slate-900'
             }`}
           >
-            <User className="w-3.5 h-3.5" />
+            <User className="w-3.5 h-3.5 text-sky-200" />
             <span>Pour Moi</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveProfile('kids'); setIsUsingAiMode(false); }}
-            className={`py-2 px-2 rounded-xl font-bold text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-              activeProfile === 'kids' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-400 hover:text-white bg-[#0d0f17]'
+            className={`py-2 px-2 rounded-xl font-black text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
+              activeProfile === 'kids' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-transparent text-slate-300 hover:text-white bg-slate-900'
             }`}
           >
-            <Baby className="w-3.5 h-3.5" />
+            <Baby className="w-3.5 h-3.5 text-sky-200" />
             <span>Enfants (École)</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveProfile('sport'); setIsUsingAiMode(false); }}
-            className={`py-2 px-2 rounded-xl font-bold text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-              activeProfile === 'sport' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-400 hover:text-white bg-[#0d0f17]'
+            className={`py-2 px-2 rounded-xl font-black text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
+              activeProfile === 'sport' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-transparent text-slate-300 hover:text-white bg-slate-900'
             }`}
           >
-            <Activity className="w-3.5 h-3.5" />
+            <Activity className="w-3.5 h-3.5 text-sky-200" />
             <span>Sport / Actif</span>
           </button>
         </div>
 
         {activeProfile === 'adult' && (
-          <div className="flex items-center justify-center gap-2 bg-[#0d0f17]/80 p-1.5 border border-slate-800 rounded-xl animate-fade-in">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mr-1">Style :</span>
+          <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] p-1.5 border border-slate-700/85 rounded-xl animate-fade-in shadow-sm backdrop-blur-md">
+            <span className="text-[9px] font-black text-slate-300 uppercase tracking-wide mr-1">Style :</span>
             <button
               type="button"
               onClick={() => { setActiveGender('male'); setIsUsingAiMode(false); }}
-              className={`py-1.5 px-3 rounded-lg font-bold text-[9.5px] flex items-center gap-1 transition-all cursor-pointer ${
-                activeGender === 'male' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white bg-slate-900/60'
+              className={`py-1.5 px-3 rounded-lg font-black text-[9.5px] flex items-center gap-1 transition-all cursor-pointer border ${
+                activeGender === 'male' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-slate-700 text-slate-300 hover:text-white bg-slate-900'
               }`}
             >
               <span>👨</span>
@@ -334,8 +331,8 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
             <button
               type="button"
               onClick={() => { setActiveGender('female'); setIsUsingAiMode(false); }}
-              className={`py-1.5 px-3 rounded-lg font-bold text-[9.5px] flex items-center gap-1 transition-all cursor-pointer ${
-                activeGender === 'female' ? 'bg-pink-600 text-white shadow' : 'text-slate-400 hover:text-white bg-slate-900/60'
+              className={`py-1.5 px-3 rounded-lg font-black text-[9.5px] flex items-center gap-1 transition-all cursor-pointer border ${
+                activeGender === 'female' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-slate-700 text-slate-300 hover:text-white bg-slate-900'
               }`}
             >
               <span>👩</span>
@@ -383,39 +380,39 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
 };
 
 const TimeSlotCard = ({ title, subtitle, pieces }: { title: string; subtitle: string; pieces: OutfitSlot }) => (
-  <div className="bg-[#151824] border border-teal-500/30 rounded-2xl p-4 shadow-xl space-y-3">
-    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-      <h2 className="text-[11px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
-        <Clock className="w-4 h-4 text-teal-300" />
+  <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/85 rounded-2xl p-4 shadow-md space-y-3 backdrop-blur-md">
+    <div className="flex items-center justify-between border-b border-slate-700/85 pb-2">
+      <h2 className="text-[11px] font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+        <Clock className="w-4 h-4 text-sky-300" />
         {title}
       </h2>
-      <span className="text-[9px] text-teal-300/70 italic">{subtitle}</span>
+      <span className="text-[9px] text-slate-300 italic font-semibold">{subtitle}</span>
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-      <div className="bg-[#0d0f17] border border-slate-800/80 rounded-xl p-3 space-y-1">
-        <span className="text-[9px] font-extrabold text-teal-300 uppercase tracking-wide">👕 Hauts / Couches</span>
-        <p className="text-xs text-white font-medium">{pieces?.tops}</p>
+      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
+        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">👕 Hauts / Couches</span>
+        <p className="text-xs text-white font-bold">{pieces?.tops}</p>
       </div>
 
-      <div className="bg-[#0d0f17] border border-slate-800/80 rounded-xl p-3 space-y-1">
-        <span className="text-[9px] font-extrabold text-teal-300 uppercase tracking-wide">👖 Bas / Pantalon</span>
-        <p className="text-xs text-white font-medium">{pieces?.bottoms}</p>
+      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
+        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">👖 Bas / Pantalon</span>
+        <p className="text-xs text-white font-bold">{pieces?.bottoms}</p>
       </div>
 
-      <div className="bg-[#0d0f17] border border-slate-800/80 rounded-xl p-3 space-y-1">
-        <span className="text-[9px] font-extrabold text-teal-300 uppercase tracking-wide">🧥 Veste / Manteau</span>
-        <p className="text-xs text-white font-medium">{pieces?.outerwear}</p>
+      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
+        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">🧥 Veste / Manteau</span>
+        <p className="text-xs text-white font-bold">{pieces?.outerwear}</p>
       </div>
 
-      <div className="bg-[#0d0f17] border border-slate-800/80 rounded-xl p-3 space-y-1">
-        <span className="text-[9px] font-extrabold text-teal-300 uppercase tracking-wide">👞 Chaussures</span>
-        <p className="text-xs text-white font-medium">{pieces?.shoes}</p>
+      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
+        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">👞 Chaussures</span>
+        <p className="text-xs text-white font-bold">{pieces?.shoes}</p>
       </div>
 
-      <div className="bg-[#0d0f17] border border-slate-800/80 rounded-xl p-3 space-y-1 sm:col-span-2">
-        <span className="text-[9px] font-extrabold text-amber-300 uppercase tracking-wide">🧣 Accessoires Indispensables</span>
-        <p className="text-xs text-white font-medium">{pieces?.accessories}</p>
+      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 sm:col-span-2 shadow-sm">
+        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">🧣 Accessoires Indispensables</span>
+        <p className="text-xs text-white font-bold">{pieces?.accessories}</p>
       </div>
     </div>
   </div>

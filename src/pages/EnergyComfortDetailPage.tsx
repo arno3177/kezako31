@@ -142,7 +142,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
     if (state === 'open') return 1.0; 
     if (state === 'closed') return 0.08; 
     switch (prot) {
-      case 'bso': return 0.15;      
+      case 'bso': return 0.15;       
       case 'shutters': return 0.10; 
       case 'indoor': return 0.70;   
       default: return 0.20;          
@@ -265,7 +265,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         </g>
       );
     }
-    return <circle cx="0" cy="0" r="24" fill="#F59E0B" />;
+    return <circle cx="0" cy="0" r="24" fill="#38bdf8" />;
   };
 
   const radius = 32;
@@ -276,28 +276,28 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const isVentilationActive = windowState === 'open' || windowState === 'ajar';
 
   return (
-    <div className="space-y-4 text-xs animate-fade-in text-slate-200 w-full pb-20 px-0">
+    <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full pb-20 px-0 bg-[#050811] min-h-screen">
       
-      {/* EN-TÊTE */}
-      <div className="bg-gradient-to-r from-amber-950/90 via-[#16182a] to-emerald-950/90 border border-emerald-500/30 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* EN-TÊTE UNIFIÉ (Camaïeu de bleus) */}
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-emerald-300 border border-emerald-400/30 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-md"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Retour</span>
           </button>
           <div>
-            <h1 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-emerald-400" /> Bilan Thermique • <span className="text-amber-300 flex items-center gap-1"><Home className="w-3.5 h-3.5" /> {homeCityName} ({userCountry})</span>
+            <h1 className="text-sm font-black text-white flex items-center gap-2">
+              <Award className="w-4 h-4 text-sky-300" /> Bilan Thermique • <span className="text-sky-300 flex items-center gap-1"><Home className="w-3.5 h-3.5" /> {homeCityName} ({userCountry})</span>
             </h1>
-            <div className="text-[10px] text-emerald-300/85 flex items-center gap-2.5 flex-wrap mt-0.5">
-              <span className="flex items-center gap-1 font-semibold text-white">
-                <Cloud className="w-4 h-4 text-slate-300" /> {weatherCondition} ({currentTemp}°C)
+            <div className="text-[10px] text-slate-300 flex items-center gap-2.5 flex-wrap mt-0.5 font-semibold">
+              <span className="flex items-center gap-1 text-white">
+                <Cloud className="w-4 h-4 text-sky-300" /> {weatherCondition} ({currentTemp}°C)
               </span>
-              <span>• Surface : <strong className="text-cyan-300">{apartmentSurface} m²</strong></span>
-              <span>• Classe : <strong className="text-emerald-300">{energyClass}</strong></span>
+              <span>• Surface : <strong className="text-sky-300">{apartmentSurface} m²</strong></span>
+              <span>• Classe : <strong className="text-sky-300">{energyClass}</strong></span>
             </div>
           </div>
         </div>
@@ -305,16 +305,16 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         <button
           onClick={handleRunAiAnalysis}
           disabled={isAnalyzing}
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black flex items-center gap-2 transition-all cursor-pointer shadow-lg disabled:opacity-50"
+          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400 text-sky-200 font-black flex items-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
         >
           {isAnalyzing ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+              <Loader2 className="w-4 h-4 animate-spin text-sky-300" />
               <span>Analyse en cours...</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 text-amber-300" />
+              <Sparkles className="w-4 h-4 text-sky-300" />
               <span>Analyser avec l'IA</span>
             </>
           )}
@@ -322,9 +322,9 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
       </div>
 
       {aiAnalysis && (
-        <div className="bg-[#151824] border border-indigo-500/40 rounded-2xl p-4 shadow-2xl space-y-2 animate-fade-in">
-          <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-sky-400/60 rounded-2xl p-4 shadow-md space-y-2 backdrop-blur-md">
+          <div className="flex items-center space-x-2 text-sky-300 border-b border-slate-700/80 pb-2">
+            <Sparkles className="w-4 h-4 text-sky-300" />
             <h3 className="text-xs font-black text-white uppercase tracking-wider">Diagnostic Thermique Intelligent (Gemini)</h3>
           </div>
           <div className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line pt-1">
@@ -334,36 +334,36 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
       )}
 
       {/* PANNEAU DE CONTRÔLE */}
-      <div className="bg-[#151824] border border-emerald-500/30 rounded-2xl p-4 shadow-xl space-y-3">
-        <div className="flex items-center space-x-2 text-emerald-400 border-b border-slate-800 pb-2">
-          <SlidersHorizontal className="w-4 h-4" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-white">Commandes & Scénarios en Direct</h2>
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3 backdrop-blur-md">
+        <div className="flex items-center space-x-2 text-white border-b border-slate-700/80 pb-2">
+          <SlidersHorizontal className="w-4 h-4 text-sky-300" />
+          <h2 className="text-xs font-black uppercase tracking-wider text-white">Commandes & Scénarios en Direct</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="bg-[#0d0f17] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2">
-            <span className="text-[10px] font-bold text-slate-400">Position des Stores ({sunProtection.toUpperCase()})</span>
+          <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2 shadow-sm">
+            <span className="text-[10px] font-bold text-slate-300">Position des Stores ({sunProtection.toUpperCase()})</span>
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 onClick={() => setStoreState('open')}
-                className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all cursor-pointer border ${
-                  storeState === 'open' ? 'bg-amber-500/30 border-amber-500 text-amber-300 shadow-md' : 'bg-slate-900 border-slate-800 text-slate-400'
+                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
+                  storeState === 'open' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
                 ☀️ Ouverts
               </button>
               <button
                 onClick={() => setStoreState('active')}
-                className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all cursor-pointer border ${
-                  storeState === 'active' ? 'bg-emerald-500/30 border-emerald-500 text-emerald-300 shadow-md' : 'bg-slate-900 border-slate-800 text-slate-400'
+                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
+                  storeState === 'active' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
                 🛡️ Actifs
               </button>
               <button
                 onClick={() => setStoreState('closed')}
-                className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all cursor-pointer border ${
-                  storeState === 'closed' ? 'bg-indigo-500/30 border-indigo-500 text-indigo-300 shadow-md' : 'bg-slate-900 border-slate-800 text-slate-400'
+                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
+                  storeState === 'closed' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
                 🌙 Baissés
@@ -371,29 +371,29 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
             </div>
           </div>
 
-          <div className="bg-[#0d0f17] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2">
-            <span className="text-[10px] font-bold text-slate-400">État des Fenêtres & Aération</span>
+          <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2 shadow-sm">
+            <span className="text-[10px] font-bold text-slate-300">État des Fenêtres & Aération</span>
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 onClick={() => setWindowState('closed')}
-                className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all cursor-pointer border ${
-                  windowState === 'closed' ? 'bg-emerald-500/30 border-emerald-500 text-emerald-300 shadow-md' : 'bg-slate-900 border-slate-800 text-slate-400'
+                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
+                  windowState === 'closed' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
                 🚪 Fermées
               </button>
               <button
                 onClick={() => setWindowState('ajar')}
-                className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all cursor-pointer border ${
-                  windowState === 'ajar' ? 'bg-sky-500/30 border-sky-500 text-sky-300 shadow-md animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400'
+                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
+                  windowState === 'ajar' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
                 🪟 Entrouvertes
               </button>
               <button
                 onClick={() => setWindowState('open')}
-                className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all cursor-pointer border ${
-                  windowState === 'open' ? 'bg-rose-500/30 border-rose-500 text-rose-300 shadow-md animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400'
+                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
+                  windowState === 'open' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
                 💨 Ouvertes
@@ -403,27 +403,27 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         </div>
       </div>
 
-      {/* SCHÉMA DE L'IMMEUBLE (POLICES TRÈS GROSSIES POUR MOBILE) */}
-      <div className="bg-[#151824] border border-emerald-500/40 rounded-2xl p-4 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      {/* SCHÉMA DE L'IMMEUBLE */}
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-4 backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-slate-700/80 pb-3">
           <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 animate-pulse">
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-700 text-sky-300 shadow-sm">
               <Activity className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-xs font-black text-white uppercase tracking-wider">Schéma des Flux • {homeCityName}</h2>
-              <p className="text-[9px] text-slate-400">{roomsCount} pièces • {apartmentSurface} m² ({apartmentVolume} m³) • {buildingPosition}</p>
+              <p className="text-[9px] text-slate-300 font-semibold">{roomsCount} pièces • {apartmentSurface} m² ({apartmentVolume} m³) • {buildingPosition}</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20 font-bold flex items-center gap-1">
-              <Award className="w-3.5 h-3.5 text-emerald-400" /> Classe {energyClass}
+            <span className="text-[10px] font-mono text-sky-300 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700 font-bold flex items-center gap-1 shadow-sm">
+              <Award className="w-3.5 h-3.5 text-sky-300" /> Classe {energyClass}
             </span>
           </div>
         </div>
 
-        <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-2 relative overflow-hidden flex flex-col items-center justify-center">
+        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-2 relative overflow-hidden flex flex-col items-center justify-center shadow-sm">
           
           <style>{`
             @keyframes dashMoveIncoming { to { stroke-dashoffset: -20; } }
@@ -438,7 +438,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
             .wind-icon-anim { animation: windWave 1.2s ease-in-out infinite; }
           `}</style>
 
-          {/* SVG : Immeuble avec polices grossies (16 à 28) */}
           <svg className="w-full max-w-4xl h-80 sm:h-96" viewBox="10 0 580 210" fill="none" xmlns="http://www.w3.org/2000/svg">
             
             {/* MÉTÉO EXTÉRIEURE */}
@@ -448,7 +447,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
               <text x="-55" y="64" fill="#94A3B8" fontSize="15">{currentTemp}°C • {effectiveIrradiance}W/m²</text>
               <text x="-48" y="84" fill="#38BDF8" fontSize="15" fontWeight="bold">🌬️ Vent: {windSpeed} km/h</text>
               
-              {/* --- ICÔNE DE VENT ANIMÉE SOUS LA VITESSE DU VENT --- */}
               {isVentilationActive && windSpeed > 0 && (
                 <g transform="translate(-35, 95) scale(1.3)" className="wind-icon-anim" fill="none" stroke="#38BDF8" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.5 8H2m12.9-4a2 2 0 1 1 2.1 2H2" />
@@ -458,76 +456,69 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
 
             {/* APPORTS SOLAIRES */}
             <g>
-              <path d="M 115 75 Q 175 25 235 75" stroke="#F59E0B" strokeWidth="4.5" className="animated-solar-beam" strokeLinecap="round" />
-              <rect x="75" y="5" width="215" height="38" rx="8" fill="#1E293B" stroke="#F59E0B" strokeWidth="2.5" />
-              <text x="88" y="30" fill="#F59E0B" fontSize="18" fontWeight="extrabold">ENTRANT : +{calculatedSolarGains} W</text>
+              <path d="M 115 75 Q 175 25 235 75" stroke="#38bdf8" strokeWidth="4.5" className="animated-solar-beam" strokeLinecap="round" />
+              <rect x="75" y="5" width="215" height="38" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="2.5" />
+              <text x="88" y="30" fill="#38bdf8" fontSize="18" fontWeight="extrabold">ENTRANT : +{calculatedSolarGains} W</text>
             </g>
 
-            {/* BUILDING / IMMEUBLE À TOIT TRIANGULAIRE & ÉTAGES DE FENÊTRES */}
+            {/* BUILDING */}
             <g transform="translate(235, 25)">
-              {/* Corps principal de l'immeuble */}
-              <rect x="0" y="45" width="150" height="125" rx="6" fill="#1E293B" stroke="#10B981" strokeWidth="3.2" />
-              {/* Toit triangulaire */}
-              <polygon points="-15,45 75,-10 165,45" fill="#334155" stroke="#475569" strokeWidth="2.8" />
+              <rect x="0" y="45" width="150" height="125" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="3.2" />
+              <polygon points="-15,45 75,-10 165,45" fill="#1e293b" stroke="#475569" strokeWidth="2.8" />
 
-              {/* Lignes séparatrices d'étages */}
               <line x1="0" y1="85" x2="150" y2="85" stroke="#334155" strokeWidth="2" />
               <line x1="0" y1="130" x2="150" y2="130" stroke="#334155" strokeWidth="2" />
 
-              {/* Étage supérieur (3 fenêtres) */}
-              <rect x="15" y="55" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="61" y="55" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="107" y="55" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="15" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="61" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="107" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
 
-              {/* Étage inférieur (3 fenêtres) */}
-              <rect x="15" y="140" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="61" y="140" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="107" y="140" width="28" height="22" rx="4" fill="#334155" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="15" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="61" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+              <rect x="107" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
 
-              {/* Étage central (Appartement de l'utilisateur) */}
-              <rect x="38" y="90" width="74" height="36" rx="6" fill="#10B981" fillOpacity="0.25" stroke="#10B981" strokeWidth="2.8" />
-              <text x="50" y="117" fill="#10B981" fontSize="21" fontWeight="black">{energyClass}</text>
+              <rect x="38" y="90" width="74" height="36" rx="6" fill="#38bdf8" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="2.8" />
+              <text x="50" y="117" fill="#38bdf8" fontSize="21" fontWeight="black">{energyClass}</text>
 
-              {/* Étiquette température intérieure au-dessus du toit */}
-              <rect x="-20" y="7" width="190" height="32" rx="6" fill="#0D0F17" stroke="#10B981" strokeWidth="2.2" />
-              <text x="-8" y="28" fill="#10B981" fontSize="16" fontWeight="black">Est. Int : {targetEstimatedTemp}°C</text>
+              <rect x="-20" y="7" width="190" height="32" rx="6" fill="#050811" stroke="#38bdf8" strokeWidth="2.2" />
+              <text x="-8" y="28" fill="#38bdf8" fontSize="16" fontWeight="black">Est. Int : {targetEstimatedTemp}°C</text>
             </g>
 
-            {/* PERTES / FLUX DE RAFRAÎCHISSEMENT */}
+            {/* PERTES */}
             <g>
-              <path d="M 395 110 Q 445 135 490 110" stroke={isVentilationActive ? "#38BDF8" : "#10B981"} strokeWidth="4.5" className="animated-loss-beam" strokeLinecap="round" />
-              <rect x="355" y="125" width="225" height="38" rx="8" fill="#1E293B" stroke={isVentilationActive ? "#38BDF8" : "#10B981"} strokeWidth="2.5" />
-              <text x="368" y="150" fill={isVentilationActive ? "#38BDF8" : "#10B981"} fontSize="17" fontWeight="extrabold">
+              <path d="M 395 110 Q 445 135 490 110" stroke="#38bdf8" strokeWidth="4.5" className="animated-loss-beam" strokeLinecap="round" />
+              <rect x="355" y="125" width="225" height="38" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="2.5" />
+              <text x="368" y="150" fill="#38bdf8" fontSize="17" fontWeight="extrabold">
                 {isVentilationActive ? `ventilation : -${calculatedLosses} W` : `pertes (${energyClass}) : -${calculatedLosses} W`}
               </text>
             </g>
 
             {/* BILAN THERMIQUE NET */}
             <g transform="translate(380, 0)">
-              <rect x="0" y="10" width="200" height="120" rx="10" fill="#0D0F17" stroke="#10B981" strokeWidth="3" />
+              <rect x="0" y="10" width="200" height="120" rx="10" fill="#050811" stroke="#38bdf8" strokeWidth="3" />
               <text x="12" y="32" fill="#94A3B8" fontSize="14" fontWeight="bold">BILAN THERMIQUE NET</text>
-              <text x="12" y="68" fill="#10B981" fontSize="28" fontWeight="black">
+              <text x="12" y="68" fill="#38bdf8" fontSize="28" fontWeight="black">
                 {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}
               </text>
               <text x="12" y="93" fill="#E2E8F0" fontSize="17" fontWeight="bold">
                 Solde : {netThermalBalance} W
               </text>
-              <text x="12" y="115" fill="#10B981" fontSize="14">
+              <text x="12" y="115" fill="#38bdf8" fontSize="14">
                 🛡️ Classe {energyClass}
               </text>
             </g>
           </svg>
 
           <div className="w-full flex items-center justify-between pt-3 mt-1 border-t border-slate-800 text-xs flex-wrap gap-2">
-            <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+            <span className="text-sky-300 font-bold flex items-center gap-1.5">
               💡 Actuel : <strong className="text-sm">{targetEstimatedTemp}°C</strong>
             </span>
             <div className="flex items-center space-x-3">
-              <span className="text-sky-300 font-bold flex items-center gap-1.5 bg-sky-500/10 px-3 py-1.5 rounded-xl border border-sky-500/20">
-                <Clock className="w-4 h-4 text-sky-400" /> +3h : <strong className="text-sm">{tempPlus3h}°C</strong>
+              <span className="text-sky-300 font-bold flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 shadow-sm">
+                <Clock className="w-4 h-4 text-sky-300" /> +3h : <strong className="text-sm">{tempPlus3h}°C</strong>
               </span>
-              <span className="text-indigo-300 font-bold flex items-center gap-1.5 bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
-                <Clock className="w-4 h-4 text-indigo-400" /> +6h : <strong className="text-sm">{tempPlus6h}°C</strong>
+              <span className="text-sky-300 font-bold flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 shadow-sm">
+                <Clock className="w-4 h-4 text-sky-300" /> +6h : <strong className="text-sm">{tempPlus6h}°C</strong>
               </span>
             </div>
           </div>
@@ -537,12 +528,12 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
       {/* CARTES DE RÉSULTATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3">
+        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3 shadow-sm">
           <div className="w-full flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-white flex items-center gap-1">
-              <SunDim className="w-4 h-4 text-amber-400" /> Apports (Vitrage {glassSurface} m²)
+            <span className="text-[11px] font-black text-white flex items-center gap-1">
+              <SunDim className="w-4 h-4 text-sky-300" /> Apports (Vitrage {glassSurface} m²)
             </span>
-            <span className="text-[9px] font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+            <span className="text-[9px] font-mono font-bold text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
               {Math.round(orientationMultiplier * 100)}% d'exposition
             </span>
           </div>
@@ -552,7 +543,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
               <circle cx="48" cy="48" r={radius} stroke="#1e293b" strokeWidth="8" fill="transparent" />
               <circle 
                 cx="48" cy="48" r={radius} 
-                stroke="#f59e0b" strokeWidth="8" 
+                stroke="#38bdf8" strokeWidth="8" 
                 fill="transparent" 
                 strokeDasharray={circumference} 
                 strokeDashoffset={solarOffset} 
@@ -560,59 +551,59 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-base font-black text-amber-400">+{calculatedSolarGains}</span>
+              <span className="text-base font-black text-sky-300">+{calculatedSolarGains}</span>
               <span className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Watts</span>
             </div>
           </div>
 
           <div className="w-full space-y-1 text-[9.5px] bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-            <div className="flex justify-between"><span className="text-slate-400">Volume total :</span><span className="text-cyan-300 font-bold">{apartmentVolume} m³</span></div>
-            <div className="flex justify-between"><span className="text-slate-400">Pièces exposées :</span><span className="text-indigo-400 font-bold">{roomsCount} pcs</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Volume total :</span><span className="text-sky-300 font-bold">{apartmentVolume} m³</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Pièces exposées :</span><span className="text-sky-300 font-bold">{roomsCount} pcs</span></div>
           </div>
         </div>
 
-        <div className="bg-[#0d0f17] border border-emerald-500/40 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3">
+        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3 shadow-sm">
           <div className="w-full flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-white flex items-center gap-1">
-              <Thermometer className="w-4 h-4 text-emerald-400" /> Évolution ({energyClass})
+            <span className="text-[11px] font-black text-white flex items-center gap-1">
+              <Thermometer className="w-4 h-4 text-sky-300" /> Évolution ({energyClass})
             </span>
-            <span className="text-[9px] font-mono font-bold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            <span className="text-[9px] font-mono font-bold text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
               Inertie : {thermalInertiaWhPerDegree} Wh/°C
             </span>
           </div>
 
           <div className="w-full grid grid-cols-3 gap-2 my-2 text-center">
             <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-              <span className="text-[9px] text-slate-400 block">Actuel</span>
-              <span className="text-sm font-black text-emerald-400">{targetEstimatedTemp}°</span>
+              <span className="text-[9px] text-slate-400 block font-bold">Actuel</span>
+              <span className="text-sm font-black text-white">{targetEstimatedTemp}°</span>
             </div>
-            <div className="bg-sky-950/40 p-2 rounded-xl border border-sky-500/30">
-              <span className="text-[9px] text-sky-300 block">+3h</span>
-              <span className="text-sm font-black text-sky-400">{tempPlus3h}°</span>
+            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+              <span className="text-[9px] text-sky-300 block font-bold">+3h</span>
+              <span className="text-sm font-black text-sky-300">{tempPlus3h}°</span>
             </div>
-            <div className="bg-indigo-950/40 p-2 rounded-xl border border-indigo-500/30">
-              <span className="text-[9px] text-indigo-300 block">+6h</span>
-              <span className="text-sm font-black text-indigo-400">{tempPlus6h}°</span>
+            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+              <span className="text-[9px] text-sky-300 block font-bold">+6h</span>
+              <span className="text-sm font-black text-sky-300">{tempPlus6h}°</span>
             </div>
           </div>
 
-          <div className="w-full text-center text-[9.5px] text-emerald-300 font-medium bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+          <div className="w-full text-center text-[9.5px] text-sky-300 font-medium bg-slate-900/60 p-2 rounded-xl border border-slate-800">
             ✨ {isVentilationActive ? `Ventilation active (${windSpeed} km/h).` : `Maintien optimisé par l'enveloppe ${energyClass}.`}
           </div>
         </div>
 
-        <div className="bg-[#0d0f17] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3">
+        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3 shadow-sm">
           <div className="w-full flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-white flex items-center gap-1">
-              <TrendingUp className="w-4 h-4 text-indigo-400" /> Vitesse de Variation
+            <span className="text-[11px] font-black text-white flex items-center gap-1">
+              <TrendingUp className="w-4 h-4 text-sky-300" /> Vitesse de Variation
             </span>
-            <span className="text-[9px] font-mono font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+            <span className="text-[9px] font-mono font-bold text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
               Amorti {energyClass}
             </span>
           </div>
 
           <div className="my-auto py-3 flex flex-col items-center justify-center text-center space-y-1 bg-slate-900/60 w-full rounded-xl border border-slate-800">
-            <span className="text-xl font-black text-emerald-400">
+            <span className="text-xl font-black text-white">
               {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C` : `${temperatureRiseRate}°C`}
               <span className="text-xs font-normal text-slate-400"> /h</span>
             </span>

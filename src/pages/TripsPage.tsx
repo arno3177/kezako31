@@ -33,15 +33,15 @@ interface AiTripAnalysis {
 }
 
 const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderClass: string }> = {
-  9: { bars: 3, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]', borderClass: 'border-emerald-500/30' },
-  8: { bars: 2, colorClass: 'bg-emerald-400 shadow-[0_0_8px_#34d399]', borderClass: 'border-emerald-400/30' },
-  7: { bars: 1, colorClass: 'bg-lime-400 shadow-[0_0_8px_#a3e635]', borderClass: 'border-lime-400/30' },
-  6: { bars: 3, colorClass: 'bg-amber-400 shadow-[0_0_8px_#fbbf24]', borderClass: 'border-amber-400/30' },
-  5: { bars: 2, colorClass: 'bg-orange-400 shadow-[0_0_8px_#fb923c]', borderClass: 'border-orange-400/30' },
-  4: { bars: 1, colorClass: 'bg-orange-500 shadow-[0_0_8px_#f97316]', borderClass: 'border-orange-500/30' },
-  3: { bars: 3, colorClass: 'bg-red-500 shadow-[0_0_8px_#ef4444]', borderClass: 'border-red-500/30' },
-  2: { bars: 2, colorClass: 'bg-red-600 shadow-[0_0_8px_#dc2626]', borderClass: 'border-red-600/30' },
-  1: { bars: 1, colorClass: 'bg-red-700 shadow-[0_0_8px_#b91c1c]', borderClass: 'border-red-700/30' },
+  9: { bars: 3, colorClass: 'bg-sky-400 shadow-[0_0_8px_#38bdf8]', borderClass: 'border-sky-400/40' },
+  8: { bars: 2, colorClass: 'bg-sky-500 shadow-[0_0_8px_#0ea5e9]', borderClass: 'border-sky-500/40' },
+  7: { bars: 1, colorClass: 'bg-cyan-500 shadow-[0_0_8px_#06b6d4]', borderClass: 'border-cyan-500/40' },
+  6: { bars: 3, colorClass: 'bg-teal-400 shadow-[0_0_8px_#2dd4bf]', borderClass: 'border-teal-400/40' },
+  5: { bars: 2, colorClass: 'bg-teal-500 shadow-[0_0_8px_#14b8a6]', borderClass: 'border-teal-500/40' },
+  4: { bars: 1, colorClass: 'bg-blue-400 shadow-[0_0_8px_#60a5fa]', borderClass: 'border-blue-400/40' },
+  3: { bars: 3, colorClass: 'bg-blue-500 shadow-[0_0_8px_#3b82f6]', borderClass: 'border-blue-500/40' },
+  2: { bars: 2, colorClass: 'bg-indigo-500 shadow-[0_0_8px_#6366f1]', borderClass: 'border-indigo-500/40' },
+  1: { bars: 1, colorClass: 'bg-indigo-600 shadow-[0_0_8px_#4f46e5]', borderClass: 'border-indigo-600/40' },
 };
 
 const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
@@ -202,7 +202,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
     Renvoie UNIQUEMENT un objet JSON valide (sans balises markdown) avec exactement ces 9 clés :
     {
       "trafficStatus": "Un statut court du trafic (ex: Trafic dense / Fluide)",
-      "trafficColor": "text-amber-400 ou text-emerald-400 ou text-rose-400",
+      "trafficColor": "text-sky-300 ou text-teal-300 ou text-blue-400",
       "congestionPoints": "Description des points de ralentissement probables",
       "fuelCostEstimate": "Estimation du coût en carburant adapté à ce trajet",
       "smartAdvice": "Un conseil de départ ou de conduite personnalisé",
@@ -372,7 +372,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
       status = 'Trafic modéré en ville';
     }
 
-    return { status, color: isBonnevoieTrip ? 'text-amber-400' : 'text-emerald-400', congestion, advice, fuelEstimate: fuelCost, carTime, busTime, waypoint: '' };
+    return { status, color: isBonnevoieTrip ? 'text-sky-300' : 'text-teal-300', congestion, advice, fuelEstimate: fuelCost, carTime, busTime, waypoint: '' };
   };
 
   const defaultTraffic = getDynamicTrafficInfo();
@@ -394,7 +394,6 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
 
   const isUserInLuxembourg = navigator.language.toLowerCase().includes('lu') || Intl.DateTimeFormat().resolvedOptions().timeZone.toLowerCase().includes('luxembourg');
 
-  // Niveau LED basé sur l'état du trafic (fluide = 9, modéré = 5, dense = 2)
   const trafficLedLevel = trafficStatus.toLowerCase().includes('dense') || trafficStatus.toLowerCase().includes('ralentissements') ? 3 : trafficStatus.toLowerCase().includes('modéré') ? 6 : 9;
 
   return (
@@ -402,33 +401,33 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
       
       {showAddModal && (
         <div className="fixed inset-0 z-[99999] flex items-start justify-center pt-12 bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-[#121622] border border-emerald-500/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-emerald-400" />
+          <div className="bg-[#121622] border border-sky-400/80 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-sky-300" />
                 {editingTrip ? 'Modifier le trajet' : 'Ajouter un nouveau trajet'}
               </h3>
-              <button type="button" onClick={() => setShowAddModal(false)} className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer">
+              <button type="button" onClick={() => setShowAddModal(false)} className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleAddOrUpdateTrip} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Nom du trajet</label>
-                <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Bureau, Voyage..." required className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500" />
+                <label className="text-[11px] text-slate-200 font-bold block uppercase tracking-wide">Nom du trajet</label>
+                <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Bureau, Voyage..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-visible pb-10">
                 <div className="space-y-1.5 relative overflow-visible">
-                  <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Départ</label>
-                  <input type="text" value={newOrigin} onChange={(e) => setNewOrigin(e.target.value)} placeholder="Ex: 66 rue de Merscher..." required className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500" />
+                  <label className="text-[11px] text-slate-200 font-bold block uppercase tracking-wide">Départ</label>
+                  <input type="text" value={newOrigin} onChange={(e) => setNewOrigin(e.target.value)} placeholder="Ex: 66 rue de Merscher..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
                   {originSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#161b26] border border-emerald-500/60 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-48 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#050811] border border-sky-400 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-48 overflow-y-auto">
                       {originSuggestions.map((item, idx) => (
-                        <button key={idx} type="button" onClick={() => { setNewOrigin(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setOriginSuggestions([]); }} className="w-full text-left px-3 py-2.5 text-[11px] text-slate-200 hover:bg-emerald-500/20 hover:text-white flex items-center justify-between border-b border-slate-800/80 cursor-pointer">
+                        <button key={idx} type="button" onClick={() => { setNewOrigin(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setOriginSuggestions([]); }} className="w-full text-left px-3 py-2.5 text-[11px] text-slate-200 hover:bg-sky-950 hover:text-white flex items-center justify-between border-b border-slate-800 cursor-pointer">
                           <span className="font-bold">{item.name} {item.admin1 ? `- ${item.admin1}` : ''}</span>
-                          <span className="text-[9px] text-emerald-400 font-mono">{item.country}</span>
+                          <span className="text-[9px] text-sky-300 font-mono font-semibold">{item.country}</span>
                         </button>
                       ))}
                     </div>
@@ -436,14 +435,14 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
                 </div>
 
                 <div className="space-y-1.5 relative overflow-visible">
-                  <label className="text-[11px] text-slate-300 font-bold block uppercase tracking-wide">Arrivée</label>
-                  <input type="text" value={newDestination} onChange={(e) => setNewDestination(e.target.value)} placeholder="Ex: Paris, Luxembourg..." required className="w-full bg-[#0d0f17] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500" />
+                  <label className="text-[11px] text-slate-200 font-bold block uppercase tracking-wide">Arrivée</label>
+                  <input type="text" value={newDestination} onChange={(e) => setNewDestination(e.target.value)} placeholder="Ex: Paris, Luxembourg..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
                   {destinationSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#161b26] border border-emerald-500/60 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-48 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#050811] border border-sky-400 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-48 overflow-y-auto">
                       {destinationSuggestions.map((item, idx) => (
-                        <button key={idx} type="button" onClick={() => { setNewDestination(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setDestinationSuggestions([]); }} className="w-full text-left px-3 py-2.5 text-[11px] text-slate-200 hover:bg-emerald-500/20 hover:text-white flex items-center justify-between border-b border-slate-800/80 cursor-pointer">
+                        <button key={idx} type="button" onClick={() => { setNewDestination(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setDestinationSuggestions([]); }} className="w-full text-left px-3 py-2.5 text-[11px] text-slate-200 hover:bg-sky-950 hover:text-white flex items-center justify-between border-b border-slate-800 cursor-pointer">
                           <span className="font-bold">{item.name} {item.admin1 ? `- ${item.admin1}` : ''}</span>
-                          <span className="text-[9px] text-emerald-400 font-mono">{item.country}</span>
+                          <span className="text-[9px] text-sky-300 font-mono font-semibold">{item.country}</span>
                         </button>
                       ))}
                     </div>
@@ -451,46 +450,48 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer">Annuler</button>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer shadow-md">{editingTrip ? 'Mettre à jour' : 'Ajouter'}</button>
+              <div className="pt-3 border-t border-slate-700 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold cursor-pointer">Annuler</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 border border-sky-300 text-white text-xs font-bold cursor-pointer shadow-md">{editingTrip ? 'Mettre à jour' : 'Ajouter'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* EN-TÊTE ÉPURÉ */}
-      <div className="bg-gradient-to-r from-emerald-950/90 via-[#16182a] to-teal-950/90 border border-emerald-500/30 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
+      {/* EN-TÊTE UNIFIÉ (Camaïeu de bleus/ciels) */}
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md flex items-center justify-between backdrop-blur-md">
         <div className="flex items-center space-x-2.5">
-          <Navigation className="w-5 h-5 text-emerald-400" />
+          <div className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-sky-300 shadow-sm">
+            <Navigation className="w-5 h-5 text-sky-300" />
+          </div>
           <div>
-            <h1 className="text-sm font-extrabold text-white">Assistant Trajets & Mobilité</h1>
-            <p className="text-[10px] text-emerald-300/80">{currentTemp}°C • {weatherCond} {isUsingAiMode ? `• 🤖 IA (${usedModelName})` : '• 📊 Mode Standard'}</p>
+            <h1 className="text-sm font-black text-white">Assistant Trajets & Mobilité</h1>
+            <p className="text-[10px] text-slate-300 font-semibold">{currentTemp}°C • {weatherCond} {isUsingAiMode ? `• 🤖 IA (${usedModelName})` : '• 📊 Mode Standard'}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <LedLevelIndicator level={trafficLedLevel} />
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-[9px] font-bold text-slate-300" title="Requêtes restantes dans la minute">
-            <Zap className="w-3 h-3 text-amber-400" />
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-[9px] font-black text-slate-200 shadow-sm" title="Requêtes restantes dans la minute">
+            <Zap className="w-3 h-3 text-sky-300" />
             <span>{remainingQuota}/{MAX_RPM} req.</span>
           </div>
         </div>
       </div>
 
       {aiError && (
-        <div className="bg-rose-950/40 border border-rose-800/50 rounded-xl p-3 text-rose-300 text-[11px] leading-relaxed">
+        <div className="bg-rose-950/80 border border-rose-400 text-rose-100 rounded-xl p-3 text-[11px] leading-relaxed font-semibold shadow-md">
           {aiError}
         </div>
       )}
 
       {/* 1. SÉLECTEUR & GESTION DES TRAJETS */}
-      <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-          <span className="text-white font-bold text-xs">MES TRAJETS ENREGISTRÉS</span>
-          <button onClick={() => { setEditingTrip(null); setNewName(''); setNewOrigin(''); setNewDestination(''); setShowAddModal(true); }} className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-400/30 font-bold flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer shadow-md">
-            <Plus className="w-3.5 h-3.5" />
+      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+          <span className="text-white font-black text-xs uppercase tracking-wider">MES TRAJETS ENREGISTRÉS</span>
+          <button onClick={() => { setEditingTrip(null); setNewName(''); setNewOrigin(''); setNewDestination(''); setShowAddModal(true); }} className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-200 border border-slate-700 font-black flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer shadow-sm">
+            <Plus className="w-3.5 h-3.5 text-sky-300" />
             <span>Ajouter</span>
           </button>
         </div>
@@ -500,18 +501,18 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
             <div 
               key={trip.id} 
               onClick={() => { setSelectedTripId(trip.id); }} 
-              className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition-all cursor-pointer ${trip.id === selectedTripId ? 'bg-[#142620] border-emerald-500 shadow-md' : 'bg-[#0a1217] border-slate-800 hover:border-slate-700 text-slate-300'}`}
+              className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition-all cursor-pointer shadow-sm ${trip.id === selectedTripId ? 'bg-slate-900 border-sky-400 shadow-sky-950' : 'bg-[#050811] border-slate-800 hover:border-slate-700 text-slate-300'}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`font-bold text-xs ${trip.id === selectedTripId ? 'text-emerald-300' : 'text-white'}`}>{trip.name}</span>
+                <span className={`font-black text-xs truncate ${trip.id === selectedTripId ? 'text-white' : 'text-slate-300'}`}>{trip.name}</span>
                 <div className="flex items-center space-x-1">
-                  <button onClick={(e) => { e.stopPropagation(); handleStartEdit(trip); }} className="p-1 rounded-lg bg-slate-800 text-slate-300 hover:text-emerald-400"><Edit3 className="w-3 h-3" /></button>
-                  {trips.length > 1 && <button onClick={(e) => handleDeleteTrip(trip.id, e)} className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400"><Trash2 className="w-3 h-3" /></button>}
+                  <button onClick={(e) => { e.stopPropagation(); handleStartEdit(trip); }} className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-sky-300"><Edit3 className="w-3 h-3" /></button>
+                  {trips.length > 1 && <button onClick={(e) => handleDeleteTrip(trip.id, e)} className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-rose-300"><Trash2 className="w-3 h-3" /></button>}
                 </div>
               </div>
-              <div className="text-[10px] text-slate-400 truncate">
-                <span className="text-slate-500">De:</span> {trip.origin} <br />
-                <span className="text-slate-500">À:</span> {trip.destination}
+              <div className="text-[10px] text-slate-400 truncate font-semibold">
+                <span className="text-slate-500 font-bold">De:</span> {trip.origin} <br />
+                <span className="text-slate-500 font-bold">À:</span> {trip.destination}
               </div>
             </div>
           ))}
@@ -519,22 +520,22 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
       </div>
 
       {/* 2. SÉLECTEUR DE MODE & BOUTON IA */}
-      <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3 shadow-xl">
+      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           
           <div className="grid grid-cols-2 gap-2 w-full sm:w-auto flex-1">
             <button 
               onClick={() => { setActiveMode('car'); }} 
-              className={`p-3 rounded-xl border font-bold flex items-center justify-center space-x-2 cursor-pointer transition-all ${activeMode === 'car' ? 'bg-[#1b2621] border-emerald-500 text-emerald-400' : 'bg-[#0a1217] border-slate-800 text-slate-400'}`}
+              className={`p-2.5 rounded-xl border font-black text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-sm ${activeMode === 'car' ? 'bg-sky-600 border-sky-300 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'}`}
             >
-              <Car className="w-4 h-4" />
+              <Car className="w-4 h-4 text-sky-200" />
               <span>En Voiture</span>
             </button>
             <button 
               onClick={() => { setActiveMode('bus'); }} 
-              className={`p-3 rounded-xl border font-bold flex items-center justify-center space-x-2 cursor-pointer transition-all ${activeMode === 'bus' ? 'bg-[#132733] border-sky-400 text-sky-400' : 'bg-[#0a1217] border-slate-800 text-slate-400'}`}
+              className={`p-2.5 rounded-xl border font-black text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-sm ${activeMode === 'bus' ? 'bg-teal-600 border-teal-300 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'}`}
             >
-              <Bus className="w-4 h-4" />
+              <Bus className="w-4 h-4 text-teal-200" />
               <span>En Bus / Transports</span>
             </button>
           </div>
@@ -542,16 +543,16 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
           <button
             onClick={handleRunAiTripAnalysis}
             disabled={isGeneratingAi || remainingQuota <= 0}
-            className="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-2 shadow-md text-xs whitespace-nowrap w-full sm:w-auto"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 border border-sky-300 disabled:bg-slate-800 disabled:border-slate-700 text-white font-black transition-all cursor-pointer inline-flex items-center justify-center gap-2 shadow-md text-xs whitespace-nowrap w-full sm:w-auto"
           >
             {isGeneratingAi ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
                 <span>Analyse...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-amber-300" />
+                <Sparkles className="w-4 h-4 text-sky-200" />
                 <span>Analyser avec IA</span>
               </>
             )}
@@ -565,32 +566,32 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
         
         {/* OPTIONS TRANSPORTS EN COMMUN SI ACTIF */}
         {activeMode === 'bus' && (
-          <div className="bg-[#111e25] border border-sky-500/20 rounded-2xl p-4 shadow-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="text-white font-bold flex items-center gap-1.5">
-                <Bus className="w-4 h-4 text-sky-400" /> TRANSPORTS EN COMMUN & ALTERNATIVES
+          <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+              <span className="text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Bus className="w-4 h-4 text-teal-300" /> TRANSPORTS EN COMMUN & ALTERNATIVES
               </span>
             </div>
 
             {(() => {
               const mapBusUrl = `https://www.google.com/maps/dir/?api=1&origin=${originQuery}&destination=${destQuery}&travelmode=transit`;
               return (
-                <a href={mapBusUrl} target="_blank" rel="noopener noreferrer" className="block p-3.5 rounded-xl bg-[#0a1217] border border-slate-800 hover:border-sky-400 transition-all group cursor-pointer space-y-2">
+                <a href={mapBusUrl} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-xl bg-[#050811] border border-slate-700 hover:border-sky-400 transition-all group cursor-pointer space-y-2 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                       {['Bus Direct', 'RGTR', 'Tram'].map((busNum, bIdx) => (
-                        <span key={bIdx} className="text-[10px] font-black px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800/40">
+                        <span key={bIdx} className="text-[10px] font-black px-2 py-0.5 rounded bg-sky-950 text-sky-200 border border-sky-400/50">
                           {busNum}
                         </span>
                       ))}
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-sky-400 transition-colors" />
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-300 transition-colors" />
                   </div>
                   <div>
                     <p className="font-bold text-white text-xs group-hover:text-sky-300 transition-colors">
                       {activeTrip?.origin} ➔ {activeTrip?.destination}
                     </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">
+                    <p className="text-[9px] text-slate-400 mt-0.5 font-semibold">
                       {isUsingAiMode && aiAnalysis ? aiAnalysis.alternativeSuggestion : 'Lignes directes régulières et correspondances'}
                     </p>
                   </div>
@@ -599,12 +600,12 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
             })()}
 
             {isUserInLuxembourg && (
-              <a href="https://www.mobiliteit.lu/fr/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-2.5 rounded-xl bg-[#0a1217] border border-sky-500/30 hover:border-sky-400 transition-all text-xs group mt-2">
-                <div className="flex items-center space-x-2 text-sky-400">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-white group-hover:text-sky-300">Portail officiel Mobiliteit.lu</span>
+              <a href="https://www.mobiliteit.lu/fr/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-2.5 rounded-xl bg-[#050811] border border-slate-700 hover:border-sky-400 transition-all text-xs group mt-2 shadow-sm">
+                <div className="flex items-center space-x-2 text-sky-200">
+                  <CheckCircle2 className="w-4 h-4 text-teal-300" />
+                  <span className="font-black text-white group-hover:text-sky-300">Portail officiel Mobiliteit.lu</span>
                 </div>
-                <span className="text-[10px] font-bold text-sky-400 flex items-center gap-1">Accéder <ExternalLink className="w-3 h-3" /></span>
+                <span className="text-[10px] font-black text-sky-300 flex items-center gap-1">Accéder <ExternalLink className="w-3 h-3" /></span>
               </a>
             )}
           </div>
@@ -612,21 +613,21 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
 
         {/* 1. TEMPS DE TRAJET & CARTE GOOGLE MAPS (PLEINE LARGEUR) */}
         <div className="space-y-2 w-full">
-          <div className="bg-[#111e25] border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between shadow-md">
+          <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 flex items-center justify-between shadow-md">
             <div className="flex items-center space-x-2">
-              <div className={`p-1.5 rounded-lg ${activeMode === 'car' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-sky-500/20 text-sky-400'}`}>
+              <div className={`p-1.5 rounded-xl bg-slate-900 border border-slate-700 ${activeMode === 'car' ? 'text-sky-300' : 'text-teal-300'}`}>
                 {activeMode === 'car' ? <Car className="w-4 h-4" /> : <Bus className="w-4 h-4" />}
               </div>
-              <span className="text-[11px] font-extrabold text-white uppercase">
+              <span className="text-[11px] font-black text-white uppercase tracking-wider">
                 {activeMode === 'car' ? 'Temps estimé (Voiture)' : 'Temps estimé (Transports)'}
               </span>
             </div>
-            <span className={`text-sm font-black flex items-center gap-1.5 ${activeMode === 'car' ? 'text-emerald-400' : 'text-sky-400'}`}>
+            <span className={`text-sm font-black flex items-center gap-1.5 ${activeMode === 'car' ? 'text-sky-300' : 'text-teal-300'}`}>
               <Clock className="w-4 h-4" /> {currentActiveTime}
             </span>
           </div>
 
-          <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3 shadow-xl h-[450px] overflow-hidden relative w-full">
+          <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-2 shadow-xl h-[450px] overflow-hidden relative w-full">
             <iframe
               key={`${activeMode}-${activeTrip?.id}-${recommendedWaypoint}`}
               title="Carte interactive du trajet"
@@ -640,35 +641,35 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
         </div>
 
         {/* 2. DIAGNOSTIC & TRAFIC SOUS LA CARTE (PLEINE LARGEUR) */}
-        <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-3.5 shadow-xl space-y-3 w-full">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center space-x-2 text-white font-bold">
-              <ShieldAlert className="w-4 h-4 text-sky-400" />
+        <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3 w-full">
+          <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+            <div className="flex items-center space-x-2 text-white font-black text-xs uppercase tracking-wider">
+              <ShieldAlert className="w-4 h-4 text-sky-300" />
               <span>DIAGNOSTIC & TRAFIC {isUsingAiMode ? '(Piloté par IA)' : '(Mode Standard)'}</span>
             </div>
             <LedLevelIndicator level={trafficLedLevel} />
           </div>
 
           <div className="grid grid-cols-1 gap-2.5 text-[10px]">
-            <div className="bg-[#0a1217] p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
-              <span className="text-slate-300 font-bold">État du trafic :</span>
-              <span className={`font-bold ${trafficColor}`}>{trafficStatus}</span>
+            <div className="bg-[#050811] p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+              <span className="text-slate-300 font-bold uppercase tracking-wide">État du trafic :</span>
+              <span className={`font-black ${trafficColor}`}>{trafficStatus}</span>
             </div>
 
-            <div className="bg-[#0a1217] p-2.5 rounded-xl border border-rose-900/40 flex items-start justify-between space-x-2">
-              <span className="text-slate-300 font-bold flex-shrink-0">Points de congestion :</span>
-              <span className="text-rose-300 text-right font-medium">{congestionPoints}</span>
+            <div className="bg-[#050811] p-2.5 rounded-xl border border-rose-950/60 flex items-start justify-between space-x-2">
+              <span className="text-slate-300 font-bold uppercase tracking-wide flex-shrink-0">Points de congestion :</span>
+              <span className="text-rose-200 text-right font-semibold">{congestionPoints}</span>
             </div>
 
-            <div className="bg-[#0a1217] p-2.5 rounded-xl border border-emerald-950 flex items-center justify-between">
-              <span className="text-emerald-400 font-bold">Conseil & Itinéraire :</span>
-              <span className="text-slate-200 text-right font-medium">{smartAdvice}</span>
+            <div className="bg-[#050811] p-2.5 rounded-xl border border-sky-950/60 flex items-center justify-between">
+              <span className="text-sky-300 font-bold uppercase tracking-wide">Conseil & Itinéraire :</span>
+              <span className="text-slate-200 text-right font-semibold">{smartAdvice}</span>
             </div>
 
             {recommendedWaypoint && (
-              <div className="bg-[#0a1217] p-2.5 rounded-xl border border-sky-900/50 flex items-center justify-between">
-                <span className="text-sky-400 font-bold flex items-center gap-1"><MapPin className="w-3 h-3" /> Variante carte (IA) :</span>
-                <span className="text-sky-200 text-right font-medium">{recommendedWaypoint}</span>
+              <div className="bg-[#050811] p-2.5 rounded-xl border border-teal-950/60 flex items-center justify-between">
+                <span className="text-teal-300 font-bold uppercase tracking-wide flex items-center gap-1"><MapPin className="w-3 h-3" /> Variante carte (IA) :</span>
+                <span className="text-teal-200 text-right font-semibold">{recommendedWaypoint}</span>
               </div>
             )}
           </div>
@@ -676,39 +677,39 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
 
         {/* 3. BARÈME & COÛT CARBURANT EN MODE VOITURE (PLEINE LARGEUR) */}
         {activeMode === 'car' && (
-          <div className="bg-[#111e25] border border-emerald-500/20 rounded-2xl p-4 shadow-xl space-y-3 w-full">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="text-white font-bold flex items-center gap-1.5">
-                <Fuel className="w-4 h-4 text-emerald-400" /> BARÈME & COÛT CARBURANT
+          <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3 w-full">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+              <span className="text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Fuel className="w-4 h-4 text-sky-300" /> BARÈME & COÛT CARBURANT
               </span>
 
-              <button onClick={loadFuelPrices} disabled={isRefreshingFuel} className="text-slate-400 hover:text-white flex items-center gap-1 text-[10px] cursor-pointer">
-                <RefreshCw className={`w-3 h-3 ${isRefreshingFuel ? 'animate-spin' : ''}`} />
+              <button onClick={loadFuelPrices} disabled={isRefreshingFuel} className="text-slate-300 hover:text-white flex items-center gap-1 text-[10px] font-bold cursor-pointer">
+                <RefreshCw className={`w-3 h-3 text-sky-300 ${isRefreshingFuel ? 'animate-spin' : ''}`} />
                 <span>{fuelPrices.updatedAt}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <div className="p-2.5 rounded-xl bg-[#0a1217] border border-slate-800 text-center">
-                <span className="text-[9px] text-slate-400 font-bold uppercase block">Super 95</span>
-                <span className="text-sm font-extrabold text-emerald-400 mt-1 block">{fuelPrices.super95}</span>
+              <div className="p-2.5 rounded-xl bg-[#050811] border border-slate-800 text-center shadow-sm">
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 95</span>
+                <span className="text-sm font-black text-white mt-1 block">{fuelPrices.super95}</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-[#0a1217] border border-slate-800 text-center">
-                <span className="text-[9px] text-slate-400 font-bold uppercase block">Super 98</span>
-                <span className="text-sm font-extrabold text-emerald-400 mt-1 block">{fuelPrices.super98}</span>
+              <div className="p-2.5 rounded-xl bg-[#050811] border border-slate-800 text-center shadow-sm">
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 98</span>
+                <span className="text-sm font-black text-white mt-1 block">{fuelPrices.super98}</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-[#0a1217] border border-slate-800 text-center">
-                <span className="text-[9px] text-slate-400 font-bold uppercase block">Diesel</span>
-                <span className="text-sm font-extrabold text-emerald-400 mt-1 block">{fuelPrices.diesel}</span>
+              <div className="p-2.5 rounded-xl bg-[#050811] border border-slate-800 text-center shadow-sm">
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Diesel</span>
+                <span className="text-sm font-black text-white mt-1 block">{fuelPrices.diesel}</span>
               </div>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-[#0a1217] border border-emerald-500/30 text-[10px] text-emerald-300 font-medium">
+            <div className="p-2.5 rounded-xl bg-[#050811] border border-sky-400/40 text-[10px] text-sky-200 font-bold shadow-sm">
               💡 <strong className="text-white">Estimation coût trajet :</strong> {fuelEstimate}
             </div>
 
             <div className="pt-1 text-right">
-              <a href="https://www.acl.lu/fr/mobilite/prix-des-carburants/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-400 hover:underline inline-flex items-center gap-1 font-mono">
+              <a href="https://www.acl.lu/fr/mobilite/prix-des-carburants/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-300 hover:underline inline-flex items-center gap-1 font-mono font-bold">
                 <span>Cours officiels ACL</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
