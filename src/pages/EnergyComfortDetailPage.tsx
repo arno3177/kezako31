@@ -3,7 +3,7 @@ import { WeatherData, AppSettings } from '../types';
 import { getTranslation } from '../utils/translations';
 import { 
   ChevronLeft, Thermometer, Activity, 
-  SlidersHorizontal, Cloud, TrendingUp, SunDim, Award, Clock, Home, Sparkles, Loader2, Wind 
+  SlidersHorizontal, Cloud, TrendingUp, SunDim, Award, Clock, Home, Sparkles, Loader2, ChevronDown, ChevronUp, ShieldCheck, Plus, Minus, RotateCcw 
 } from 'lucide-react';
 
 interface EnergyComfortDetailPageProps {
@@ -52,10 +52,13 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const homeCityName = localStorage.getItem('weather_home_city') || currentWeather?.city || 'Kopstal';
 
   const [homeWeatherData, setHomeWeatherData] = useState<any | null>(null);
-  const [isLoadingSolar, setIsLoadingSolar] = useState<boolean>(true);
+  const [_isLoadingSolar, setIsLoadingSolar] = useState<boolean>(true);
 
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+
+  // Accordéon des détails techniques
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchHomeLocationWeather = async () => {
@@ -174,7 +177,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const gFactor = isHighPerformance ? 0.30 : 0.65;
   const calculatedSolarGains = Math.round(glassSurface * effectiveIrradiance * gFactor * protectionFactor * orientationMultiplier);
 
-  const baseIndoorRef = 21.5;
+  const baseIndoorRef = 22; // Modifié à 22
   const tempDelta = currentTemp - baseIndoorRef; 
 
   const baseConductionLosses = (baseIndoorRef - currentTemp) * (apartmentSurface * 0.08) * positionMultiplier; 
@@ -197,8 +200,20 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   }
 
   const estimatedEquilibriumTemp = Number((baseIndoorRef + (temperatureRiseRate * 2)).toFixed(1));
-  const targetEstimatedTemp = Math.min(35, Math.max(15, estimatedEquilibriumTemp));
+  const baseCalculatedTemp = Math.min(35, Math.max(15, estimatedEquilibriumTemp));
 
+  // État pour la correction manuelle de la température intérieure (sauvegardé en localStorage)
+  const storageOffsetKey = `indoor_temp_offset_${homeCityName}`;
+  const [tempOffset, setTempOffset] = useState<number>(() => {
+    const saved = localStorage.getItem(storageOffsetKey);
+    return saved !== null ? parseFloat(saved) : 0;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(storageOffsetKey, tempOffset.toString());
+  }, [tempOffset, storageOffsetKey]);
+
+  const targetEstimatedTemp = Number((baseCalculatedTemp + tempOffset).toFixed(1));
   const tempPlus3h = Number((targetEstimatedTemp + (temperatureRiseRate * 1.5)).toFixed(1));
   const tempPlus6h = Number((targetEstimatedTemp + (temperatureRiseRate * 2.8)).toFixed(1));
 
@@ -223,7 +238,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
       - Protection solaire : ${sunProtection} (État actuel stores : ${storeState})
       - État des fenêtres : ${windowState} (Vent extérieur : ${windSpeed} km/h - Flux d'air actif)
       - Météo extérieure (${homeCityName}, ${userCountry}) : ${weatherCondition}, ${currentTemp}°C, Irradiation solaire : ${effectiveIrradiance} W/m²
-      - Température estimée actuelle : ${targetEstimatedTemp}°C
+      - Température estimée actuelle (corrigée si besoin) : ${targetEstimatedTemp}°C
       - Projection thermique : à +3h : ${tempPlus3h}°C, à +6h : ${tempPlus6h}°C.
 
       Donne un diagnostic court, professionnel et percutant en français (3-4 puces max) sur le confort thermique actuel, l'évolution prévisionnelle à +3h et +6h, et les actions correctives si nécessaire.
@@ -278,7 +293,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   return (
     <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full pb-20 px-0 bg-[#050811] min-h-screen">
       
-      {/* EN-TÊTE UNIFIÉ (Camaïeu de bleus) */}
+      {/* EN-TÊTE UNIFIÉ */}
       <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
         <div className="flex items-center space-x-3">
           <button
@@ -403,218 +418,282 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         </div>
       </div>
 
-      {/* SCHÉMA DE L'IMMEUBLE */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-4 backdrop-blur-md">
-        <div className="flex items-center justify-between border-b border-slate-700/80 pb-3">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-slate-900 border border-slate-700 text-sky-300 shadow-sm">
-              <Activity className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-xs font-black text-white uppercase tracking-wider">Schéma des Flux • {homeCityName}</h2>
-              <p className="text-[9px] text-slate-300 font-semibold">{roomsCount} pièces • {apartmentSurface} m² ({apartmentVolume} m³) • {buildingPosition}</p>
-            </div>
-          </div>
-          
+      {/* SYNTHÈSE PRINCIPALE (Avec correction manuelle + et - de la température) */}
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-sky-400/60 rounded-2xl p-4 shadow-lg space-y-3 backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
+          <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
+            <Thermometer className="w-4 h-4 text-sky-300" /> Synthèse & Projections Thermiques
+          </h2>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-sky-300 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700 font-bold flex items-center gap-1 shadow-sm">
-              <Award className="w-3.5 h-3.5 text-sky-300" /> Classe {energyClass}
+            {tempOffset !== 0 && (
+              <button
+                onClick={() => setTempOffset(0)}
+                className="p-1 rounded-lg bg-slate-900 text-amber-400 border border-slate-700 hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-[9px] font-bold px-2 shadow-sm"
+                title="Réinitialiser la correction"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{tempOffset > 0 ? `+${tempOffset}°C` : `${tempOffset}°C`}</span>
+              </button>
+            )}
+            <span className="text-[10px] font-mono font-bold text-sky-300 bg-slate-900 px-2.5 py-0.5 rounded-full border border-slate-700">
+              Classe {energyClass}
             </span>
           </div>
         </div>
 
-        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-2 relative overflow-hidden flex flex-col items-center justify-center shadow-sm">
-          
-          <style>{`
-            @keyframes dashMoveIncoming { to { stroke-dashoffset: -20; } }
-            @keyframes dashMoveOutgoing { to { stroke-dashoffset: -20; } }
-            @keyframes windWave { 
-              0% { transform: translateX(0); opacity: 0.4; }
-              50% { opacity: 1; }
-              100% { transform: translateX(12px); opacity: 0.4; }
-            }
-            .animated-solar-beam { stroke-dasharray: 8 6; animation: dashMoveIncoming 1.2s linear infinite; }
-            .animated-loss-beam { stroke-dasharray: 6 6; animation: dashMoveOutgoing 1.8s linear infinite; }
-            .wind-icon-anim { animation: windWave 1.2s ease-in-out infinite; }
-          `}</style>
-
-          <svg className="w-full max-w-4xl h-80 sm:h-96" viewBox="10 0 580 210" fill="none" xmlns="http://www.w3.org/2000/svg">
-            
-            {/* MÉTÉO EXTÉRIEURE */}
-            <g transform="translate(70, 85)">
-              {renderWeatherGraphic()}
-              <text x="-48" y="42" fill="#E2E8F0" fontSize="17" fontWeight="bold">{weatherCondition}</text>
-              <text x="-55" y="64" fill="#94A3B8" fontSize="15">{currentTemp}°C • {effectiveIrradiance}W/m²</text>
-              <text x="-48" y="84" fill="#38BDF8" fontSize="15" fontWeight="bold">🌬️ Vent: {windSpeed} km/h</text>
-              
-              {isVentilationActive && windSpeed > 0 && (
-                <g transform="translate(-35, 95) scale(1.3)" className="wind-icon-anim" fill="none" stroke="#38BDF8" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.5 8H2m12.9-4a2 2 0 1 1 2.1 2H2" />
-                </g>
-              )}
-            </g>
-
-            {/* APPORTS SOLAIRES */}
-            <g>
-              <path d="M 115 75 Q 175 25 235 75" stroke="#38bdf8" strokeWidth="4.5" className="animated-solar-beam" strokeLinecap="round" />
-              <rect x="75" y="5" width="215" height="38" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="2.5" />
-              <text x="88" y="30" fill="#38bdf8" fontSize="18" fontWeight="extrabold">ENTRANT : +{calculatedSolarGains} W</text>
-            </g>
-
-            {/* BUILDING */}
-            <g transform="translate(235, 25)">
-              <rect x="0" y="45" width="150" height="125" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="3.2" />
-              <polygon points="-15,45 75,-10 165,45" fill="#1e293b" stroke="#475569" strokeWidth="2.8" />
-
-              <line x1="0" y1="85" x2="150" y2="85" stroke="#334155" strokeWidth="2" />
-              <line x1="0" y1="130" x2="150" y2="130" stroke="#334155" strokeWidth="2" />
-
-              <rect x="15" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="61" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="107" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-
-              <rect x="15" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="61" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-              <rect x="107" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
-
-              <rect x="38" y="90" width="74" height="36" rx="6" fill="#38bdf8" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="2.8" />
-              <text x="50" y="117" fill="#38bdf8" fontSize="21" fontWeight="black">{energyClass}</text>
-
-              <rect x="-20" y="7" width="190" height="32" rx="6" fill="#050811" stroke="#38bdf8" strokeWidth="2.2" />
-              <text x="-8" y="28" fill="#38bdf8" fontSize="16" fontWeight="black">Est. Int : {targetEstimatedTemp}°C</text>
-            </g>
-
-            {/* PERTES */}
-            <g>
-              <path d="M 395 110 Q 445 135 490 110" stroke="#38bdf8" strokeWidth="4.5" className="animated-loss-beam" strokeLinecap="round" />
-              <rect x="355" y="125" width="225" height="38" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="2.5" />
-              <text x="368" y="150" fill="#38bdf8" fontSize="17" fontWeight="extrabold">
-                {isVentilationActive ? `ventilation : -${calculatedLosses} W` : `pertes (${energyClass}) : -${calculatedLosses} W`}
-              </text>
-            </g>
-
-            {/* BILAN THERMIQUE NET */}
-            <g transform="translate(380, 0)">
-              <rect x="0" y="10" width="200" height="120" rx="10" fill="#050811" stroke="#38bdf8" strokeWidth="3" />
-              <text x="12" y="32" fill="#94A3B8" fontSize="14" fontWeight="bold">BILAN THERMIQUE NET</text>
-              <text x="12" y="68" fill="#38bdf8" fontSize="28" fontWeight="black">
-                {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}
-              </text>
-              <text x="12" y="93" fill="#E2E8F0" fontSize="17" fontWeight="bold">
-                Solde : {netThermalBalance} W
-              </text>
-              <text x="12" y="115" fill="#38bdf8" fontSize="14">
-                🛡️ Classe {energyClass}
-              </text>
-            </g>
-          </svg>
-
-          <div className="w-full flex items-center justify-between pt-3 mt-1 border-t border-slate-800 text-xs flex-wrap gap-2">
-            <span className="text-sky-300 font-bold flex items-center gap-1.5">
-              💡 Actuel : <strong className="text-sm">{targetEstimatedTemp}°C</strong>
-            </span>
-            <div className="flex items-center space-x-3">
-              <span className="text-sky-300 font-bold flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 shadow-sm">
-                <Clock className="w-4 h-4 text-sky-300" /> +3h : <strong className="text-sm">{tempPlus3h}°C</strong>
-              </span>
-              <span className="text-sky-300 font-bold flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 shadow-sm">
-                <Clock className="w-4 h-4 text-sky-300" /> +6h : <strong className="text-sm">{tempPlus6h}°C</strong>
-              </span>
+        <div className="grid grid-cols-3 gap-2 text-center pt-1">
+          <div className="bg-[#050811] p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <span className="text-[9px] text-slate-400 block font-bold uppercase">Actuel (Intérieur)</span>
+              <span className="text-lg font-black text-white">{targetEstimatedTemp}°C</span>
+            </div>
+            <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-slate-800/80">
+              <button
+                onClick={() => setTempOffset(prev => prev - 0.5)}
+                className="w-6 h-6 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 flex items-center justify-center font-black cursor-pointer transition-colors shadow-sm"
+                title="Diminuer de 0.5°C"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => setTempOffset(prev => prev + 0.5)}
+                className="w-6 h-6 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 flex items-center justify-center font-black cursor-pointer transition-colors shadow-sm"
+                title="Augmenter de 0.5°C"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
             </div>
           </div>
+
+          <div className="bg-[#050811] p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <span className="text-[9px] text-sky-300 block font-bold uppercase flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> +3h</span>
+              <span className="text-lg font-black text-sky-300">{tempPlus3h}°C</span>
+            </div>
+            <span className="text-[8px] text-slate-400 mt-2 pt-2 border-t border-slate-800/80 block">Projection</span>
+          </div>
+
+          <div className="bg-[#050811] p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <span className="text-[9px] text-sky-300 block font-bold uppercase flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> +6h</span>
+              <span className="text-lg font-black text-sky-300">{tempPlus6h}°C</span>
+            </div>
+            <span className="text-[8px] text-slate-400 mt-2 pt-2 border-t border-slate-800/80 block">Projection</span>
+          </div>
+        </div>
+
+        <div className="text-center text-[10px] text-slate-300 font-medium bg-[#050811] p-2.5 rounded-xl border border-slate-800">
+          ✨ {isVentilationActive ? `Ventilation active (${windSpeed} km/h).` : `Maintien optimisé par l'enveloppe ${energyClass}.`}
+          <span className="block text-sky-300 mt-0.5 font-mono">Tendance de variation : {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}</span>
         </div>
       </div>
 
-      {/* CARTES DE RÉSULTATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3 shadow-sm">
-          <div className="w-full flex items-center justify-between">
-            <span className="text-[11px] font-black text-white flex items-center gap-1">
-              <SunDim className="w-4 h-4 text-sky-300" /> Apports (Vitrage {glassSurface} m²)
-            </span>
-            <span className="text-[9px] font-mono font-bold text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-              {Math.round(orientationMultiplier * 100)}% d'exposition
-            </span>
-          </div>
+      {/* BLOC ACCORDÉON AVEC SCHÉMA SVG FULL RESPONSIVE + SYNTHÈSE TEXTUELLE */}
+      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl overflow-hidden shadow-md backdrop-blur-md">
+        <button
+          onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+          className="w-full p-3.5 flex items-center justify-between text-left font-black text-xs text-white hover:bg-slate-800/40 transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-sky-300" />
+            <span>Schéma des Flux & Détails Techniques (Watts, Inertie, Bilans)</span>
+          </span>
+          {showTechnicalDetails ? <ChevronUp className="w-4 h-4 text-sky-300" /> : <ChevronDown className="w-4 h-4 text-sky-300" />}
+        </button>
 
-          <div className="relative flex items-center justify-center my-2">
-            <svg className="w-24 h-24 transform -rotate-90">
-              <circle cx="48" cy="48" r={radius} stroke="#1e293b" strokeWidth="8" fill="transparent" />
-              <circle 
-                cx="48" cy="48" r={radius} 
-                stroke="#38bdf8" strokeWidth="8" 
-                fill="transparent" 
-                strokeDasharray={circumference} 
-                strokeDashoffset={solarOffset} 
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-base font-black text-sky-300">+{calculatedSolarGains}</span>
-              <span className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">Watts</span>
+        {showTechnicalDetails && (
+          <div className="p-4 pt-0 space-y-4 border-t border-slate-700/80 animate-fade-in">
+            
+            {/* SCHÉMA SVG PLEINEMENT RESPONSIVE */}
+            <div className="pt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">Schéma des Flux • {homeCityName}</h3>
+                  <p className="text-[9px] text-slate-300 font-semibold">{roomsCount} pièces • {apartmentSurface} m² ({apartmentVolume} m³) • {buildingPosition}</p>
+                </div>
+              </div>
+
+              <div className="bg-[#050811] border border-slate-800 rounded-2xl p-2 sm:p-4 w-full overflow-hidden shadow-sm flex flex-col items-center">
+                <style>{`
+                  @keyframes dashMoveIncoming { to { stroke-dashoffset: -20; } }
+                  @keyframes dashMoveOutgoing { to { stroke-dashoffset: -20; } }
+                  @keyframes windWave { 
+                    0% { transform: translateX(0); opacity: 0.4; }
+                    50% { opacity: 1; }
+                    100% { transform: translateX(12px); opacity: 0.4; }
+                  }
+                  .animated-solar-beam { stroke-dasharray: 8 6; animation: dashMoveIncoming 1.2s linear infinite; }
+                  .animated-loss-beam { stroke-dasharray: 6 6; animation: dashMoveOutgoing 1.8s linear infinite; }
+                  .wind-icon-anim { animation: windWave 1.2s ease-in-out infinite; }
+                `}</style>
+
+                <div className="w-full max-w-full overflow-x-auto flex justify-center">
+                  <svg className="w-full max-w-[580px] h-auto min-h-[200px]" viewBox="0 0 580 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="translate(70, 85)">
+                      {renderWeatherGraphic()}
+                      <text x="-48" y="42" fill="#E2E8F0" fontSize="17" fontWeight="bold">{weatherCondition}</text>
+                      <text x="-55" y="64" fill="#94A3B8" fontSize="15">{currentTemp}°C • {effectiveIrradiance}W/m²</text>
+                      <text x="-48" y="84" fill="#38BDF8" fontSize="15" fontWeight="bold">🌬️ Vent: {windSpeed} km/h</text>
+                      
+                      {isVentilationActive && windSpeed > 0 && (
+                        <g transform="translate(-35, 95) scale(1.3)" className="wind-icon-anim" fill="none" stroke="#38BDF8" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.5 8H2m12.9-4a2 2 0 1 1 2.1 2H2" />
+                        </g>
+                      )}
+                    </g>
+
+                    <g>
+                      <path d="M 115 75 Q 175 25 235 75" stroke="#38bdf8" strokeWidth="4.5" className="animated-solar-beam" strokeLinecap="round" />
+                      <rect x="75" y="5" width="215" height="38" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="2.5" />
+                      <text x="88" y="30" fill="#38bdf8" fontSize="18" fontWeight="extrabold">ENTRANT : +{calculatedSolarGains} W</text>
+                    </g>
+
+                    <g transform="translate(235, 25)">
+                      <rect x="0" y="45" width="150" height="125" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="3.2" />
+                      <polygon points="-15,45 75,-10 165,45" fill="#1e293b" stroke="#475569" strokeWidth="2.8" />
+                      <line x1="0" y1="85" x2="150" y2="85" stroke="#334155" strokeWidth="2" />
+                      <line x1="0" y1="130" x2="150" y2="130" stroke="#334155" strokeWidth="2" />
+                      <rect x="15" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="61" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="107" y="55" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="15" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="61" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="107" y="140" width="28" height="22" rx="4" fill="#1e293b" fillOpacity="0.5" stroke="#475569" strokeWidth="1.5" />
+                      <rect x="38" y="90" width="74" height="36" rx="6" fill="#38bdf8" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="2.8" />
+                      <text x="50" y="117" fill="#38bdf8" fontSize="21" fontWeight="black">{energyClass}</text>
+                      <rect x="-20" y="7" width="190" height="32" rx="6" fill="#050811" stroke="#38bdf8" strokeWidth="2.2" />
+                      <text x="-8" y="28" fill="#38bdf8" fontSize="16" fontWeight="black">Est. Int : {targetEstimatedTemp}°C</text>
+                    </g>
+
+                    <g>
+                      <path d="M 395 110 Q 445 135 490 110" stroke="#38bdf8" strokeWidth="4.5" className="animated-loss-beam" strokeLinecap="round" />
+                      <rect x="355" y="125" width="225" height="38" rx="8" fill="#0f172a" stroke="#38bdf8" strokeWidth="2.5" />
+                      <text x="368" y="150" fill="#38bdf8" fontSize="17" fontWeight="extrabold">
+                        {isVentilationActive ? `ventilation : -${calculatedLosses} W` : `pertes (${energyClass}) : -${calculatedLosses} W`}
+                      </text>
+                    </g>
+
+                    <g transform="translate(380, 0)">
+                      <rect x="0" y="10" width="200" height="120" rx="10" fill="#050811" stroke="#38bdf8" strokeWidth="3" />
+                      <text x="12" y="32" fill="#94A3B8" fontSize="14" fontWeight="bold">BILAN THERMIQUE NET</text>
+                      <text x="12" y="68" fill="#38bdf8" fontSize="28" fontWeight="black">
+                        {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}
+                      </text>
+                      <text x="12" y="93" fill="#E2E8F0" fontSize="17" fontWeight="bold">
+                        Solde : {netThermalBalance} W
+                      </text>
+                      <text x="12" y="115" fill="#38bdf8" fontSize="14">
+                        🛡️ Classe {energyClass}
+                      </text>
+                    </g>
+                  </svg>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="w-full space-y-1 text-[9.5px] bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-            <div className="flex justify-between"><span className="text-slate-400">Volume total :</span><span className="text-sky-300 font-bold">{apartmentVolume} m³</span></div>
-            <div className="flex justify-between"><span className="text-slate-400">Pièces exposées :</span><span className="text-sky-300 font-bold">{roomsCount} pcs</span></div>
-          </div>
-        </div>
-
-        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3 shadow-sm">
-          <div className="w-full flex items-center justify-between">
-            <span className="text-[11px] font-black text-white flex items-center gap-1">
-              <Thermometer className="w-4 h-4 text-sky-300" /> Évolution ({energyClass})
-            </span>
-            <span className="text-[9px] font-mono font-bold text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-              Inertie : {thermalInertiaWhPerDegree} Wh/°C
-            </span>
-          </div>
-
-          <div className="w-full grid grid-cols-3 gap-2 my-2 text-center">
-            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-              <span className="text-[9px] text-slate-400 block font-bold">Actuel</span>
-              <span className="text-sm font-black text-white">{targetEstimatedTemp}°</span>
+            {/* SYNTHÈSE TEXTUELLE COMPLÉMENTAIRE */}
+            <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" /> Synthèse textuelle des flux énergétiques
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-300">
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                  <span>Apports solaires entrants :</span>
+                  <strong className="text-sky-300">+{calculatedSolarGains} W</strong>
+                </div>
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                  <span>Pertes & ventilation :</span>
+                  <strong className="text-sky-300">-{calculatedLosses} W</strong>
+                </div>
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                  <span>Bilan net des flux :</span>
+                  <strong className="text-white">{netThermalBalance} W</strong>
+                </div>
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                  <span>Vitesse d'évolution :</span>
+                  <strong className="text-sky-300">{temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}</strong>
+                </div>
+              </div>
             </div>
-            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-              <span className="text-[9px] text-sky-300 block font-bold">+3h</span>
-              <span className="text-sm font-black text-sky-300">{tempPlus3h}°</span>
+
+            {/* CARTES DE DÉTAILS PHYSIQUES */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              
+              <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between space-y-2">
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-white flex items-center gap-1">
+                    <SunDim className="w-3.5 h-3.5 text-sky-300" /> Apports Solaires
+                  </span>
+                  <span className="text-[9px] font-mono text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                    {Math.round(orientationMultiplier * 100)}% exp.
+                  </span>
+                </div>
+                <div className="relative flex items-center justify-center my-1">
+                  <svg className="w-20 h-20 transform -rotate-90">
+                    <circle cx="40" cy="40" r={26} stroke="#1e293b" strokeWidth="6" fill="transparent" />
+                    <circle 
+                      cx="40" cy="40" r={26} 
+                      stroke="#38bdf8" strokeWidth="6" 
+                      fill="transparent" 
+                      strokeDasharray={2 * Math.PI * 26} 
+                      strokeDashoffset={2 * Math.PI * 26 - Math.min(1, calculatedSolarGains / 600) * (2 * Math.PI * 26)} 
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span className="text-sm font-black text-sky-300">+{calculatedSolarGains}</span>
+                    <span className="text-[7px] text-slate-400 uppercase font-bold">Watts</span>
+                  </div>
+                </div>
+                <div className="w-full text-[9px] text-slate-400 flex justify-between pt-1 border-t border-slate-800">
+                  <span>Volume : {apartmentVolume} m³</span>
+                  <span>Vitrage : {glassSurface} m²</span>
+                </div>
+              </div>
+
+              <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between space-y-2">
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-white flex items-center gap-1">
+                    <Thermometer className="w-3.5 h-3.5 text-sky-300" /> Inertie Thermique
+                  </span>
+                  <span className="text-[9px] font-mono text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                    {energyClass}
+                  </span>
+                </div>
+                <div className="my-auto py-2 flex flex-col items-center justify-center text-center space-y-0.5 w-full bg-slate-900/60 rounded-lg border border-slate-800">
+                  <span className="text-base font-black text-white">{thermalInertiaWhPerDegree}</span>
+                  <span className="text-[8px] text-slate-400 font-mono">Wh/°C d'inertie</span>
+                </div>
+                <div className="w-full text-[9px] text-slate-400 text-center">
+                  Amortissement de l'enveloppe active.
+                </div>
+              </div>
+
+              <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between space-y-2">
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-white flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-sky-300" /> Vitesse de Variation
+                  </span>
+                  <span className="text-[9px] font-mono text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                    Flux d'air
+                  </span>
+                </div>
+                <div className="my-auto py-2 flex flex-col items-center justify-center text-center space-y-0.5 w-full bg-slate-900/60 rounded-lg border border-slate-800">
+                  <span className="text-base font-black text-white">
+                    {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C` : `${temperatureRiseRate}°C`}
+                    <span className="text-[10px] font-normal text-slate-400"> /h</span>
+                  </span>
+                  <span className="text-[8px] text-slate-400 font-mono">Dérive horaire</span>
+                </div>
+                <div className="w-full text-[9px] text-slate-400 text-center">
+                  Vent ext : {windSpeed} km/h • Flux actifs.
+                </div>
+              </div>
+
             </div>
-            <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-              <span className="text-[9px] text-sky-300 block font-bold">+6h</span>
-              <span className="text-sm font-black text-sky-300">{tempPlus6h}°</span>
-            </div>
-          </div>
 
-          <div className="w-full text-center text-[9.5px] text-sky-300 font-medium bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-            ✨ {isVentilationActive ? `Ventilation active (${windSpeed} km/h).` : `Maintien optimisé par l'enveloppe ${energyClass}.`}
           </div>
-        </div>
-
-        <div className="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-between space-y-3 shadow-sm">
-          <div className="w-full flex items-center justify-between">
-            <span className="text-[11px] font-black text-white flex items-center gap-1">
-              <TrendingUp className="w-4 h-4 text-sky-300" /> Vitesse de Variation
-            </span>
-            <span className="text-[9px] font-mono font-bold text-sky-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-              Amorti {energyClass}
-            </span>
-          </div>
-
-          <div className="my-auto py-3 flex flex-col items-center justify-center text-center space-y-1 bg-slate-900/60 w-full rounded-xl border border-slate-800">
-            <span className="text-xl font-black text-white">
-              {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C` : `${temperatureRiseRate}°C`}
-              <span className="text-xs font-normal text-slate-400"> /h</span>
-            </span>
-            <span className="text-[9px] text-slate-400 font-mono">Variation horaire</span>
-          </div>
-
-          <div className="w-full text-[9.5px] text-slate-300 font-medium text-center">
-            💡 L'appartement réagit aux flux d'air extérieurs.
-          </div>
-        </div>
-
+        )}
       </div>
 
     </div>

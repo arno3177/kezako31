@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { auth } from '../firebase';
@@ -7,7 +7,7 @@ import { fetchUnreadEmailCount } from '../service/gmailService';
 import { 
   Sun, Cloud, CloudSun, CloudRain, MapPin, 
   Droplets, Wind, Bookmark,
-  Newspaper, ChevronRight,
+  Newspaper,
   Car, Bus, 
   Sunrise, Sunset, Sparkles,
   Briefcase, Building2, ShieldAlert, Zap, Globe,
@@ -37,52 +37,8 @@ interface HomePageProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   language?: AppSettings['language'];
+  onBack?: () => void; // Fonction optionnelle pour gérer le retour en arrière
 }
-
-const LEVEL_CONFIG: Record<number, { bars: number; colorClass: string; borderClass: string }> = {
-  9: { bars: 3, colorClass: 'bg-sky-400 shadow-[0_0_12px_#38bdf8]', borderClass: 'border-sky-400' },
-  8: { bars: 2, colorClass: 'bg-sky-500 shadow-[0_0_12px_#0ea5e9]', borderClass: 'border-sky-500' },
-  7: { bars: 1, colorClass: 'bg-cyan-500 shadow-[0_0_12px_#06b6d4]', borderClass: 'border-cyan-400' },
-  6: { bars: 3, colorClass: 'bg-teal-400 shadow-[0_0_12px_#2dd4bf]', borderClass: 'border-teal-400' },
-  5: { bars: 2, colorClass: 'bg-teal-500 shadow-[0_0_12px_#14b8a6]', borderClass: 'border-teal-400' },
-  4: { bars: 1, colorClass: 'bg-blue-400 shadow-[0_0_12px_#60a5fa]', borderClass: 'border-blue-400' },
-  3: { bars: 3, colorClass: 'bg-indigo-400 shadow-[0_0_12px_#818cf8]', borderClass: 'border-indigo-400' },
-  2: { bars: 2, colorClass: 'bg-indigo-500 shadow-[0_0_12px_#6366f1]', borderClass: 'border-indigo-500' },
-  1: { bars: 1, colorClass: 'bg-slate-400 shadow-[0_0_12px_#94a3b8]', borderClass: 'border-slate-400' },
-};
-
-const getLedLevelForTemp = (temp: number): number => {
-  if (temp < 5) return 1;
-  if (temp <= 11) return 2;
-  if (temp <= 16) return 3;
-  if (temp <= 21) return 4;
-  if (temp <= 26) return 5;
-  if (temp <= 28) return 6;
-  if (temp <= 31) return 7;
-  if (temp <= 35) return 8;
-  return 9;
-};
-
-const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
-  const safeLevel = Math.max(1, Math.min(9, Math.round(level)));
-  const config = LEVEL_CONFIG[safeLevel];
-
-  return (
-    <div className={`flex flex-col gap-0.5 p-1 bg-slate-950 rounded border ${config.borderClass} backdrop-blur-md w-5 shadow-md flex-shrink-0`}>
-      {[3, 2, 1].map((barIndex) => {
-        const isLit = barIndex <= config.bars;
-        return (
-          <div
-            key={barIndex}
-            className={`h-0.5 w-full rounded-xs transition-all duration-300 ${
-              isLit ? config.colorClass : 'bg-slate-700'
-            }`}
-          />
-        );
-      })}
-    </div>
-  );
-};
 
 export const HomePage: React.FC<HomePageProps> = ({
   articles,
@@ -97,10 +53,43 @@ export const HomePage: React.FC<HomePageProps> = ({
   onViewAssistant,
   onViewEnergyComfort,
   searchQuery,
-  language = 'en'
+  language = 'en',
+  onBack
 }) => {
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
+
+  // Gestion du glissement tactile (Swipe to go back)
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+
+    const diffX = touchEndX - touchStartX.current;
+    const diffY = Math.abs(touchEndY - touchStartY.current);
+
+    // Seuil de glissement : mouvement horizontal de plus de 100px vers la droite 
+    // avec un mouvement vertical limité pour éviter les faux déclenchements lors du scroll
+    if (diffX > 100 && diffY < 60) {
+      if (onBack) {
+        onBack();
+      } else {
+        window.history.back();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
 
   const currentUser = auth.currentUser;
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
@@ -330,10 +319,12 @@ export const HomePage: React.FC<HomePageProps> = ({
   const originQuery = encodeURIComponent(mainTrip?.origin || 'Kopstal');
   const destQuery = encodeURIComponent(mainTrip?.destination || 'Luxembourg');
 
-  const currentLedLevel = getLedLevelForTemp(currentTemp);
-
   return (
-    <div className="space-y-4 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-12 relative text-slate-100 bg-[#050811] min-h-screen px-1 sm:px-2">
+    <div 
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="space-y-4 animate-fade-in text-xs w-full max-w-full overflow-x-hidden pb-12 relative text-slate-100 bg-[#050811] min-h-screen px-1 sm:px-2"
+    >
 
       {/* POPUP DE NOTIFICATION */}
       {popupMessage && (
@@ -346,7 +337,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* EN-TÊTE UNIFIÉ (Camaïeu de bleus) */}
+      {/* EN-TÊTE UNIFIÉ */}
       <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full relative overflow-hidden backdrop-blur-md">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-400" />
         
@@ -364,7 +355,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           {unreadCount !== null && unreadCount > 0 && (
             <button
               onClick={handleOpenGmail}
-              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400 text-sky-200 flex items-center justify-center transition-all cursor-pointer shadow-sm group"
+              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400 text-sky-200 flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-sm group"
               title="Ouvrir Gmail"
             >
               <Mail className="w-4 h-4 group-hover:scale-110 transition-transform text-sky-300" />
@@ -377,7 +368,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           {!isWorkspaceConnected ? (
             <button 
               onClick={handleGoogleLogin}
-              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-sky-400 text-slate-100 transition-all cursor-pointer shadow-sm group"
+              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-sky-400 text-slate-100 transition-all active:scale-95 cursor-pointer shadow-sm group"
               title="Se connecter à Google Workspace"
             >
               <UserX className="w-4 h-4 group-hover:scale-110 transition-transform text-slate-300" />
@@ -413,42 +404,27 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 1. SECTION MÉTÉO (Base de référence visuelle unifiée : Bleus profonds & ciels) */}
+      {/* 1. SECTION MÉTÉO */}
       {currentWeather && (
         <div 
           onClick={onViewWeatherDetail}
-          className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md w-full space-y-3.5 backdrop-blur-md cursor-pointer group hover:border-sky-400 transition-all"
+          className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md w-full space-y-3.5 backdrop-blur-md cursor-pointer group hover:border-sky-400 active:scale-[0.99] transition-all duration-200"
         >
           <div className="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
             <div className="flex items-center space-x-2 text-white">
               <Sun className="w-4 h-4 text-sky-300" />
               <h2 className="text-xs font-black uppercase tracking-wider text-white">Météo & Éphéméride</h2>
+              <span className="text-[10px] font-bold text-sky-300/80 bg-slate-900 px-2 py-0.5 rounded-md border border-slate-800 ml-2">
+                St Christophe
+              </span>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 shadow-sm" title={`Niveau thermique : ${currentTemp}°C`}>
-                <LedLevelIndicator level={currentLedLevel} />
-                <span className="text-[11px] font-black text-white">{currentTemp}°C</span>
+            {activePrevention && (
+              <div className={`flex items-center space-x-1 px-2 py-1 rounded-xl border text-[10px] font-black uppercase ${activePrevention.badgeColor}`} title="Conseil de prévention météo">
+                {activePrevention.icon}
+                <span>{activePrevention.type}</span>
               </div>
-
-              {activePrevention && (
-                <div className={`flex items-center space-x-1 px-2 py-1 rounded-xl border text-[10px] font-black uppercase ${activePrevention.badgeColor}`} title="Conseil de prévention météo">
-                  {activePrevention.icon}
-                  <span>{activePrevention.type}</span>
-                </div>
-              )}
-
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewWeatherDetail();
-                }} 
-                className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold transition-colors cursor-pointer shadow-sm"
-                title="Voir la météo détaillée"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
@@ -472,6 +448,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-sky-300" title="Température maximale">▲ {tempMax}°</span>
                   <span className="text-slate-400" title="Température minimale">▼ {tempMin}°</span>
                 </div>
+                <div className="flex flex-col text-[10px] font-semibold leading-tight pl-2 border-l border-slate-700">
+                  <span className="text-slate-300 flex items-center gap-1" title="Lever du soleil"><Sunrise className="w-3 h-3 text-sky-300" /> 06:34</span>
+                  <span className="text-slate-300 flex items-center gap-1 mt-0.5" title="Coucher du soleil"><Sunset className="w-3 h-3 text-sky-400" /> 20:48</span>
+                </div>
               </div>
             </div>
 
@@ -485,48 +465,33 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <span className="font-black text-white">{currentWeather.windSpeed} km/h</span>
               </div>
             </div>
-
-            <div className="flex items-center justify-between bg-[#050811] p-2.5 rounded-xl border border-slate-800 text-[10px] shadow-sm">
-              <div className="flex items-center space-x-1.5 text-white font-bold truncate">
-                <Sparkles className="w-3 h-3 text-sky-300 flex-shrink-0" />
-                <span className="truncate">{t.saintOfDay} : St Christophe</span>
-              </div>
-              <div className="flex items-center space-x-2 text-slate-300 font-bold flex-shrink-0 pl-2">
-                <span className="flex items-center gap-0.5"><Sunrise className="w-3 h-3 text-sky-300" /> 06:34</span>
-                <span>/</span>
-                <span className="flex items-center gap-0.5"><Sunset className="w-3 h-3 text-sky-400" /> 20:48</span>
-              </div>
-            </div>
           </div>
         </div>
       )}
 
-      {/* 2. SUIVI ÉNERGÉTIQUE (Harmonisé dans le camaïeu) */}
+      {/* 2. SUIVI ÉNERGÉTIQUE */}
       <div 
         onClick={onViewEnergyComfort}
-        className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 hover:border-sky-400 rounded-2xl p-3.5 shadow-md space-y-2.5 transition-all duration-300 cursor-pointer group backdrop-blur-md"
+        className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 hover:border-sky-400 rounded-2xl p-3.5 shadow-md space-y-2.5 transition-all duration-200 active:scale-[0.99] cursor-pointer group backdrop-blur-md"
       >
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
           <h2 className="text-[11px] font-black uppercase tracking-wider text-white flex items-center gap-1.5">
             <Home className="w-4 h-4 text-sky-300" /> Suivi Énergétique & Confort Maison
           </h2>
-          <div className="flex items-center gap-2">
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 bg-sky-950/80 border-sky-400/60 text-sky-200`}>
-              {energy.icon}
-              <span>{energy.action}</span>
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-sky-300 group-hover:translate-x-1 transition-all" />
-          </div>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 bg-sky-950/80 border-sky-400/60 text-sky-200`}>
+            {energy.icon}
+            <span>{energy.action}</span>
+          </span>
         </div>
         <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
           {energy.desc}
         </p>
       </div>
 
-      {/* 2.5. ASSISTANT TENUES (Harmonisé dans le camaïeu) */}
+      {/* 2.5. ASSISTANT TENUES */}
       <div 
         onClick={onViewAssistant}
-        className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md hover:border-sky-400 transition-all duration-300 cursor-pointer group relative overflow-hidden backdrop-blur-md"
+        className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md hover:border-sky-400 transition-all duration-200 active:scale-[0.99] cursor-pointer group relative overflow-hidden backdrop-blur-md"
       >
         <div className="space-y-3 relative z-10">
           <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
@@ -536,11 +501,6 @@ export const HomePage: React.FC<HomePageProps> = ({
               <span className="text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-slate-900 text-sky-200 border border-slate-700">
                 {new Date().getHours() < 12 ? "Matin / Apm / Soir" : "Apm, Soir & Demain"}
               </span>
-            </div>
-            
-            <div className="flex items-center gap-1 text-[10px] font-bold text-sky-300 group-hover:translate-x-1 transition-transform bg-slate-900 px-2 py-1 rounded-xl border border-slate-700">
-              <span>Explorer</span>
-              <ChevronRight className="w-3.5 h-3.5" />
             </div>
           </div>
 
@@ -584,9 +544,12 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 3. TRAJET PRINCIPAL (Harmonisé dans le camaïeu) */}
+      {/* 3. TRAJET PRINCIPAL */}
       {mainTrip && (
-        <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3 w-full backdrop-blur-md">
+        <div 
+          onClick={() => onViewTrips && onViewTrips(activeMapMode)}
+          className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 hover:border-sky-400 rounded-2xl p-3.5 shadow-md space-y-3 w-full backdrop-blur-md cursor-pointer transition-all duration-200 active:scale-[0.99]"
+        >
           <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
             <div className="flex items-center space-x-2 text-white min-w-0">
               <Car className="w-4 h-4 flex-shrink-0 text-sky-300" />
@@ -594,22 +557,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {t.detailedRoute}
               </h2>
             </div>
-            
-            {onViewTrips && (
-              <button 
-                onClick={() => onViewTrips(activeMapMode)} 
-                className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold transition-colors cursor-pointer shadow-sm"
-                title="Voir le trajet détaillé"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setActiveMapMode('car')}
-              className={`p-2.5 rounded-xl border font-black flex items-center justify-center space-x-1.5 cursor-pointer transition-all shadow-sm ${
+              className={`p-2.5 rounded-xl border font-black flex items-center justify-center space-x-1.5 cursor-pointer transition-all active:scale-95 shadow-sm ${
                 activeMapMode === 'car' ? 'bg-sky-600 border-sky-300 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
               }`}
             >
@@ -619,7 +572,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <button
               onClick={() => setActiveMapMode('bus')}
-              className={`p-2.5 rounded-xl border font-black flex items-center justify-center space-x-1.5 cursor-pointer transition-all shadow-sm ${
+              className={`p-2.5 rounded-xl border font-black flex items-center justify-center space-x-1.5 cursor-pointer transition-all active:scale-95 shadow-sm ${
                 activeMapMode === 'bus' ? 'bg-teal-600 border-teal-300 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
               }`}
             >
@@ -647,31 +600,26 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 4. RACCOURCIS FAVORIS (Harmonisé dans le camaïeu) */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3 w-full backdrop-blur-md">
+      {/* 4. RACCOURCIS FAVORIS */}
+      <div 
+        onClick={onViewShortcuts}
+        className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 hover:border-sky-400 rounded-2xl p-3.5 shadow-md space-y-3 w-full backdrop-blur-md cursor-pointer transition-all duration-200 active:scale-[0.99]"
+      >
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
           <div className="flex items-center space-x-2 text-white font-black text-xs">
             <Bookmark className="w-4 h-4 text-sky-300" />
             <span>Raccourcis Favoris & Utiles (Luxembourg)</span>
           </div>
-          
-          <button
-            onClick={onViewShortcuts}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold transition-colors cursor-pointer shadow-sm"
-            title="Gérer tous les favoris"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" onClick={(e) => e.stopPropagation()}>
           {links.map((link) => (
             <a
               key={link.id}
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative p-3 rounded-xl bg-[#050811] border border-slate-800 hover:border-sky-400/60 transition-all flex flex-col justify-between space-y-2 cursor-pointer shadow-sm"
+              className="group relative p-3 rounded-xl bg-[#050811] border border-slate-800 hover:border-sky-400/60 transition-all duration-200 active:scale-[0.97] flex flex-col justify-between space-y-2 cursor-pointer shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-900 text-sky-300 uppercase tracking-wide border border-slate-800">
@@ -700,8 +648,11 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 5. ACTUALITÉS (Harmonisé dans le camaïeu) */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3 w-full backdrop-blur-md">
+      {/* 5. ACTUALITÉS */}
+      <div 
+        onClick={onViewSourcesNews}
+        className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 hover:border-sky-400 rounded-2xl p-3.5 shadow-md space-y-3 w-full backdrop-blur-md cursor-pointer transition-all duration-200 active:scale-[0.99]"
+      >
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
           <div className="flex items-center space-x-2 text-white">
             <Newspaper className="w-4 h-4 text-sky-300" />
@@ -709,23 +660,15 @@ export const HomePage: React.FC<HomePageProps> = ({
               {t.liveNews}
             </h2>
           </div>
-          <button 
-            onClick={onViewSourcesNews} 
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold transition-colors cursor-pointer shadow-sm"
-            title="Voir toutes les sources d'actualités"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
 
-        <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sky-400 w-full">
+        <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sky-400 w-full" onClick={(e) => e.stopPropagation()}>
           {carouselArticles.map((art) => {
-            const isEssentiel = (art.source || '').toLowerCase().includes('essentiel');
             return (
               <div 
                 key={art.id}
                 onClick={() => onReadArticle(art)}
-                className="flex-shrink-0 w-60 bg-[#050811] border border-slate-800 hover:border-sky-400/60 rounded-xl p-3 shadow-sm cursor-pointer transition-all duration-300 group flex flex-col justify-between"
+                className="flex-shrink-0 w-60 bg-[#050811] border border-slate-800 hover:border-sky-400/60 rounded-xl p-3 shadow-sm cursor-pointer transition-all duration-200 active:scale-[0.97] group flex flex-col justify-between"
               >
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
@@ -750,14 +693,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800 text-[10px]">
                   <span className="text-sky-300 font-black flex items-center space-x-1">
                     <span>{t.read}</span>
-                    <ChevronRight className="w-3 h-3" />
                   </span>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleSave(art.id);
                     }} 
-                    className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    className={`p-1.5 rounded-lg border transition-all active:scale-90 cursor-pointer ${
                       savedArticleIds?.includes(art.id) 
                         ? 'bg-sky-500/20 border-sky-400 text-sky-300' 
                         : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
