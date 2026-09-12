@@ -6,120 +6,70 @@ export function useNewsFetcher() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    async function fetchRSS(rssUrl: string, sourceName: string) {
+    let isMounted = true;
+
+    async function fetchLocalXML(proxyEndpoint: string, sourceName: string) {
       try {
-        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`);
-        const data = await res.json();
-        if (data.status === 'ok' && data.items?.length > 0) {
-          return data.items.map((item: any, idx: number) => parseItem(item, idx, sourceName));
-        }
+        const res = await fetch(proxyEndpoint);
+        const textData = await res.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(textData, 'text/xml');
+        const items = Array.from(xmlDoc.querySelectorAll('item'));
+
+        return items.slice(0, 10).map((item, idx) => {
+          const title = item.querySelector('title')?.textContent || '';
+          const description = item.querySelector('description')?.textContent || '';
+          const pubDate = item.querySelector('pubDate')?.textContent || '';
+          const link = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '';
+          const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
+
+          const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
+          const formattedTime = pubDate ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Récemment';
+
+          return {
+            id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${timestamp}`,
+            title,
+            excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
+            content: cleanDesc || title,
+            category: sourceName.includes('lessentiel') ? 'Luxembourg' : 'Actualités',
+            source: sourceName as any,
+            url: link,
+            publishedAt: formattedTime,
+            rawDate: isNaN(timestamp) ? Date.now() : timestamp,
+            imageUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80',
+            readTime: '3 min',
+            likes: 30,
+            commentsCount: 4,
+            author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=${sourceName}&sz=32` }
+          };
+        });
       } catch (e) {
-        console.warn(`[rss2json ECHEC pour ${sourceName}] tentative via proxy AllOrigins...`);
+        console.warn(`Erreur proxy Vite pour ${sourceName}:`, e);
+        return [];
       }
-
-      try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        if (data.contents) {
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
-          const items = Array.from(xmlDoc.querySelectorAll('item'));
-
-          if (items.length > 0) {
-            return items.map((item) => {
-              const title = item.querySelector('title')?.textContent || '';
-              const description = item.querySelector('description')?.textContent || '';
-              const pubDate = item.querySelector('pubDate')?.textContent || '';
-              const link = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '';
-              const enclosure = item.querySelector('enclosure')?.getAttribute('url');
-
-              return {
-                title,
-                description,
-                pubDate,
-                link,
-                enclosure: { link: enclosure }
-              };
-            }).map((item: any, idx: number) => parseItem(item, idx, sourceName));
-          }
-        }
-      } catch (e) {
-        console.error(`[AllOrigins ECHEC pour ${sourceName}]`, e);
-      }
-      return [];
-    }
-
-    function parseItem(item: any, idx: number, sourceName: string): Article {
-      const cleanDesc = (item.description || item.content || '')
-        .replace(/<[^>]*>?/gm, '')
-        .trim();
-      const imageFromDesc = (item.description || item.content || '').match(/src=["'](.*?)["']/)?.[1];
-      const imageUrl = item.enclosure?.link || item.thumbnail || imageFromDesc || 
-        (sourceName.includes('franceinfo')
-          ? 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'
-          : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80');
-
-      const articleUrl = item.link || item.guid || (sourceName.includes('franceinfo') ? 'https://www.franceinfo.fr' : 'https://www.lessentiel.lu');
-
-      return {
-        id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${Date.now()}`,
-        title: item.title || 'Titre non disponible',
-        excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
-        content: cleanDesc || item.title,
-        category: sourceName.includes('franceinfo') ? 'Technologie' : 'Monde',
-        source: sourceName as any,
-        url: articleUrl,
-        publishedAt: item.pubDate ? new Date(item.pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Récemment',
-        imageUrl: imageUrl,
-        readTime: '3 min',
-        likes: 120,
-        commentsCount: 12,
-        author: {
-          name: sourceName,
-          avatar: sourceName.includes('franceinfo') 
-            ? 'https://www.francetvinfo.fr/favicon.ico'
-            : 'https://www.lessentiel.lu/favicon.ico'
-        }
-      } as any; // Contournement propre pour éviter de modifier types.ts
     }
 
     async function loadAll() {
       setLoading(true);
-      const [fiItems, lessentielItems] = await Promise.all([
-        fetchRSS('https://www.franceinfo.fr/titres.rss', 'www.franceinfo.fr'),
-        fetchRSS('https://partner-feeds.lessentiel.lu/rss/lessentiel-fr', 'www.lessentiel.lu')
+      const [f24, lemonde] = await Promise.all([
+        fetchLocalXML('/proxy-france24/fr/rss', 'www.france24.com'),
+        fetchLocalXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr')
       ]);
-      const total = [...fiItems, ...lessentielItems];
 
-      if (total.length === 0) {
-        setArticles(fallbackArticles);
-      } else {
-        setArticles(total);
+      const total = [...f24, ...lemonde];
+      if (isMounted) {
+        if (total.length > 0) {
+          total.sort((a: any, b: any) => b.rawDate - a.rawDate);
+          setArticles(total as any);
+        }
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     loadAll();
+
+    return () => { isMounted = false; };
   }, []);
 
   return { articles, loading };
 }
-
-const fallbackArticles: Article[] = [
-  {
-    id: 'fi-fallback-1',
-    title: "En direct sur France Info : Suivez les dernières actualités",
-    excerpt: "L'ensemble de la rédaction France Info se mobilise pour vous transmettre le fil d'actualité.",
-    content: "Retrouvez l'actualité politique, économique et culturelle en direct.",
-    category: 'Monde',
-    source: 'www.franceinfo.fr',
-    url: 'https://www.franceinfo.fr',
-    publishedAt: "À l'instant",
-    imageUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80',
-    readTime: '3 min',
-    likes: 45,
-    commentsCount: 3,
-    author: { name: 'France Info', avatar: 'https://www.francetvinfo.fr/favicon.ico' }
-  } as any
-];

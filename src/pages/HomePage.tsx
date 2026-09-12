@@ -10,14 +10,150 @@ import {
   Newspaper,
   Car, Bus, 
   Sunrise, Sunset, Sparkles,
-  Briefcase, Building2, ShieldAlert, Zap, Globe,
-  ExternalLink, Trash2, Info, Mail, UserCheck, UserX,
-  Home, Flame, CheckCircle2
+  Trash2, Info, Mail, UserCheck, UserX,
+  Home, Thermometer, ShieldCheck
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 
+// --- HOOK SUR PROXY VITE (FRANCE INFO, FRANCE 24, LE MONDE, L'ESSENTIEL + FALLBACK) ---
+const CACHE_KEY = 'news_dashboard_vite_proxy_v12';
+const CACHE_TIME_KEY = 'news_dashboard_vite_proxy_time_v12';
+const CACHE_DURATION = 15 * 60 * 1000;
+
+function useNewsFetcher() {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchXML(proxyPath: string, sourceName: string, category: string) {
+      try {
+        const res = await fetch(proxyPath, { headers: { 'Accept': 'application/xml, text/xml, */*' } });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const textData = await res.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(textData, 'text/xml');
+        
+        const items = Array.from(xmlDoc.querySelectorAll('item, entry'));
+
+        return items.slice(0, 10).map((item, idx) => {
+          const title = item.querySelector('title')?.textContent || '';
+          const description = item.querySelector('description, summary, content')?.textContent || '';
+          const pubDate = item.querySelector('pubDate, updated, published')?.textContent || '';
+          
+          let link = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '';
+          if (!link) {
+            const linkAttr = item.querySelector('link')?.getAttribute('href');
+            if (linkAttr) link = linkAttr;
+          }
+
+          const enclosure = item.querySelector('enclosure')?.getAttribute('url') || 
+                            item.getElementsByTagName('media:content')[0]?.getAttribute('url') ||
+                            item.getElementsByTagName('media:thumbnail')[0]?.getAttribute('url');
+
+          const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
+          const imageFromDesc = description.match(/src=["'](.*?)["']/)?.[1];
+          
+          const imageUrl = enclosure || imageFromDesc || 
+            (sourceName.includes('lessentiel')
+              ? 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80'
+              : 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80');
+
+          const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
+          const formattedTime = pubDate && !isNaN(timestamp) 
+            ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            : 'Récemment';
+
+          return {
+            id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${timestamp}`,
+            title,
+            excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
+            content: cleanDesc || title,
+            category,
+            source: sourceName,
+            url: link,
+            publishedAt: formattedTime,
+            rawDate: isNaN(timestamp) ? Date.now() : timestamp,
+            imageUrl,
+            readTime: '3 min',
+            likes: Math.floor(Math.random() * 40) + 10,
+            commentsCount: Math.floor(Math.random() * 10) + 1,
+            author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=${sourceName}&sz=32` }
+          };
+        });
+      } catch (e) {
+        console.warn(`[Feed Proxy Warning] Échec pour ${sourceName}:`, e);
+        return [];
+      }
+    }
+
+    async function loadAllNews() {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
+        if (cached && cachedTime && (Date.now() - Number(cachedTime) < CACHE_DURATION)) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.length > 0 && isMounted) {
+            setArticles(parsed);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Erreur lecture cache:", e);
+      }
+
+      const [fi, f24, monde, essentiel] = await Promise.all([
+        fetchXML('/proxy-franceinfo/titres.rss', 'www.francetvinfo.fr', 'Actualités'),
+        fetchXML('/proxy-france24/fr/rss', 'www.france24.com', 'Actualités'),
+        fetchXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr', 'Actualités'),
+        fetchXML('/proxy-lessentiel/rss/lessentiel-fr', 'www.lessentiel.lu', 'Luxembourg')
+      ]);
+
+      let total = [...fi, ...f24, ...monde, ...essentiel];
+
+      if (essentiel.length === 0) {
+        total.unshift({
+          id: `essentiel-fallback-${Date.now()}`,
+          title: "Luxembourg : Évolution et projets prioritaires pour la mobilité douce",
+          excerpt: "Les dernières annonces concernant l'aménagement du réseau de transport et les infrastructures nationales.",
+          content: "Synthèse des actualités luxembourgeoises et des aménagements de voirie.",
+          category: 'Luxembourg',
+          source: 'www.lessentiel.lu',
+          url: 'https://www.lessentiel.lu',
+          publishedAt: 'Il y a 10 min',
+          rawDate: Date.now(),
+          imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80',
+          readTime: '3 min',
+          likes: 25,
+          commentsCount: 3,
+          author: { name: 'www.lessentiel.lu', avatar: 'https://www.google.com/s2/favicons?domain=www.lessentiel.lu&sz=32' }
+        } as any);
+      }
+
+      if (isMounted) {
+        total.sort((a: any, b: any) => b.rawDate - a.rawDate);
+        setArticles(total as any);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(total));
+        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+        setLoading(false);
+      }
+    }
+
+    loadAllNews();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return { articles, loading };
+}
+
+// --- COMPOSANT HOMEPAGE ---
 interface HomePageProps {
   articles: Article[];
   currentWeather: WeatherData;
@@ -41,7 +177,7 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
-  articles,
+  articles: propArticles,
   currentWeather,
   onToggleSave,
   onReadArticle,
@@ -59,7 +195,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
 
-  // Gestion du glissement tactile (Swipe to go back)
+  const { articles: fetchedArticles, loading: newsLoading } = useNewsFetcher();
+  const articles = propArticles && propArticles.length > 0 ? propArticles : fetchedArticles;
+
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -167,24 +305,27 @@ export const HomePage: React.FC<HomePageProps> = ({
   const getEnergyAndComfortStatus = () => {
     if (currentTemp < 12) {
       return {
-        title: "Chauffage & Isolation Recommandés",
-        desc: `Température extérieure fraîche (${currentTemp}°C). Veillez à maintenir les volets fermés dès la tombée de la nuit pour préserver l'inertie thermique de la maison.`,
-        icon: <Flame className="w-4 h-4 text-sky-200" />,
-        action: "Optimisation Thermique Active"
+        title: "Chauffage & Isolation",
+        statusText: "Optimisation Thermique Active",
+        interiorTarget: "20.5°C",
+        actionBadge: "Volets fermés",
+        desc: `Extérieur frais (${currentTemp}°C). Conservez l'inertie thermique en fermant les volets.`
       };
     } else if (currentTemp >= 22) {
       return {
-        title: "Aération Matinale Conseillée",
-        desc: `Chaleur extérieure marquée (${currentTemp}°C). Aérez tôt le matin (avant 9h) puis baissez les stores pour garder la maison au frais sans surconsommer.`,
-        icon: <Zap className="w-4 h-4 text-teal-200" />,
-        action: "Gestion Fraîcheur Active"
+        title: "Rafraîchissement",
+        statusText: "Gestion Fraîcheur Active",
+        interiorTarget: "22.0°C",
+        actionBadge: "Stores baissés",
+        desc: `Chaleur extérieure (${currentTemp}°C). Aération matinale conseillée avant 9h.`
       };
     } else {
       return {
-        title: "Aération Idéale (10 min max)",
-        desc: `Conditions extérieures stables (${currentTemp}°C, humidité ${humidity}%). C'est le moment parfait pour faire un courant d'air rapide et renouveler l'air intérieur.`,
-        icon: <CheckCircle2 className="w-4 h-4 text-sky-200" />,
-        action: "Renouvellement d'air optimal"
+        title: "Ventilation Naturelle",
+        statusText: "Renouvellement d'air optimal",
+        interiorTarget: "21.0°C",
+        actionBadge: "Fenêtres entrouvertes",
+        desc: `Conditions stables (${currentTemp}°C, ${humidity}% humidité). Idéal pour un courant d'air rapide.`
       };
     }
   };
@@ -267,29 +408,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     a.source.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const sortedArticles = useMemo(() => {
-    const essentielArticles = filteredArticles.filter(a => (a.source || '').toLowerCase().includes('essentiel'));
-    const otherArticles = filteredArticles.filter(a => !(a.source || '').toLowerCase().includes('essentiel'));
-
-    const mixed = [];
-    if (essentielArticles.length > 0) mixed.push(essentielArticles[0]);
-
-    let eIndex = 1;
-    let oIndex = 0;
-    while (eIndex < essentielArticles.length || oIndex < otherArticles.length) {
-      if (oIndex < otherArticles.length) {
-        mixed.push(otherArticles[oIndex]);
-        oIndex++;
-      }
-      if (eIndex < essentielArticles.length) {
-        mixed.push(essentielArticles[eIndex]);
-        eIndex++;
-      }
-    }
-    return mixed;
-  }, [filteredArticles]);
-
-  const carouselArticles = sortedArticles.slice(0, 12);
+  const carouselArticles = filteredArticles.slice(0, 16);
 
   const renderConditionIcon = (condition = '', className = "w-5 h-5") => {
     const cond = condition.toLowerCase();
@@ -297,18 +416,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     if (cond.includes('pluie') || cond.includes('rain')) return <CloudRain className={`${className} text-sky-100`} />;
     if (cond.includes('nuage') || cond.includes('cloud')) return <Cloud className={`${className} text-slate-100`} />;
     return <CloudSun className={`${className} text-sky-200`} />;
-  };
-
-  const getNewsIcon = (title = '', source = '') => {
-    const text = (title + ' ' + source).toLowerCase();
-    if (text.includes('trafic') || text.includes('bus') || text.includes('route') || text.includes('train')) return <Bus className="w-5 h-5 text-sky-200" />;
-    if (text.includes('voiture') || text.includes('accident') || text.includes('radar')) return <Car className="w-5 h-5 text-sky-200" />;
-    if (text.includes('meteo') || text.includes('temps') || text.includes('pluie') || text.includes('soleil')) return <Sun className="w-5 h-5 text-sky-200" />;
-    if (text.includes('economie') || text.includes('bourse') || text.includes('prix') || text.includes('emploi')) return <Briefcase className="w-5 h-5 text-teal-200" />;
-    if (text.includes('politique') || text.includes('gouvernement') || text.includes('commune')) return <Building2 className="w-5 h-5 text-cyan-200" />;
-    if (text.includes('alerte') || text.includes('police') || text.includes('feu')) return <ShieldAlert className="w-5 h-5 text-sky-300" />;
-    if (text.includes('tech') || text.includes('ia') || text.includes('innovation')) return <Zap className="w-5 h-5 text-teal-200" />;
-    return <Globe className="w-5 h-5 text-sky-200" />;
   };
 
   const originQuery = encodeURIComponent(mainTrip?.origin || 'Kopstal');
@@ -332,74 +439,76 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* EN-TÊTE UNIFIÉ */}
-      <div className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-sky-400/40 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full relative overflow-hidden backdrop-blur-md">
+      {/* EN-TÊTE */}
+      <div className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-sky-400/40 rounded-3xl p-5 shadow-xl flex items-center justify-between gap-4 w-full relative overflow-hidden backdrop-blur-md">
         <div className="absolute top-0 left-0 w-2 h-full bg-sky-400" />
         
-        <div className="space-y-1.5 pl-2">
-          <h2 className="text-sm font-black text-white flex items-center gap-2 tracking-wide">
-            <Sparkles className="w-4 h-4 text-sky-300" />
-            <span>{getGreeting()}</span>
-          </h2>
-          <p className="text-[11px] text-slate-200 font-medium">
-            Aujourd'hui : Conditions stables • 0 perturbation sur votre trajet
-          </p>
+        <div className="space-y-1 pl-2">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-sky-300 animate-pulse" />
+            <h2 className="text-sm font-black text-white tracking-wide">
+              {getGreeting()}
+            </h2>
+          </div>
+          <div className="flex items-center space-x-2 text-[11px] text-slate-200 font-medium">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Systèmes opérationnels • 0 alerte</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 pl-2 sm:pl-0 flex-wrap">
-          {unreadCount !== null && unreadCount > 0 && (
-            <button
-              onClick={handleOpenGmail}
-              className="relative p-2.5 rounded-2xl bg-[#475569] hover:bg-[#64748b] border border-sky-300 text-sky-100 flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-md group"
-              title="Ouvrir Gmail"
-            >
-              <Mail className="w-4 h-4 group-hover:scale-110 transition-transform text-sky-200" />
-              <span className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full shadow-md animate-bounce">
-                {unreadCount}
-              </span>
-            </button>
-          )}
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="flex items-center space-x-2 bg-[#26354a]/80 p-1.5 rounded-2xl border border-slate-500/80 shadow-inner">
+            {unreadCount !== null && unreadCount > 0 && (
+              <button
+                onClick={handleOpenGmail}
+                className="relative p-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-md group"
+                title="Ouvrir Gmail"
+              >
+                <Mail className="w-4 h-4 group-hover:scale-110 transition-transform text-white" />
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-md">
+                  {unreadCount}
+                </span>
+              </button>
+            )}
 
-          {!isWorkspaceConnected ? (
-            <button 
-              onClick={handleGoogleLogin}
-              className="relative p-2.5 rounded-2xl bg-[#475569] hover:bg-[#64748b] border border-slate-400 hover:border-sky-300 text-slate-100 transition-all active:scale-95 cursor-pointer shadow-md group"
-              title="Se connecter à Google Workspace"
-            >
-              <UserX className="w-4 h-4 group-hover:scale-110 transition-transform text-slate-200" />
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span>
-              </span>
-            </button>
-          ) : (
-            <div 
-              className="relative p-2.5 rounded-2xl bg-teal-800 border border-teal-300 text-teal-100 flex items-center justify-center shadow-md"
-              title="Workspace Connecté"
-            >
-              {currentUser?.photoURL ? (
-                <img src={currentUser.photoURL} alt="Avatar" className="w-4 h-4 rounded-full object-cover" />
-              ) : (
-                <UserCheck className="w-4 h-4 text-teal-200" />
-              )}
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-300"></span>
-              </span>
-            </div>
-          )}
+            {!isWorkspaceConnected ? (
+              <button 
+                onClick={handleGoogleLogin}
+                className="relative p-2 rounded-xl bg-[#475569] hover:bg-[#64748b] border border-slate-400 text-slate-200 hover:text-white transition-all active:scale-95 cursor-pointer shadow-sm group"
+                title="Se connecter à Google Workspace"
+              >
+                <UserX className="w-4 h-4 group-hover:scale-110 transition-transform text-slate-300" />
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span>
+                </span>
+              </button>
+            ) : (
+              <div 
+                className="relative p-1.5 rounded-xl bg-teal-800 border border-teal-300 text-teal-100 flex items-center justify-center shadow-sm"
+                title="Workspace Connecté"
+              >
+                {currentUser?.photoURL ? (
+                  <img src={currentUser.photoURL} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
+                ) : (
+                  <UserCheck className="w-4 h-4 text-teal-200" />
+                )}
+              </div>
+            )}
+          </div>
 
-          <div className="bg-[#334155] border border-slate-400 px-3.5 py-2 rounded-2xl text-right flex-shrink-0 shadow-md">
-            <span className="text-xs font-mono font-black text-sky-300 block">
+          <div className="bg-[#26354a] border border-slate-500/80 px-3.5 py-2 rounded-2xl text-right shadow-sm">
+            <span className="text-xs font-mono font-black text-sky-300 block tracking-wider">
               {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </span>
-            <span className="text-[10px] font-mono text-slate-200 block">
-              {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).toUpperCase()}
+            <span className="text-[10px] font-mono text-slate-300 block uppercase font-semibold">
+              {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
             </span>
           </div>
         </div>
       </div>
 
-      {/* 1. SECTION MÉTÉO - Correction du chevauchement avec une grille rigide flex/grid */}
+      {/* 1. SECTION MÉTÉO */}
       {currentWeather && (
         <div 
           onClick={onViewWeatherDetail}
@@ -423,10 +532,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
 
           <div className="flex flex-col gap-4">
-            {/* Ligne principale isolée pour éliminer tout risque de chevauchement sur S25 Ultra */}
             <div className="grid grid-cols-1 sm:grid-cols-2 items-center justify-between gap-3 border-b border-slate-500/80 pb-4">
-              
-              {/* Colonne gauche : Icône + Ville + Condition */}
               <div className="flex items-center space-x-3.5 min-w-0">
                 <div className="p-3 rounded-2xl bg-[#475569] border border-slate-400 flex-shrink-0 shadow-md">
                   {renderConditionIcon(currentWeather.condition, "w-6 h-6")}
@@ -440,7 +546,6 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
               </div>
 
-              {/* Colonne droite : Température actuelle, Min/Max et Lever/Coucher alignés proprement */}
               <div className="flex items-center justify-between sm:justify-end space-x-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-500/50">
                 <span className="text-3xl font-black text-white">{currentTemp}°C</span>
                 <div className="flex flex-col text-[10px] font-black leading-tight pl-3 border-l border-slate-400">
@@ -452,7 +557,6 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-slate-100 flex items-center gap-1 mt-0.5" title="Coucher du soleil"><Sunset className="w-3 h-3 text-sky-400" /> 20:48</span>
                 </div>
               </div>
-
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-[11px]">
@@ -469,21 +573,45 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 2. SUIVI ÉNERGÉTIQUE */}
+      {/* 2. SUIVI ÉNERGÉTIQUE & CONFORT MAISON */}
       <div 
         onClick={onViewEnergyComfort}
-        className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-slate-500/80 hover:border-sky-300 rounded-3xl p-5 shadow-xl space-y-3.5 transition-all duration-200 active:scale-[0.99] cursor-pointer group backdrop-blur-md"
+        className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-slate-500/80 hover:border-sky-300 rounded-3xl p-5 shadow-xl space-y-4 transition-all duration-200 active:scale-[0.99] cursor-pointer group backdrop-blur-md"
       >
-        <div className="flex items-center justify-between border-b border-slate-500/80 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-500/80 pb-3.5">
           <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
             <Home className="w-4 h-4 text-sky-300" /> Suivi Énergétique & Confort Maison
           </h2>
           <span className={`text-[10px] font-bold px-3 py-1 rounded-xl border flex items-center gap-1.5 bg-sky-700 border-sky-300 text-white shadow-md`}>
-            {energy.icon}
-            <span>{energy.action}</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-sky-200" />
+            <span>{energy.actionBadge}</span>
           </span>
         </div>
-        <p className="text-[11px] text-slate-200 leading-relaxed font-medium pt-1">
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="bg-[#26354a] p-3 rounded-2xl border border-slate-500/80 flex flex-col justify-between shadow-sm">
+            <span className="text-[10px] text-slate-300 font-bold flex items-center gap-1">
+              <Thermometer className="w-3.5 h-3.5 text-sky-300" /> Intérieur Cible
+            </span>
+            <span className="text-base font-black text-white pt-1">{energy.interiorTarget}</span>
+          </div>
+
+          <div className="bg-[#26354a] p-3 rounded-2xl border border-slate-500/80 flex flex-col justify-between shadow-sm">
+            <span className="text-[10px] text-slate-300 font-bold flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-teal-300" /> Statut Thermique
+            </span>
+            <span className="text-xs font-extrabold text-teal-200 pt-1 truncate">{energy.statusText}</span>
+          </div>
+
+          <div className="col-span-2 sm:col-span-1 bg-[#26354a] p-3 rounded-2xl border border-slate-500/80 flex flex-col justify-between shadow-sm">
+            <span className="text-[10px] text-slate-300 font-bold flex items-center gap-1">
+              <Sun className="w-3.5 h-3.5 text-sky-300" /> Action Solaire
+            </span>
+            <span className="text-xs font-extrabold text-sky-200 pt-1 truncate">Inertie préservée</span>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-slate-200 leading-relaxed font-medium pt-1 px-1">
           {energy.desc}
         </p>
       </div>
@@ -608,112 +736,133 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="flex items-center justify-between border-b border-slate-500/80 pb-3">
           <div className="flex items-center space-x-2.5 text-white font-black text-xs">
             <Bookmark className="w-4 h-4 text-sky-300" />
-            <span>Raccourcis Favoris & Utiles (Luxembourg)</span>
+            <h2 className="uppercase tracking-wider">Accès Rapides</h2>
           </div>
+          <span className="text-[9px] font-bold px-3 py-1 rounded-full bg-[#26354a] border border-slate-500 text-slate-300 shadow-inner">
+            {links.length} favoris
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" onClick={(e) => e.stopPropagation()}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
           {links.map((link) => (
             <a
               key={link.id}
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative p-3.5 rounded-2xl bg-[#26354a] border border-slate-500/80 hover:border-sky-300 transition-all duration-200 active:scale-[0.97] flex flex-col justify-between space-y-2.5 cursor-pointer shadow-md"
+              className="flex items-center justify-between p-2.5 rounded-2xl bg-[#26354a] border border-slate-500/80 hover:border-sky-300 transition-all duration-200 active:scale-[0.97] shadow-sm group"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-[#475569] text-sky-300 uppercase tracking-wide border border-slate-400">
-                  {link.category}
-                </span>
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="p-2 rounded-xl bg-[#475569] border border-slate-400 flex-shrink-0 shadow-inner group-hover:bg-sky-900 group-hover:border-sky-400 transition-colors">
+                  <Sparkles className="w-4 h-4 text-sky-300 group-hover:text-sky-100" />
+                </div>
+                
+                <div className="flex flex-col truncate pr-2">
+                  <span className="text-white font-extrabold text-xs truncate group-hover:text-sky-300 transition-colors">
+                    {link.name}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate">
+                    {link.category}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0 pl-1 border-l border-slate-500/50">
                 <button
                   onClick={(e) => handleDeleteLink(link.id, e)}
-                  className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-400 p-1 transition-opacity cursor-pointer"
+                  className="p-2 rounded-xl bg-slate-700/30 text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition-all cursor-pointer active:scale-90"
                   title="Supprimer ce raccourci"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
-              </div>
-
-              <div className="flex items-center justify-between pt-0.5">
-                <div className="flex items-center space-x-2 min-w-0 pr-1">
-                  <Globe className="w-4 h-4 text-sky-300 flex-shrink-0" />
-                  <span className="text-white font-extrabold text-xs truncate group-hover:text-sky-300 transition-colors">
-                    {link.name}
-                  </span>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-sky-300 transition-colors flex-shrink-0" />
               </div>
             </a>
           ))}
         </div>
       </div>
 
-      {/* 5. ACTUALITÉS */}
+      {/* 5. ACTUALITÉS (Carrousel multi-sources via Proxy Vite) */}
       <div 
         onClick={onViewSourcesNews}
-        className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-slate-500/80 hover:border-sky-300 rounded-3xl p-5 shadow-xl space-y-4 w-full backdrop-blur-md cursor-pointer transition-all duration-200 active:scale-[0.99]"
+        className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-slate-500/80 hover:border-sky-300 rounded-3xl p-5 shadow-xl space-y-4 w-full backdrop-blur-md cursor-pointer group transition-all duration-200 active:scale-[0.99]"
       >
-        <div className="flex items-center justify-between border-b border-slate-500/80 pb-3.5">
+        <div className="flex items-center justify-between border-b border-slate-500/80 pb-3">
           <div className="flex items-center space-x-2.5 text-white">
             <Newspaper className="w-4 h-4 text-sky-300" />
             <h2 className="text-xs font-black uppercase tracking-wider text-white">
               {t.liveNews}
             </h2>
           </div>
+          <span className="text-[9px] font-bold px-3 py-1 rounded-full bg-[#26354a] border border-slate-500 text-slate-300 shadow-inner">
+            {newsLoading ? "Chargement..." : `${carouselArticles.length} en direct`}
+          </span>
         </div>
 
-        <div className="flex space-x-3.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-sky-300 w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="flex space-x-4 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-sky-300 w-full" onClick={(e) => e.stopPropagation()}>
           {carouselArticles.map((art) => {
+            const isSaved = savedArticleIds?.includes(art.id);
+            const cleanSource = art.source ? art.source.replace('www.', '') : 'Actualité';
+
             return (
               <div 
                 key={art.id}
-                onClick={() => onReadArticle(art)}
-                className="flex-shrink-0 w-64 bg-[#26354a] border border-slate-500/80 hover:border-sky-300 rounded-2xl p-4 shadow-md cursor-pointer transition-all duration-200 active:scale-[0.97] group flex flex-col justify-between"
+                onClick={() => {
+                  const articleUrl = (art as any).url || (art as any).link;
+                  if (articleUrl) {
+                    window.open(articleUrl, '_blank', 'noopener,noreferrer');
+                  } else {
+                    onReadArticle(art);
+                  }
+                }}
+                className="flex-shrink-0 w-80 bg-[#26354a] border border-slate-500/80 hover:border-sky-300 rounded-2xl p-4 shadow-md cursor-pointer transition-all duration-200 active:scale-[0.97] group flex flex-col justify-between space-y-3"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2.5 rounded-2xl bg-[#475569] border border-slate-400 shadow-sm">
-                      {getNewsIcon(art.title, art.source)}
-                    </div>
-                    <span className="text-[10px] text-slate-200 font-bold flex items-center gap-0.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold text-sky-300 tracking-wide bg-[#334155]/80 px-2.5 py-1 rounded-lg border border-slate-500">
+                      {cleanSource}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-medium">
                       {art.publishedAt}
                     </span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wide px-2.5 py-0.5 rounded-lg bg-sky-700 text-white border border-sky-400">
-                      {art.source}
-                    </span>
-                    <h3 className="font-extrabold text-white text-xs group-hover:text-sky-300 transition-colors line-clamp-3 leading-snug pt-1">
-                      {art.title}
-                    </h3>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-3.5 mt-3.5 border-t border-slate-500/80 text-[11px]">
-                  <span className="text-sky-300 font-black flex items-center space-x-1">
-                    <span>{t.read}</span>
-                  </span>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleSave(art.id);
                     }} 
-                    className={`p-2 rounded-xl border transition-all active:scale-90 cursor-pointer ${
-                      savedArticleIds?.includes(art.id) 
-                        ? 'bg-sky-500/20 border-sky-300 text-sky-200' 
-                        : 'bg-[#475569] border-slate-400 text-slate-200 hover:text-white'
+                    className={`p-1.5 rounded-xl border transition-all active:scale-90 cursor-pointer shadow-sm ${
+                      isSaved 
+                        ? 'bg-sky-500 text-white border-sky-300 shadow-md' 
+                        : 'bg-[#475569] border-slate-400 text-slate-300 hover:text-white hover:bg-sky-900/50'
                     }`}
+                    title={isSaved ? "Retirer des favoris" : "Sauvegarder l'article"}
                   >
-                    <Bookmark className={`w-4 h-4 ${savedArticleIds?.includes(art.id) ? 'fill-current' : ''}`} />
+                    <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
                   </button>
+                </div>
+
+                <div>
+                  <h3 className="font-extrabold text-white text-xs group-hover:text-sky-300 transition-colors line-clamp-2 leading-snug">
+                    {art.title}
+                  </h3>
+                </div>
+
+                <div className="flex items-center justify-between pt-2.5 border-t border-slate-500/30 text-[10px]">
+                  <span className="text-slate-400 font-medium">
+                    Consulter l'article
+                  </span>
+
+                  <span className="text-sky-300 font-black flex items-center space-x-1 group-hover:translate-x-0.5 transition-transform flex-shrink-0">
+                    <span>{t.read}</span>
+                    <span>→</span>
+                  </span>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-
     </div>
   );
 };
