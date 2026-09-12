@@ -17,11 +17,7 @@ import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsP
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 
-// --- HOOK SUR PROXY VITE (FRANCE INFO, FRANCE 24, LE MONDE, L'ESSENTIEL + FALLBACK) ---
-const CACHE_KEY = 'news_dashboard_vite_proxy_v12';
-const CACHE_TIME_KEY = 'news_dashboard_vite_proxy_time_v12';
-const CACHE_DURATION = 15 * 60 * 1000;
-
+// --- HOOK DE NEWS HYBRIDE (DEV VITE PROXY + PROD/MOBILE ALLORIGINS) ---
 function useNewsFetcher() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -29,10 +25,20 @@ function useNewsFetcher() {
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchXML(proxyPath: string, sourceName: string, category: string) {
+    // Adapte la cible selon l'environnement (Vite proxy local sur PC vs allorigins sur Mobile/APK)
+    const getTargetUrl = (targetUrl: string, viteProxyPath: string) => {
+      if (import.meta.env.DEV) {
+        return viteProxyPath;
+      }
+      return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+    };
+
+    async function fetchXML(targetUrl: string, viteProxyPath: string, sourceName: string, category: string) {
       try {
-        const res = await fetch(proxyPath, { headers: { 'Accept': 'application/xml, text/xml, */*' } });
+        const urlToFetch = getTargetUrl(targetUrl, viteProxyPath);
+        const res = await fetch(urlToFetch);
         if (!res.ok) throw new Error(`Status ${res.status}`);
+        
         const textData = await res.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(textData, 'text/xml');
@@ -57,10 +63,7 @@ function useNewsFetcher() {
           const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
           const imageFromDesc = description.match(/src=["'](.*?)["']/)?.[1];
           
-          const imageUrl = enclosure || imageFromDesc || 
-            (sourceName.includes('lessentiel')
-              ? 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80'
-              : 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80');
+          const imageUrl = enclosure || imageFromDesc || undefined;
 
           const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
           const formattedTime = pubDate && !isNaN(timestamp) 
@@ -85,60 +88,26 @@ function useNewsFetcher() {
           };
         });
       } catch (e) {
-        console.warn(`[Feed Proxy Warning] Échec pour ${sourceName}:`, e);
+        console.warn(`[Feed Warning] Échec pour ${sourceName}:`, e);
         return [];
       }
     }
 
     async function loadAllNews() {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
-        if (cached && cachedTime && (Date.now() - Number(cachedTime) < CACHE_DURATION)) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.length > 0 && isMounted) {
-            setArticles(parsed);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn("Erreur lecture cache:", e);
-      }
-
       const [fi, f24, monde, essentiel] = await Promise.all([
-        fetchXML('/proxy-franceinfo/titres.rss', 'www.francetvinfo.fr', 'Actualités'),
-        fetchXML('/proxy-france24/fr/rss', 'www.france24.com', 'Actualités'),
-        fetchXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr', 'Actualités'),
-        fetchXML('/proxy-lessentiel/rss/lessentiel-fr', 'www.lessentiel.lu', 'Luxembourg')
+        fetchXML('https://www.francetvinfo.fr/titres.rss', '/proxy-franceinfo/titres.rss', 'www.francetvinfo.fr', 'Actualités'),
+        fetchXML('https://www.france24.com/fr/rss', '/proxy-france24/fr/rss', 'www.france24.com', 'Actualités'),
+        fetchXML('https://www.lemonde.fr/rss/une.xml', '/proxy-lemonde/rss/une.xml', 'www.lemonde.fr', 'Actualités'),
+        fetchXML('https://partner-feeds.lessentiel.lu/rss/lessentiel-fr', '/proxy-lessentiel/rss/lessentiel-fr', 'www.lessentiel.lu', 'Luxembourg')
       ]);
 
-      let total = [...fi, ...f24, ...monde, ...essentiel];
-
-      if (essentiel.length === 0) {
-        total.unshift({
-          id: `essentiel-fallback-${Date.now()}`,
-          title: "Luxembourg : Évolution et projets prioritaires pour la mobilité douce",
-          excerpt: "Les dernières annonces concernant l'aménagement du réseau de transport et les infrastructures nationales.",
-          content: "Synthèse des actualités luxembourgeoises et des aménagements de voirie.",
-          category: 'Luxembourg',
-          source: 'www.lessentiel.lu',
-          url: 'https://www.lessentiel.lu',
-          publishedAt: 'Il y a 10 min',
-          rawDate: Date.now(),
-          imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80',
-          readTime: '3 min',
-          likes: 25,
-          commentsCount: 3,
-          author: { name: 'www.lessentiel.lu', avatar: 'https://www.google.com/s2/favicons?domain=www.lessentiel.lu&sz=32' }
-        } as any);
-      }
+      const total = [...fi, ...f24, ...monde, ...essentiel];
 
       if (isMounted) {
-        total.sort((a: any, b: any) => b.rawDate - a.rawDate);
-        setArticles(total as any);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(total));
-        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+        if (total.length > 0) {
+          total.sort((a: any, b: any) => b.rawDate - a.rawDate);
+          setArticles(total as any);
+        }
         setLoading(false);
       }
     }
@@ -781,7 +750,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 5. ACTUALITÉS (Carrousel multi-sources via Proxy Vite) */}
+      {/* 5. ACTUALITÉS (Carrousel multi-sources) */}
       <div 
         onClick={onViewSourcesNews}
         className="bg-gradient-to-r from-[#334155] via-[#475569] to-[#334155] border border-slate-500/80 hover:border-sky-300 rounded-3xl p-5 shadow-xl space-y-4 w-full backdrop-blur-md cursor-pointer group transition-all duration-200 active:scale-[0.99]"
