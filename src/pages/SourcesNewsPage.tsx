@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 interface SourcesNewsPageProps {
-  articles: Article[];
+  articles?: Article[];
   savedArticleIds: string[];
   onToggleSave: (id: string) => void;
   onReadArticle: (article: Article) => void;
@@ -15,13 +15,182 @@ interface SourcesNewsPageProps {
   language?: AppSettings['language'];
 }
 
+// --- SECROUS AUTONOME DE CHARGEMENT DIRECT DE NEWS (LE MONDE + FRANCE 24) ---
+function useInternalNewsFetcher() {
+  const LOCAL_CACHE_KEY = 'news_lemonde_france24_mobile_v1';
+
+  const [articles, setArticles] = useState<Article[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_CACHE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('[Cache Read Warning]', e);
+    }
+    return [];
+  });
+
+  const [loading, setLoading] = useState<boolean>(articles.length === 0);
+
+  const fetchNews = async () => {
+    setLoading(true);
+
+    const fetchXML = async (targetUrl: string, viteProxyPath: string, sourceName: string, category: string) => {
+      const proxies = import.meta.env.DEV
+        ? [viteProxyPath]
+        : [
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+          ];
+
+      let textData = '';
+
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const text = await res.text();
+            if (text && (text.includes('<item') || text.includes('<entry'))) {
+              textData = text;
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn(`[Proxy Fail] ${sourceName} via ${proxyUrl}`, err);
+        }
+      }
+
+      if (!textData) {
+        try {
+          const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}&_t=${Date.now()}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.status === 'ok' && Array.isArray(json.items)) {
+              return json.items.slice(0, 15).map((item: any, idx: number) => {
+                const cleanDesc = (item.description || item.content || '').replace(/<[^>]*>?/gm, '').trim();
+                const pubDate = item.pubDate || '';
+                const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
+                const formattedTime = pubDate && !isNaN(timestamp)
+                  ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Récemment';
+
+                return {
+                  id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${timestamp}`,
+                  title: item.title || '',
+                  excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
+                  content: cleanDesc || item.title,
+                  category,
+                  source: sourceName,
+                  url: item.link || '',
+                  publishedAt: formattedTime,
+                  rawDate: isNaN(timestamp) ? Date.now() : timestamp,
+                  imageUrl: item.thumbnail || item.enclosure?.link || undefined,
+                  readTime: '3 min',
+                  likes: Math.floor(Math.random() * 40) + 10,
+                  commentsCount: Math.floor(Math.random() * 10) + 1,
+                  author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=${sourceName}&sz=32` }
+                };
+              });
+            }
+          }
+        } catch (e) {
+          return [];
+        }
+      }
+
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(textData, 'text/xml');
+        const items = Array.from(xmlDoc.querySelectorAll('item, entry'));
+
+        return items.slice(0, 15).map((item, idx) => {
+          const title = item.querySelector('title')?.textContent || '';
+          const description = item.querySelector('description, summary, content')?.textContent || '';
+          const pubDate = item.querySelector('pubDate, updated, published')?.textContent || '';
+
+          let link = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '';
+          if (!link) {
+            const linkAttr = item.querySelector('link')?.getAttribute('href');
+            if (linkAttr) link = linkAttr;
+          }
+
+          const enclosure = item.querySelector('enclosure')?.getAttribute('url');
+          const mediaContent = item.getElementsByTagName('media:content')[0]?.getAttribute('url') ||
+                               item.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'content')[0]?.getAttribute('url');
+          const mediaThumbnail = item.getElementsByTagName('media:thumbnail')[0]?.getAttribute('url') ||
+                                 item.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'thumbnail')[0]?.getAttribute('url');
+          const imageFromHTML = description.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+
+          const imageUrl = enclosure || mediaContent || mediaThumbnail || imageFromHTML || undefined;
+
+          const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
+          const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
+          const formattedTime = pubDate && !isNaN(timestamp)
+            ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'Récemment';
+
+          return {
+            id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${timestamp}`,
+            title,
+            excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
+            content: cleanDesc || title,
+            category,
+            source: sourceName,
+            url: link,
+            publishedAt: formattedTime,
+            rawDate: isNaN(timestamp) ? Date.now() : timestamp,
+            imageUrl,
+            readTime: '3 min',
+            likes: Math.floor(Math.random() * 40) + 10,
+            commentsCount: Math.floor(Math.random() * 10) + 1,
+            author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=${sourceName}&sz=32` }
+          };
+        });
+      } catch (e) {
+        return [];
+      }
+    };
+
+    const [f24, monde] = await Promise.all([
+      fetchXML('https://www.france24.com/fr/rss', '/proxy-france24/fr/rss', 'www.france24.com', 'Actualités'),
+      fetchXML('https://www.lemonde.fr/rss/une.xml', '/proxy-lemonde/rss/une.xml', 'www.lemonde.fr', 'Actualités')
+    ]);
+
+    const total = [...f24, ...monde];
+
+    if (total.length > 0) {
+      total.sort((a: any, b: any) => b.rawDate - a.rawDate);
+      setArticles(total as any);
+      try {
+        localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(total));
+      } catch (e) {
+        console.warn('[Cache Write Warning]', e);
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
+  return { articles, loading, refetch: fetchNews };
+}
+
 export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
-  articles,
+  articles: propArticles = [],
   savedArticleIds,
   onToggleSave,
   onReadArticle,
   onBackToHome
 }) => {
+  // Utilisation autonome du hook si la prop reçue est vide
+  const { articles: fetchedArticles, loading: isFetching, refetch } = useInternalNewsFetcher();
+  const articles = propArticles && propArticles.length > 0 ? propArticles : fetchedArticles;
+
   const [activeSourceFilter, setActiveSourceFilter] = useState<string>('all');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState('');
@@ -46,7 +215,7 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
     return Array.from(sourcesSet);
   }, [articles]);
 
-  const handleRefreshNews = () => {
+  const handleRefreshNews = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     setActiveSourceFilter('all');
@@ -54,6 +223,8 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
     setSearchFilter('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
+    await refetch();
+
     const brandNewArticles = articles.filter(art => !knownArticleIdsRef.current.has(art.id));
     articles.forEach(art => knownArticleIdsRef.current.add(art.id));
 
@@ -76,7 +247,6 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
     return <Globe className="w-4 h-4 text-sky-300" />;
   };
 
-  // Détermine si une vraie image d'article existe (exclut les placeholders unsplash par défaut)
   const hasRealArticleImage = (url?: string) => {
     if (!url) return false;
     if (url.includes('images.unsplash.com')) return false;
@@ -127,11 +297,11 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
       >
         <button
           onClick={handleRefreshNews}
-          disabled={isRefreshing}
+          disabled={isRefreshing || isFetching}
           className="p-3 rounded-full bg-[#0b192e] hover:bg-[#122b4f] border border-sky-400 text-sky-300 shadow-2xl transition-all cursor-pointer flex items-center justify-center group active:scale-95"
           title="Rafraîchir les actualités"
         >
-          <RefreshCw className={`w-4 h-4 transition-transform duration-700 ${isRefreshing ? 'animate-spin text-white' : 'group-hover:rotate-180'}`} />
+          <RefreshCw className={`w-4 h-4 transition-transform duration-700 ${isRefreshing || isFetching ? 'animate-spin text-white' : 'group-hover:rotate-180'}`} />
         </button>
       </div>
 
@@ -301,7 +471,9 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
       ) : (
         <div className="bg-[#0b182b] border border-sky-900/60 rounded-3xl p-12 text-center space-y-3 font-mono">
           <Newspaper className="w-10 h-10 text-sky-400 mx-auto animate-pulse" />
-          <p className="text-sm text-sky-200">AUCUN ARTICLE TROUVÉ DANS LA TIMELINE.</p>
+          <p className="text-sm text-sky-200">
+            {isFetching ? "CHARGEMENT DE LA TIMELINE EN COURS..." : "AUCUN ARTICLE TROUVÉ DANS LA TIMELINE."}
+          </p>
         </div>
       )}
 
