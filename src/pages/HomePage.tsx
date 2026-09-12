@@ -17,7 +17,8 @@ import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsP
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 
-// --- HOOK DE NEWS HYBRIDE (DEV VITE PROXY + PROD/MOBILE ALLORIGINS) ---
+// --- HOOK DE NEWS HYBRIDE AVEC EXTRACTION UNIVERSELLE D'IMAGES ---
+// --- HOOK DE NEWS AVEC DOUBLE PROXY ET DECODAGE UNIVERSEL ---
 function useNewsFetcher() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -25,27 +26,38 @@ function useNewsFetcher() {
   useEffect(() => {
     let isMounted = true;
 
-    // Adapte la cible selon l'environnement (Vite proxy local sur PC vs allorigins sur Mobile/APK)
-    const getTargetUrl = (targetUrl: string, viteProxyPath: string) => {
-      if (import.meta.env.DEV) {
-        return viteProxyPath;
-      }
-      return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-    };
-
     async function fetchXML(targetUrl: string, viteProxyPath: string, sourceName: string, category: string) {
+      // 1. Sur Web local dev : utilise le proxy Vite
+      // 2. Sur Mobile/APK : tente corsproxy.io puis allorigins en fallback
+      const urlsToTry = import.meta.env.DEV
+        ? [viteProxyPath]
+        : [
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+          ];
+
+      let textData = '';
+
+      for (const url of urlsToTry) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            textData = await res.text();
+            if (textData && textData.includes('<item')) break; // Succès
+          }
+        } catch (err) {
+          console.warn(`[Proxy Fail] Echec sur ${url}`, err);
+        }
+      }
+
+      if (!textData) return [];
+
       try {
-        const urlToFetch = getTargetUrl(targetUrl, viteProxyPath);
-        const res = await fetch(urlToFetch);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        
-        const textData = await res.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(textData, 'text/xml');
-        
         const items = Array.from(xmlDoc.querySelectorAll('item, entry'));
 
-        return items.slice(0, 10).map((item, idx) => {
+        return items.slice(0, 15).map((item, idx) => {
           const title = item.querySelector('title')?.textContent || '';
           const description = item.querySelector('description, summary, content')?.textContent || '';
           const pubDate = item.querySelector('pubDate, updated, published')?.textContent || '';
@@ -56,15 +68,17 @@ function useNewsFetcher() {
             if (linkAttr) link = linkAttr;
           }
 
-          const enclosure = item.querySelector('enclosure')?.getAttribute('url') || 
-                            item.getElementsByTagName('media:content')[0]?.getAttribute('url') ||
-                            item.getElementsByTagName('media:thumbnail')[0]?.getAttribute('url');
+          // Extraction Multi-sources de l'image
+          const enclosure = item.querySelector('enclosure')?.getAttribute('url');
+          const mediaContent = item.getElementsByTagName('media:content')[0]?.getAttribute('url') || 
+                               item.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'content')[0]?.getAttribute('url');
+          const mediaThumbnail = item.getElementsByTagName('media:thumbnail')[0]?.getAttribute('url') ||
+                                 item.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'thumbnail')[0]?.getAttribute('url');
+          const imageFromHTML = description.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+
+          const imageUrl = enclosure || mediaContent || mediaThumbnail || imageFromHTML || undefined;
 
           const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
-          const imageFromDesc = description.match(/src=["'](.*?)["']/)?.[1];
-          
-          const imageUrl = enclosure || imageFromDesc || undefined;
-
           const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
           const formattedTime = pubDate && !isNaN(timestamp) 
             ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
@@ -88,7 +102,7 @@ function useNewsFetcher() {
           };
         });
       } catch (e) {
-        console.warn(`[Feed Warning] Échec pour ${sourceName}:`, e);
+        console.warn(`[Parse Error] ${sourceName}:`, e);
         return [];
       }
     }
@@ -121,7 +135,6 @@ function useNewsFetcher() {
 
   return { articles, loading };
 }
-
 // --- COMPOSANT HOMEPAGE ---
 interface HomePageProps {
   articles: Article[];
