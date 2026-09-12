@@ -19,58 +19,112 @@ import { Capacitor } from '@capacitor/core';
 
 // --- HOOK DE NEWS HYBRIDE AVEC EXTRACTION UNIVERSELLE D'IMAGES ---
 // --- HOOK DE NEWS AVEC DOUBLE PROXY ET DECODAGE UNIVERSEL ---
+// --- HOOK DE NEWS AVEC CACHE PERMANENT ET DECODAGE HYBRIDE MULTI-PROXIES ---
 function useNewsFetcher() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const LOCAL_CACHE_KEY = 'user_cached_news_articles_v1';
+
+  // 1. Initialisation de l'état avec les articles précédemment mis en cache s'ils existent
+  const [articles, setArticles] = useState<Article[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_CACHE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('[Cache Read Warning]', e);
+    }
+    return [];
+  });
+
+  const [loading, setLoading] = useState<boolean>(articles.length === 0);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchXML(targetUrl: string, viteProxyPath: string, sourceName: string, category: string) {
-      // 1. Sur Web local dev : utilise le proxy Vite
-      // 2. Sur Mobile/APK : tente corsproxy.io puis allorigins en fallback
-      const urlsToTry = import.meta.env.DEV
-        ? [viteProxyPath]
-        : [
-            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-          ];
+    async function fetchNewsSource(targetUrl: string, viteProxyPath: string, sourceName: string, category: string) {
+      let xmlText = '';
 
-      let textData = '';
-
-      for (const url of urlsToTry) {
+      // 1. En Dev PC : utilise le proxy local Vite
+      if (import.meta.env.DEV) {
         try {
-          const res = await fetch(url);
-          if (res.ok) {
-            textData = await res.text();
-            if (textData && textData.includes('<item')) break; // Succès
-          }
-        } catch (err) {
-          console.warn(`[Proxy Fail] Echec sur ${url}`, err);
+          const res = await fetch(viteProxyPath);
+          if (res.ok) xmlText = await res.text();
+        } catch (e) {
+          console.warn(`[Dev Proxy Error] ${sourceName}`, e);
+        }
+      } 
+      
+      // 2. Sur Mobile/Prod : essaie un relai CORS direct (allorigins)
+      if (!xmlText) {
+        try {
+          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+          if (res.ok) xmlText = await res.text();
+        } catch (e) {
+          // Ignoré, passage au fallback JSON
         }
       }
 
-      if (!textData) return [];
+      // 3. Fallback mobile si le XML brut est bloqué : passage par rss2json avec cache-busting
+      if (!xmlText || !xmlText.includes('<item')) {
+        try {
+          const cacheBuster = Date.now();
+          const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}&_t=${cacheBuster}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.status === 'ok' && Array.isArray(json.items)) {
+              return json.items.slice(0, 10).map((item: any, idx: number) => {
+                const cleanDesc = (item.description || item.content || '').replace(/<[^>]*>?/gm, '').trim();
+                const pubDate = item.pubDate || '';
+                const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
+                const formattedTime = pubDate && !isNaN(timestamp)
+                  ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Récemment';
 
+                return {
+                  id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${timestamp}`,
+                  title: item.title || '',
+                  excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
+                  content: cleanDesc || item.title,
+                  category,
+                  source: sourceName,
+                  url: item.link || '',
+                  publishedAt: formattedTime,
+                  rawDate: isNaN(timestamp) ? Date.now() : timestamp,
+                  imageUrl: item.thumbnail || item.enclosure?.link || undefined,
+                  readTime: '3 min',
+                  likes: Math.floor(Math.random() * 40) + 10,
+                  commentsCount: Math.floor(Math.random() * 10) + 1,
+                  author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=${sourceName}&sz=32` }
+                };
+              });
+            }
+          }
+        } catch (e) {
+          console.warn(`[rss2json Fallback Failed] ${sourceName}`, e);
+          return [];
+        }
+      }
+
+      // 4. Traitement standard si le flux XML a été récupéré
       try {
         const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(textData, 'text/xml');
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
         const items = Array.from(xmlDoc.querySelectorAll('item, entry'));
 
-        return items.slice(0, 15).map((item, idx) => {
+        return items.slice(0, 10).map((item, idx) => {
           const title = item.querySelector('title')?.textContent || '';
           const description = item.querySelector('description, summary, content')?.textContent || '';
           const pubDate = item.querySelector('pubDate, updated, published')?.textContent || '';
-          
+
           let link = item.querySelector('link')?.textContent || item.querySelector('guid')?.textContent || '';
           if (!link) {
             const linkAttr = item.querySelector('link')?.getAttribute('href');
             if (linkAttr) link = linkAttr;
           }
 
-          // Extraction Multi-sources de l'image
           const enclosure = item.querySelector('enclosure')?.getAttribute('url');
-          const mediaContent = item.getElementsByTagName('media:content')[0]?.getAttribute('url') || 
+          const mediaContent = item.getElementsByTagName('media:content')[0]?.getAttribute('url') ||
                                item.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'content')[0]?.getAttribute('url');
           const mediaThumbnail = item.getElementsByTagName('media:thumbnail')[0]?.getAttribute('url') ||
                                  item.getElementsByTagNameNS('http://search.yahoo.com/mrss/', 'thumbnail')[0]?.getAttribute('url');
@@ -80,8 +134,8 @@ function useNewsFetcher() {
 
           const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
           const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
-          const formattedTime = pubDate && !isNaN(timestamp) 
-            ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+          const formattedTime = pubDate && !isNaN(timestamp)
+            ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : 'Récemment';
 
           return {
@@ -102,25 +156,30 @@ function useNewsFetcher() {
           };
         });
       } catch (e) {
-        console.warn(`[Parse Error] ${sourceName}:`, e);
         return [];
       }
     }
 
     async function loadAllNews() {
       const [fi, f24, monde, essentiel] = await Promise.all([
-        fetchXML('https://www.francetvinfo.fr/titres.rss', '/proxy-franceinfo/titres.rss', 'www.francetvinfo.fr', 'Actualités'),
-        fetchXML('https://www.france24.com/fr/rss', '/proxy-france24/fr/rss', 'www.france24.com', 'Actualités'),
-        fetchXML('https://www.lemonde.fr/rss/une.xml', '/proxy-lemonde/rss/une.xml', 'www.lemonde.fr', 'Actualités'),
-        fetchXML('https://partner-feeds.lessentiel.lu/rss/lessentiel-fr', '/proxy-lessentiel/rss/lessentiel-fr', 'www.lessentiel.lu', 'Luxembourg')
+        fetchNewsSource('https://www.francetvinfo.fr/titres.rss', '/proxy-franceinfo/titres.rss', 'www.francetvinfo.fr', 'Actualités'),
+        fetchNewsSource('https://www.france24.com/fr/rss', '/proxy-france24/fr/rss', 'www.france24.com', 'Actualités'),
+        fetchNewsSource('https://www.lemonde.fr/rss/une.xml', '/proxy-lemonde/rss/une.xml', 'www.lemonde.fr', 'Actualités'),
+        fetchNewsSource('https://partner-feeds.lessentiel.lu/rss/lessentiel-fr', '/proxy-lessentiel/rss/lessentiel-fr', 'www.lessentiel.lu', 'Luxembourg')
       ]);
 
       const total = [...fi, ...f24, ...monde, ...essentiel];
 
       if (isMounted) {
+        // Si de nouveaux articles ont pu être chargés, on met à jour l'affichage et le cache
         if (total.length > 0) {
           total.sort((a: any, b: any) => b.rawDate - a.rawDate);
           setArticles(total as any);
+          try {
+            localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(total));
+          } catch (e) {
+            console.warn('[Cache Write Warning]', e);
+          }
         }
         setLoading(false);
       }
@@ -135,6 +194,8 @@ function useNewsFetcher() {
 
   return { articles, loading };
 }
+
+
 // --- COMPOSANT HOMEPAGE ---
 interface HomePageProps {
   articles: Article[];
