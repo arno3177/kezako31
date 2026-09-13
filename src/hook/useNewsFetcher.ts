@@ -27,11 +27,11 @@ export function useNewsFetcher() {
           const formattedTime = pubDate ? new Date(pubDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Récemment';
 
           return {
-            id: `${sourceName.toLowerCase().replace(/[^a-z]/g, '')}-${idx}-${timestamp}`,
+            id: `${sourceName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${idx}-${timestamp}`,
             title,
             excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
             content: cleanDesc || title,
-            category: sourceName.includes('lessentiel') ? 'Luxembourg' : 'Actualités',
+            category: sourceName.includes('International') ? 'International' : 'Actualités',
             source: sourceName as any,
             url: link,
             publishedAt: formattedTime,
@@ -40,7 +40,7 @@ export function useNewsFetcher() {
             readTime: '3 min',
             likes: 30,
             commentsCount: 4,
-            author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=${sourceName}&sz=32` }
+            author: { name: sourceName, avatar: `https://www.google.com/s2/favicons?domain=www.lemonde.fr&sz=32` }
           };
         });
       } catch (e) {
@@ -51,12 +51,13 @@ export function useNewsFetcher() {
 
     async function loadAll() {
       setLoading(true);
-      const [f24, lemonde] = await Promise.all([
+      const [f24, lemondeUne, lemondeIntl] = await Promise.all([
         fetchLocalXML('/proxy-france24/fr/rss', 'www.france24.com'),
-        fetchLocalXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr')
+        fetchLocalXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr'),
+        fetchLocalXML('/proxy-lemonde-intl/international/rss_full.xml', 'Le Monde International')
       ]);
 
-      const total = [...f24, ...lemonde];
+      const total = [...f24, ...lemondeUne, ...lemondeIntl];
       if (isMounted) {
         if (total.length > 0) {
           total.sort((a: any, b: any) => b.rawDate - a.rawDate);
