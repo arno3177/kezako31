@@ -8,11 +8,6 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api/mobiliteit': {
-        target: 'https://cdt.mobiliteit.lu',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/mobiliteit/, '')
-      },
       '/proxy-franceinfo': {
         target: 'https://www.francetvinfo.fr',
         changeOrigin: true,

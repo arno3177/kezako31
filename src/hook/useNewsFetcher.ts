@@ -31,7 +31,7 @@ export function useNewsFetcher() {
             title,
             excerpt: cleanDesc.slice(0, 160) + (cleanDesc.length > 160 ? '...' : ''),
             content: cleanDesc || title,
-            category: sourceName.includes('International') ? 'International' : 'Actualités',
+            category: sourceName.toLowerCase().includes('international') ? 'International' : 'Actualités',
             source: sourceName as any,
             url: link,
             publishedAt: formattedTime,
@@ -51,13 +51,12 @@ export function useNewsFetcher() {
 
     async function loadAll() {
       setLoading(true);
-      const [f24, lemondeUne, lemondeIntl] = await Promise.all([
+      const [f24, lemondeUne] = await Promise.all([
         fetchLocalXML('/proxy-france24/fr/rss', 'www.france24.com'),
-        fetchLocalXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr'),
-        fetchLocalXML('/proxy-lemonde-intl/international/rss_full.xml', 'Le Monde International')
+        fetchLocalXML('/proxy-lemonde/rss/une.xml', 'www.lemonde.fr')
       ]);
 
-      const total = [...f24, ...lemondeUne, ...lemondeIntl];
+      const total = [...f24, ...lemondeUne, ];
       if (isMounted) {
         if (total.length > 0) {
           total.sort((a: any, b: any) => b.rawDate - a.rawDate);

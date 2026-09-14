@@ -7,37 +7,36 @@ export interface BusDeparture {
   isCancelled: boolean;
 }
 
-export async function fetchBusDepartures(stopId: string = "200401006"): Promise<BusDeparture[]> {
-  try {
-    // Utilisation du proxy configuré dans Vite en dev, ou l'URL directe en production
-    const endpoint = import.meta.env.DEV 
-      ? `/api/mobiliteit/feed-api/v1/stop/${stopId}/departures`
-      : `https://cdt.mobiliteit.lu/feed-api/v1/stop/${stopId}/departures`;
+/**
+ * Nettoie une adresse pour retirer les noms de résidence/immeuble en préfixe
+ */
+function sanitizeAddressForMaps(address: string): string {
+  if (!address) return '';
+  // Retire les motifs type "Résidence XYZ, " ou "Bâtiment A, " au début de la chaîne
+  return address
+    .replace(/^(résidence|residence|immeuble|bâtiment|batiment|tour)\s+[^,]+,\s*/i, '')
+    .trim();
+}
 
-    const response = await fetch(endpoint, {
-      headers: { 'Accept': 'application/json' }
-    });
+/**
+ * Génère l'URL Google Maps Transit propre et pré-remplie
+ */
+export function getMobiliteitPlannerUrl(
+  origin: string, 
+  destination: string, 
+  lang: 'fr' | 'en' | 'de' = 'fr'
+): string {
+  const cleanFrom = encodeURIComponent(sanitizeAddressForMaps(origin));
+  const cleanTo = encodeURIComponent(sanitizeAddressForMaps(destination));
 
-    if (!response.ok) throw new Error('Erreur réseau Mobiliteit');
+  return `https://www.google.com/maps/dir/?api=1&origin=${cleanFrom}&destination=${cleanTo}&travelmode=transit`;
+}
 
-    const data = await response.json();
-    
-    return (data.departures || []).map((dep: any) => {
-      const sched = new Date(dep.scheduledDepartureTime);
-      const real = new Date(dep.realTimeDepartureTime || dep.scheduledDepartureTime);
-      const delay = Math.round((real.getTime() - sched.getTime()) / 60000);
-
-      return {
-        line: dep.routeShortName || dep.trip?.routeShortName || 'Bus',
-        destination: dep.tripHeadsign || 'Luxembourg',
-        scheduledTime: sched.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        realTime: real.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        delayMinutes: delay,
-        isCancelled: dep.cancelled || false
-      };
-    });
-  } catch (error) {
-    console.error("Erreur de récupération des départs en temps réel :", error);
-    return [];
-  }
+/**
+ * Lien direct de secours Google Maps Transit
+ */
+export function getGoogleMapsTransitUrl(origin: string, destination: string): string {
+  const cleanFrom = encodeURIComponent(sanitizeAddressForMaps(origin));
+  const cleanTo = encodeURIComponent(sanitizeAddressForMaps(destination));
+  return `https://www.google.com/maps/dir/?api=1&origin=${cleanFrom}&destination=${cleanTo}&travelmode=transit`;
 }
