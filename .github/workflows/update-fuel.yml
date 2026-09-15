@@ -1,32 +1,33 @@
-name: Mettre à jour les prix du carburant
+name: Update Fuel Prices
 
 on:
   schedule:
-    - cron: '0 8 * * *' # Exécution tous les jours à 8h00 du matin
-  workflow_dispatch: # Permet de le lancer manuellement depuis l'onglet Actions
+    - cron: '0 6 * * *' # Exécution tous les jours à 6h du matin
+  workflow_dispatch: # Permet de le lancer manuellement depuis GitHub
 
 jobs:
-  scrape-fuel:
+  update-fuel:
     runs-on: ubuntu-latest
+  
     steps:
-      - name: Récupérer le code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Installer Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Installer les dépendances
-        run: npm ci
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+        # Si tu préfères npm ci, utilise plutôt : npm ci --legacy-peer-deps
 
-      - name: Exécuter le script de scraping
-        run: node scripts/update-fuel.mjs
+      - name: Run fuel scraper / update script
+        run: npm run update-fuel
+        # Remplace par la commande exacte qui met à jour tes prix de carburant dans ton projet
 
-      - name: Commit et push du fuel.json mis à jour
-        run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add public/fuel.json
-          git commit -m "Mise à jour automatique des prix du carburant" || exit 0
-          git push
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Automatic fuel price update"
+          branch: main
