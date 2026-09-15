@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { RouteTrip, AppSettings, WeatherData } from '../types';
 import { fetchLuxembourgFuelPrices } from '../service/fuelService';
 import { getMobiliteitPlannerUrl } from '../service/mobiliteitService';
-  import { Capacitor } from '@capacitor/core';
+import { fetchNearbyBusStopsFromOSM, OsmBusStop } from '../service/osmBusService';
+import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { 
   Car, Bus, Navigation, Plus, Trash2, Edit3, 
   ExternalLink, RefreshCw, Fuel, ShieldAlert,
   Zap, Clock, MapPin, Sparkles, Loader2, X,
-  Crosshair, ArrowUpDown, Bookmark
+  Crosshair, ArrowUpDown, Bookmark, ListFilter
 } from 'lucide-react';
 
 interface TripsPageProps {
@@ -94,12 +95,16 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   const [activeMode, setActiveMode] = useState<'car' | 'bus'>('car');
   const [bottomTab, setBottomTab] = useState<'traffic' | 'fuel'>('traffic');
 
-  // États pour le mode "À la volée"
+  // États pour le mode "À la volée" synchronisés avec le trajet sélectionné par défaut
   const [isUsingFlyMode, setIsUsingFlyMode] = useState(false);
-  const [flyOrigin, setFlyOrigin] = useState<string>('66, Rue de Mersch, Kopstal');
-  const [flyDestination, setFlyDestination] = useState<string>('Luxembourg, Stäreplatz / Étoile');
+  const [flyOrigin, setFlyOrigin] = useState<string>(trips[0]?.origin || '66, Rue de Mersch, Kopstal');
+  const [flyDestination, setFlyDestination] = useState<string>(trips[0]?.destination || 'Luxembourg, Stäreplatz / Étoile');
   const [isLocatingOrigin, setIsLocatingOrigin] = useState(false);
   const [isLocatingDestination, setIsLocatingDestination] = useState(false);
+
+  // États pour la recherche d'arrêts de bus OpenStreetMap autour de la position GPS
+  const [nearbyBusStops, setNearbyBusStops] = useState<OsmBusStop[]>([]);
+  const [isLoadingBusStops, setIsLoadingBusStops] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<RouteTrip | null>(null);
@@ -135,11 +140,10 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
     return () => clearInterval(timer);
   }, []);
 
-  // Détermination du trajet actif (soit le favori sélectionné, soit l'itinéraire à la volée)
   const selectedSavedTrip = trips.find(tr => tr.id === selectedTripId) || trips[0];
   const activeTrip: RouteTrip = isUsingFlyMode
-  ? ({ id: 'fly', name: 'Trajet à la volée', origin: flyOrigin, destination: flyDestination } as RouteTrip)
-  : selectedSavedTrip;
+    ? ({ id: 'fly', name: 'Trajet à la volée', origin: flyOrigin, destination: flyDestination } as RouteTrip)
+    : selectedSavedTrip;
 
   const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 15) : 15;
   const weatherCond = currentWeather?.condition || 'Stable';
@@ -178,65 +182,90 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
     loadFuelPrices();
   }, []);
 
+  // Fonction de capture GPS (Native Capacitor + Web Fallback)
+  const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
+    if (target === 'origin') setIsLocatingOrigin(true);
+    else setIsLocatingDestination(true);
 
+    try {
+      let lat: number;
+      let lon: number;
 
-const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
-  if (target === 'origin') setIsLocatingOrigin(true);
-  else setIsLocatingDestination(true);
-
-  try {
-    let latitude: number;
-    let longitude: number;
-
-    // Vérifie si on est sur une application native (Android / iOS) ou sur le Web
-    if (Capacitor.isNativePlatform()) {
-      const permissionStatus = await Geolocation.checkPermissions();
-      if (permissionStatus.location !== 'granted') {
-        const req = await Geolocation.requestPermissions();
-        if (req.location !== 'granted') {
-          throw new Error('Permission de géolocalisation refusée.');
+      if (Capacitor.isNativePlatform()) {
+        const permissionStatus = await Geolocation.checkPermissions();
+        if (permissionStatus.location !== 'granted') {
+          const req = await Geolocation.requestPermissions();
+          if (req.location !== 'granted') {
+            throw new Error('Permission de géolocalisation refusée.');
+          }
         }
-      }
-
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000
-      });
-      latitude = position.coords.latitude;
-      longitude = position.coords.longitude;
-    } else {
-      // Fallback pour le navigateur Web (localhost / PWA)
-      if (!navigator.geolocation) {
-        throw new Error('La géolocalisation n\'est pas supportée par votre navigateur.');
-      }
-
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000
+        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+        lat = position.coords.latitude;
+        lon = position.coords.longitude;
+      } else {
+        if (!navigator.geolocation) {
+          throw new Error('La géolocalisation n’est pas supportée par votre navigateur.');
+        }
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
         });
-      });
+        lat = position.coords.latitude;
+        lon = position.coords.longitude;
+      }
 
-      latitude = position.coords.latitude;
-      longitude = position.coords.longitude;
+      const coordsStr = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      if (target === 'origin') {
+        setFlyOrigin(coordsStr);
+      } else {
+        setFlyDestination(coordsStr);
+      }
+      setIsUsingFlyMode(true);
+    } catch (error: any) {
+      console.error('Erreur GPS :', error);
+      alert(`Erreur GPS : ${error.message || 'Impossible de récupérer la position.'}`);
+    } finally {
+      if (target === 'origin') setIsLocatingOrigin(false);
+      else setIsLocatingDestination(false);
     }
+  };
 
-    const coordsStr = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  // Recherche des arrêts de bus OpenStreetMap autour de la position actuelle
+  const handleFindNearbyBusStops = async () => {
+    setIsLoadingBusStops(true);
+    try {
+      let lat: number;
+      let lon: number;
 
-    if (target === 'origin') {
-      setFlyOrigin(coordsStr);
+      if (Capacitor.isNativePlatform()) {
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+      } else {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+        });
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+      }
+
+      const stops = await fetchNearbyBusStopsFromOSM(lat, lon, 1500);
+      setNearbyBusStops(stops);
+    } catch (err: any) {
+      console.error('Erreur bus stop OSM:', err);
+      alert('Impossible de récupérer les arrêts de bus autour de vous.');
+    } finally {
+      setIsLoadingBusStops(false);
+    }
+  };
+
+  // Mise à jour automatique des informations selon le mode actif
+  useEffect(() => {
+    if (activeMode === 'bus') {
+      handleFindNearbyBusStops();
     } else {
-      setFlyDestination(coordsStr);
+      loadFuelPrices();
     }
-    setIsUsingFlyMode(true);
-  } catch (error: any) {
-    console.error('Erreur GPS détaillée :', error);
-    alert(`Erreur GPS : ${error.message || 'Impossible de récupérer la position.'}`);
-  } finally {
-    if (target === 'origin') setIsLocatingOrigin(false);
-    else setIsLocatingDestination(false);
-  }
-};
+  }, [activeMode]);
 
   const handleSwapFlyRoute = () => {
     const prevOrigin = flyOrigin;
@@ -415,6 +444,9 @@ const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
       setTrips(updated);
       localStorage.setItem('user_saved_trips_extended', JSON.stringify(updated));
       setSelectedTripId(newTrip.id);
+      setFlyOrigin(newTrip.origin);
+      setFlyDestination(newTrip.destination);
+      setIsUsingFlyMode(false);
     }
 
     setNewName(''); setNewOrigin(''); setNewDestination('');
@@ -434,7 +466,12 @@ const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
     const updated = trips.filter(tr => tr.id !== id);
     setTrips(updated);
     localStorage.setItem('user_saved_trips_extended', JSON.stringify(updated));
-    if (selectedTripId === id) setSelectedTripId(updated[0].id);
+    if (selectedTripId === id) {
+      setSelectedTripId(updated[0].id);
+      setFlyOrigin(updated[0].origin);
+      setFlyDestination(updated[0].destination);
+      setIsUsingFlyMode(false);
+    }
   };
 
   const defaultTraffic = {
@@ -564,7 +601,12 @@ const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
           return (
             <div 
               key={trip.id} 
-              onClick={() => { setSelectedTripId(trip.id); setIsUsingFlyMode(false); }} 
+              onClick={() => { 
+                setSelectedTripId(trip.id); 
+                setIsUsingFlyMode(false);
+                setFlyOrigin(trip.origin);
+                setFlyDestination(trip.destination);
+              }} 
               className={`flex-shrink-0 px-3 py-2 rounded-xl border flex items-center gap-3 transition-all cursor-pointer ${
                 isSelected 
                   ? 'bg-slate-900 border-sky-400 shadow-sm text-white' 
@@ -599,75 +641,6 @@ const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
           <Plus className="w-3.5 h-3.5" />
           <span>Ajouter</span>
         </button>
-      </div>
-
-      {/* ZONE 2.5 : BLOC TRAJET À LA VOLÉE (GÉOLOCALISATION / LIBRE) */}
-      <div className={`border rounded-2xl p-3 shadow-md space-y-2 transition-all ${
-        isUsingFlyMode ? 'bg-[#121622] border-sky-400/80 shadow-sky-950/20' : 'bg-[#121622]/80 border-slate-700/60'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Crosshair className="w-3.5 h-3.5 text-sky-300" />
-            <span className="text-[11px] font-black text-white uppercase tracking-wider">Itinéraire à la volée (GPS / Libre)</span>
-          </div>
-          {isUsingFlyMode && (
-            <span className="px-2 py-0.5 rounded-md bg-sky-600/30 border border-sky-400/40 text-[9px] font-bold text-sky-300">
-              Actif
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-2">
-          {/* Ligne Départ */}
-          <div className="flex items-center gap-1.5">
-            <input
-              type="text"
-              value={flyOrigin}
-              onChange={(e) => { setFlyOrigin(e.target.value); setIsUsingFlyMode(true); }}
-              placeholder="Départ (Adresse ou GPS)"
-              className="flex-1 bg-[#050811] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold"
-            />
-            <button
-              type="button"
-              onClick={() => handleGetGpsPosition('origin')}
-              disabled={isLocatingOrigin}
-              title="Utiliser ma position GPS"
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-950 border border-slate-700 hover:border-sky-400 text-sky-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-            >
-              {isLocatingOrigin ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
-              <span>Ma position</span>
-            </button>
-          </div>
-
-          {/* Bouton Inverser & Ligne Arrivée */}
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleSwapFlyRoute}
-              title="Inverser départ et arrivée"
-              className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
-            >
-              <ArrowUpDown className="w-3.5 h-3.5 text-sky-300" />
-            </button>
-            <input
-              type="text"
-              value={flyDestination}
-              onChange={(e) => { setFlyDestination(e.target.value); setIsUsingFlyMode(true); }}
-              placeholder="Arrivée (Adresse ou GPS)"
-              className="flex-1 bg-[#050811] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold"
-            />
-            <button
-              type="button"
-              onClick={() => handleGetGpsPosition('destination')}
-              disabled={isLocatingDestination}
-              title="Utiliser ma position GPS"
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-950 border border-slate-700 hover:border-sky-400 text-sky-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
-            >
-              {isLocatingDestination ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
-              <span>Ma position</span>
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* ZONE 3 : SÉLECTEUR DE MODE & BOUTON IA + ENCART TEMPS ESTIMÉ */}
@@ -717,6 +690,214 @@ const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
             <Clock className="w-3.5 h-3.5" /> {currentActiveTime}
           </span>
         </div>
+      </div>
+
+      {/* CONTENEUR PRINCIPAL FLEX : 65% (8/12) / 35% (4/12) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+        
+        {/* COLONNE GAUCHE (65% -> 8/12) : BLOC TRAJET À LA VOLÉE & ARRÊTS (OU CARBURANT SI VOITURE) */}
+        <div className="lg:col-span-8 flex flex-col space-y-3">
+          <div className={`border rounded-2xl p-3 shadow-md space-y-2.5 transition-all h-full flex flex-col justify-between ${
+            isUsingFlyMode ? 'bg-[#121622] border-sky-400/80 shadow-sky-950/20' : 'bg-[#121622]/80 border-slate-700/60'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Crosshair className="w-3.5 h-3.5 text-sky-300" />
+                <span className="text-[11px] font-black text-white uppercase tracking-wider">Itinéraire à la volée (GPS / Libre)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeMode === 'bus' && (
+                  <button
+                    type="button"
+                    onClick={handleFindNearbyBusStops}
+                    disabled={isLoadingBusStops}
+                    className="px-2 py-0.5 rounded-md bg-teal-600/30 hover:bg-teal-600/50 border border-teal-400/40 text-[9px] font-bold text-teal-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    {isLoadingBusStops ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListFilter className="w-3 h-3" />}
+                    <span>Bus autour de moi</span>
+                  </button>
+                )}
+                {isUsingFlyMode && (
+                  <span className="px-2 py-0.5 rounded-md bg-sky-600/30 border border-sky-400/40 text-[9px] font-bold text-sky-300">
+                    Actif
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {/* Ligne Départ */}
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={flyOrigin}
+                  onChange={(e) => { setFlyOrigin(e.target.value); setIsUsingFlyMode(true); }}
+                  placeholder="Départ (Adresse ou GPS)"
+                  className="flex-1 bg-[#050811] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleGetGpsPosition('origin')}
+                  disabled={isLocatingOrigin}
+                  title="Utiliser ma position GPS"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-950 border border-slate-700 hover:border-sky-400 text-sky-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                >
+                  {isLocatingOrigin ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
+                  <span>Ma position</span>
+                </button>
+              </div>
+
+              {/* Bouton Inverser & Ligne Arrivée */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleSwapFlyRoute}
+                  title="Inverser départ et arrivée"
+                  className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 text-sky-300" />
+                </button>
+                <input
+                  type="text"
+                  value={flyDestination}
+                  onChange={(e) => { setFlyDestination(e.target.value); setIsUsingFlyMode(true); }}
+                  placeholder="Arrivée (Adresse ou GPS)"
+                  className="flex-1 bg-[#050811] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleGetGpsPosition('destination')}
+                  disabled={isLocatingDestination}
+                  title="Utiliser ma position GPS"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-950 border border-slate-700 hover:border-sky-400 text-sky-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                >
+                  {isLocatingDestination ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
+                  <span>Ma position</span>
+                </button>
+              </div>
+            </div>
+
+            {/* CONTENU CONDITIONNEL : ARRÊTS DE BUS (SI MODE BUS) OU CARBURANT (SI MODE VOITURE) */}
+            {activeMode === 'bus' ? (
+              <>
+                {nearbyBusStops.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-800 space-y-1">
+                    <span className="text-[10px] text-teal-300 font-bold uppercase tracking-wider block">Arrêts de bus à proximité :</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-36 overflow-y-auto">
+                      {nearbyBusStops.map((stop) => (
+                        <button
+                          key={stop.id}
+                          type="button"
+                          onClick={() => {
+                            setFlyOrigin(`${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)} (${stop.name})`);
+                            setIsUsingFlyMode(true);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg bg-[#050811] hover:bg-teal-950/40 border border-slate-800 hover:border-teal-500/50 flex items-center justify-between text-[10px] cursor-pointer gap-2"
+                        >
+                          <div className="truncate flex items-center gap-1.5">
+                            <span className="font-bold text-slate-200 truncate">{stop.name}</span>
+                            {stop.distance !== undefined && (
+                              <span className="text-slate-400 font-mono text-[9px] flex-shrink-0">
+                                ({stop.distance < 1000 ? `${stop.distance}m` : `${(stop.distance / 1000).toFixed(1)}km`})
+                              </span>
+                            )}
+                            {stop.routes && (
+                              <span className="px-1.5 py-0.5 rounded bg-teal-900/60 border border-teal-500/40 text-teal-200 font-mono text-[9px] flex-shrink-0">
+                                {stop.routes}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-teal-300 font-mono text-[9px] flex-shrink-0">Définir ici</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="mt-2 pt-2 border-t border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider flex items-center gap-1">
+                      <Fuel className="w-3 h-3" /> Prix des carburants (Luxembourg - ACL) :
+                    </span>
+                    <button onClick={loadFuelPrices} disabled={isRefreshingFuel} className="text-slate-300 hover:text-white flex items-center gap-1 font-bold cursor-pointer text-[10px]">
+                      <RefreshCw className={`w-3 h-3 text-sky-300 ${isRefreshingFuel ? 'animate-spin' : ''}`} />
+                      <span>Actualiser</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2 rounded-xl bg-[#050811] border border-slate-800 text-center">
+                      <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 95</span>
+                      <span className="text-xs font-black text-white mt-0.5 block">{fuelPrices.super95}</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-[#050811] border border-slate-800 text-center">
+                      <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 98</span>
+                      <span className="text-xs font-black text-white mt-0.5 block">{fuelPrices.super98}</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-[#050811] border border-slate-800 text-center">
+                      <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Diesel</span>
+                      <span className="text-xs font-black text-white mt-0.5 block">{fuelPrices.diesel}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+
+        {/* COLONNE DROITE (35% -> 4/12) : CARTE GOOGLE MAPS + BOUTON D'ACTION */}
+        <div className="lg:col-span-4 flex flex-col">
+          <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md space-y-2.5 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-sky-300" /> CARTE & NAVIGATION
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">
+                {activeMode === 'car' ? 'Voiture' : 'TC'}
+              </span>
+            </div>
+
+            {/* CARTE GOOGLE MAPS */}
+            <div className="rounded-xl overflow-hidden h-[180px] lg:h-[210px] border border-slate-700/80 shadow-inner relative w-full flex-1">
+              <iframe
+                key={`${activeMode}-${activeTrip?.id}-${recommendedWaypoint}`}
+                title="Carte interactive du trajet"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                src={mapEmbedUrl}
+              />
+            </div>
+
+            {/* BOUTON D'ACTION PRINCIPAL EN BAS */}
+            {activeMode === 'bus' ? (
+              <a
+                href={getMobiliteitPlannerUrl(activeTrip.origin, activeTrip.destination, (language as any) || 'fr')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-500 hover:to-sky-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer border border-teal-400/35"
+              >
+                <span>Itinéraire Bus</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            ) : (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(cleanAddressInput(activeTrip.origin))}&destination=${encodeURIComponent(cleanAddressInput(activeTrip.destination))}&travelmode=driving`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer border border-sky-400/35"
+              >
+                <span>Navigation Maps</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* ZONE 4 : TIROIR INFÉRIEUR À ONGLETS (TRAFIC / CARBURANT) */}
@@ -815,54 +996,6 @@ const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
               </a>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* ZONE 5 : CARTE GOOGLE MAPS + BOUTON D'ACTION EN BAS */}
-      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md space-y-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-sky-300" /> CARTE & NAVIGATION
-          </span>
-          <span className="text-[9px] text-slate-400 font-mono">
-            {activeMode === 'car' ? 'Mode Voiture' : 'Mode Transports'}
-          </span>
-        </div>
-
-        {/* CARTE GOOGLE MAPS */}
-        <div className="rounded-xl overflow-hidden h-[260px] border border-slate-700/80 shadow-inner relative w-full">
-          <iframe
-            key={`${activeMode}-${activeTrip?.id}-${recommendedWaypoint}`}
-            title="Carte interactive du trajet"
-            width="100%"
-            height="100%"
-            style={{ border: 0 }}
-            loading="lazy"
-            src={mapEmbedUrl}
-          />
-        </div>
-
-        {/* BOUTON D'ACTION PRINCIPAL EN BAS */}
-        {activeMode === 'bus' ? (
-          <a
-            href={getMobiliteitPlannerUrl(activeTrip.origin, activeTrip.destination, (language as any) || 'fr')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-500 hover:to-sky-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer border border-teal-400/35"
-          >
-            <span>Ouvrir l'itinéraire Transports en Commun</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        ) : (
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(cleanAddressInput(activeTrip.origin))}&destination=${encodeURIComponent(cleanAddressInput(activeTrip.destination))}&travelmode=driving`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer border border-sky-400/35"
-          >
-            <span>Lancer la navigation Google Maps (Voiture)</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
         )}
       </div>
 
