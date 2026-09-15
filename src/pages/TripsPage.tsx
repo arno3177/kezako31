@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { RouteTrip, AppSettings, WeatherData } from '../types';
 import { fetchLuxembourgFuelPrices } from '../service/fuelService';
 import { getMobiliteitPlannerUrl } from '../service/mobiliteitService';
+  import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import { 
   Car, Bus, Navigation, Plus, Trash2, Edit3, 
   ExternalLink, RefreshCw, Fuel, ShieldAlert,
-  Zap, Clock, MapPin, Sparkles, Loader2, X 
+  Zap, Clock, MapPin, Sparkles, Loader2, X,
+  Crosshair, ArrowUpDown, Bookmark
 } from 'lucide-react';
 
 interface TripsPageProps {
@@ -50,7 +53,7 @@ const LedLevelIndicator: React.FC<{ level: number }> = ({ level }) => {
   const config = LEVEL_CONFIG[safeLevel];
 
   return (
-    <div className={`flex flex-col gap-0.5 p-0.5 bg-black/80 rounded border ${config.borderClass} backdrop-blur-xs w-6 shadow-md`}>
+    <div className={`flex flex-col gap-0.5 p-0.5 bg-black/80 rounded border ${config.borderClass} backdrop-blur-xs w-5 shadow-md`}>
       {[3, 2, 1].map((barIndex) => {
         const isLit = barIndex <= config.bars;
         return (
@@ -89,6 +92,14 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
 
   const [selectedTripId, setSelectedTripId] = useState<string>(trips[0]?.id || '1');
   const [activeMode, setActiveMode] = useState<'car' | 'bus'>('car');
+  const [bottomTab, setBottomTab] = useState<'traffic' | 'fuel'>('traffic');
+
+  // États pour le mode "À la volée"
+  const [isUsingFlyMode, setIsUsingFlyMode] = useState(false);
+  const [flyOrigin, setFlyOrigin] = useState<string>('66, Rue de Mersch, Kopstal');
+  const [flyDestination, setFlyDestination] = useState<string>('Luxembourg, Stäreplatz / Étoile');
+  const [isLocatingOrigin, setIsLocatingOrigin] = useState(false);
+  const [isLocatingDestination, setIsLocatingDestination] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<RouteTrip | null>(null);
@@ -124,7 +135,12 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
     return () => clearInterval(timer);
   }, []);
 
-  const activeTrip = trips.find(tr => tr.id === selectedTripId) || trips[0];
+  // Détermination du trajet actif (soit le favori sélectionné, soit l'itinéraire à la volée)
+  const selectedSavedTrip = trips.find(tr => tr.id === selectedTripId) || trips[0];
+  const activeTrip: RouteTrip = isUsingFlyMode
+  ? ({ id: 'fly', name: 'Trajet à la volée', origin: flyOrigin, destination: flyDestination } as RouteTrip)
+  : selectedSavedTrip;
+
   const currentTemp = currentWeather ? Number(currentWeather.temperature ?? 15) : 15;
   const weatherCond = currentWeather?.condition || 'Stable';
 
@@ -144,7 +160,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
       setAiAnalysis(null);
       setIsUsingAiMode(false);
     }
-  }, [selectedTripId, cacheKey]);
+  }, [activeTrip?.origin, activeTrip?.destination, cacheKey]);
 
   const loadFuelPrices = async () => {
     setIsRefreshingFuel(true);
@@ -161,6 +177,73 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   useEffect(() => {
     loadFuelPrices();
   }, []);
+
+
+
+const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
+  if (target === 'origin') setIsLocatingOrigin(true);
+  else setIsLocatingDestination(true);
+
+  try {
+    let latitude: number;
+    let longitude: number;
+
+    // Vérifie si on est sur une application native (Android / iOS) ou sur le Web
+    if (Capacitor.isNativePlatform()) {
+      const permissionStatus = await Geolocation.checkPermissions();
+      if (permissionStatus.location !== 'granted') {
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== 'granted') {
+          throw new Error('Permission de géolocalisation refusée.');
+        }
+      }
+
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000
+      });
+      latitude = position.coords.latitude;
+      longitude = position.coords.longitude;
+    } else {
+      // Fallback pour le navigateur Web (localhost / PWA)
+      if (!navigator.geolocation) {
+        throw new Error('La géolocalisation n\'est pas supportée par votre navigateur.');
+      }
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000
+        });
+      });
+
+      latitude = position.coords.latitude;
+      longitude = position.coords.longitude;
+    }
+
+    const coordsStr = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+    if (target === 'origin') {
+      setFlyOrigin(coordsStr);
+    } else {
+      setFlyDestination(coordsStr);
+    }
+    setIsUsingFlyMode(true);
+  } catch (error: any) {
+    console.error('Erreur GPS détaillée :', error);
+    alert(`Erreur GPS : ${error.message || 'Impossible de récupérer la position.'}`);
+  } finally {
+    if (target === 'origin') setIsLocatingOrigin(false);
+    else setIsLocatingDestination(false);
+  }
+};
+
+  const handleSwapFlyRoute = () => {
+    const prevOrigin = flyOrigin;
+    setFlyOrigin(flyDestination);
+    setFlyDestination(prevOrigin);
+    setIsUsingFlyMode(true);
+  };
 
   const handleRunAiTripAnalysis = async () => {
     if (remainingQuota <= 0) {
@@ -247,7 +330,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
     setIsGeneratingAi(false);
   };
 
-  // AUTOCOMPLÉTION DÉPART (FILTRAGE ADRESSE SEULE)
+  // AUTOCOMPLÉTION DÉPART
   useEffect(() => {
     const query = newOrigin.trim();
     if (query.length < 3) { setOriginSuggestions([]); return; }
@@ -276,7 +359,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
     return () => clearTimeout(timer);
   }, [newOrigin]);
 
-  // AUTOCOMPLÉTION ARRIVÉE (FILTRAGE ADRESSE SEULE)
+  // AUTOCOMPLÉTION ARRIVÉE
   useEffect(() => {
     const query = newDestination.trim();
     if (query.length < 3) { setDestinationSuggestions([]); return; }
@@ -384,12 +467,12 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   const trafficLedLevel = trafficStatus.toLowerCase().includes('dense') || trafficStatus.toLowerCase().includes('ralentissements') ? 3 : trafficStatus.toLowerCase().includes('modéré') ? 6 : 9;
 
   return (
-    <div className="space-y-4 animate-fade-in text-xs w-full max-w-full pb-8 relative">
+    <div className="space-y-3 animate-fade-in text-xs w-full max-w-full pb-6">
       
       {/* MODAL D'AJOUT / ÉDITION DE TRAJET */}
       {showAddModal && (
         <div className="fixed inset-0 z-[99999] flex items-start justify-center pt-12 bg-black/85 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-[#121622] border border-sky-400/80 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 relative">
+          <div className="bg-[#121622] border border-sky-400/80 rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4 relative">
             <div className="flex items-center justify-between border-b border-slate-700 pb-3">
               <h3 className="text-sm font-black text-white flex items-center gap-2">
                 <Plus className="w-4 h-4 text-sky-300" />
@@ -400,20 +483,20 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
               </button>
             </div>
 
-            <form onSubmit={handleAddOrUpdateTrip} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] text-slate-200 font-bold block uppercase tracking-wide">Nom du trajet</label>
-                <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Bureau, Maison..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
+            <form onSubmit={handleAddOrUpdateTrip} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-300 font-bold block uppercase tracking-wide">Nom du trajet</label>
+                <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Bureau, Maison..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-visible pb-10">
-                <div className="space-y-1.5 relative overflow-visible">
-                  <label className="text-[11px] text-slate-200 font-bold block uppercase tracking-wide">Départ</label>
-                  <input type="text" value={newOrigin} onChange={(e) => setNewOrigin(e.target.value)} placeholder="Ex: 66, Rue de Mersch..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+                <div className="space-y-1 relative">
+                  <label className="text-[10px] text-slate-300 font-bold block uppercase tracking-wide">Départ</label>
+                  <input type="text" value={newOrigin} onChange={(e) => setNewOrigin(e.target.value)} placeholder="Ex: 66, Rue de Mersch..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
                   {originSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#050811] border border-sky-400 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-48 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#050811] border border-sky-400 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-40 overflow-y-auto">
                       {originSuggestions.map((item, idx) => (
-                        <button key={idx} type="button" onClick={() => { setNewOrigin(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setOriginSuggestions([]); }} className="w-full text-left px-3 py-2.5 text-[11px] text-slate-200 hover:bg-sky-950 hover:text-white flex items-center justify-between border-b border-slate-800 cursor-pointer">
+                        <button key={idx} type="button" onClick={() => { setNewOrigin(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setOriginSuggestions([]); }} className="w-full text-left px-3 py-2 text-[11px] text-slate-200 hover:bg-sky-950 hover:text-white flex items-center justify-between border-b border-slate-800 cursor-pointer">
                           <span className="font-bold">{item.name} {item.admin1 ? `- ${item.admin1}` : ''}</span>
                           <span className="text-[9px] text-sky-300 font-mono font-semibold">{item.country}</span>
                         </button>
@@ -422,13 +505,13 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
                   )}
                 </div>
 
-                <div className="space-y-1.5 relative overflow-visible">
-                  <label className="text-[11px] text-slate-200 font-bold block uppercase tracking-wide">Arrivée</label>
-                  <input type="text" value={newDestination} onChange={(e) => setNewDestination(e.target.value)} placeholder="Ex: Luxembourg, Stäreplatz..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
+                <div className="space-y-1 relative">
+                  <label className="text-[10px] text-slate-300 font-bold block uppercase tracking-wide">Arrivée</label>
+                  <input type="text" value={newDestination} onChange={(e) => setNewDestination(e.target.value)} placeholder="Ex: Luxembourg, Stäreplatz..." required className="w-full bg-[#050811] border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold" />
                   {destinationSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#050811] border border-sky-400 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-48 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#050811] border border-sky-400 rounded-xl shadow-2xl z-[999999] overflow-hidden max-h-40 overflow-y-auto">
                       {destinationSuggestions.map((item, idx) => (
-                        <button key={idx} type="button" onClick={() => { setNewDestination(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setDestinationSuggestions([]); }} className="w-full text-left px-3 py-2.5 text-[11px] text-slate-200 hover:bg-sky-950 hover:text-white flex items-center justify-between border-b border-slate-800 cursor-pointer">
+                        <button key={idx} type="button" onClick={() => { setNewDestination(`${item.name}${item.admin1 ? `, ${item.admin1}` : ''}, ${item.country}`); setDestinationSuggestions([]); }} className="w-full text-left px-3 py-2 text-[11px] text-slate-200 hover:bg-sky-950 hover:text-white flex items-center justify-between border-b border-slate-800 cursor-pointer">
                           <span className="font-bold">{item.name} {item.admin1 ? `- ${item.admin1}` : ''}</span>
                           <span className="text-[9px] text-sky-300 font-mono font-semibold">{item.country}</span>
                         </button>
@@ -447,254 +530,341 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
         </div>
       )}
 
-      {/* EN-TÊTE DE LA PAGE */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-3.5 shadow-md flex items-center justify-between backdrop-blur-md">
+      {/* ZONE 1 : EN-TÊTE COMPACT (MÉTÉO, LED, IA QUOTA) */}
+      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md flex items-center justify-between">
         <div className="flex items-center space-x-2.5">
-          <div className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-sky-300 shadow-sm">
-            <Navigation className="w-5 h-5 text-sky-300" />
+          <div className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-sky-300">
+            <Navigation className="w-4 h-4 text-sky-300" />
           </div>
           <div>
-            <h1 className="text-sm font-black text-white">Assistant Trajets & Mobilité</h1>
-            <p className="text-[10px] text-slate-300 font-semibold">{currentTemp}°C • {weatherCond} {isUsingAiMode ? `• 🤖 IA (${usedModelName})` : '• 📊 Mode Standard'}</p>
+            <h1 className="text-xs font-black text-white">Assistant Mobilité</h1>
+            <p className="text-[10px] text-slate-300 font-semibold">{currentTemp}°C • {weatherCond} {isUsingAiMode ? `• 🤖 IA (${usedModelName})` : ''}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <LedLevelIndicator level={trafficLedLevel} />
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-[9px] font-black text-slate-200 shadow-sm">
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-slate-900 border border-slate-700 text-[9px] font-black text-slate-200">
             <Zap className="w-3 h-3 text-sky-300" />
-            <span>{remainingQuota}/{MAX_RPM} req.</span>
+            <span>{remainingQuota}/{MAX_RPM}</span>
           </div>
         </div>
       </div>
 
       {aiError && (
-        <div className="bg-rose-950/80 border border-rose-400 text-rose-100 rounded-xl p-3 text-[11px] font-semibold shadow-md">
+        <div className="bg-rose-950/80 border border-rose-400 text-rose-100 rounded-xl p-2.5 text-[10px] font-semibold">
           {aiError}
         </div>
       )}
 
-      {/* SÉLECTEUR ET GESTION DES TRAJETS */}
-      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-700 pb-2">
-          <span className="text-white font-black text-xs uppercase tracking-wider">MES TRAJETS ENREGISTRÉS</span>
-          <button onClick={() => { setEditingTrip(null); setNewName(''); setNewOrigin(''); setNewDestination(''); setShowAddModal(true); }} className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-200 border border-slate-700 font-black flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer shadow-sm">
-            <Plus className="w-3.5 h-3.5 text-sky-300" />
-            <span>Ajouter</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-          {trips.map((trip) => (
+      {/* ZONE 2 : CARROUSEL HORIZONTAL DES TRAJETS FAVORIS */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {trips.map((trip) => {
+          const isSelected = !isUsingFlyMode && trip.id === selectedTripId;
+          return (
             <div 
               key={trip.id} 
-              onClick={() => { setSelectedTripId(trip.id); }} 
-              className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition-all cursor-pointer shadow-sm ${trip.id === selectedTripId ? 'bg-slate-900 border-sky-400 shadow-sky-950' : 'bg-[#050811] border-slate-800 hover:border-slate-700 text-slate-300'}`}
+              onClick={() => { setSelectedTripId(trip.id); setIsUsingFlyMode(false); }} 
+              className={`flex-shrink-0 px-3 py-2 rounded-xl border flex items-center gap-3 transition-all cursor-pointer ${
+                isSelected 
+                  ? 'bg-slate-900 border-sky-400 shadow-sm text-white' 
+                  : 'bg-[#121622] border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+              }`}
             >
-              <div className="flex items-center justify-between">
-                <span className={`font-black text-xs truncate ${trip.id === selectedTripId ? 'text-white' : 'text-slate-300'}`}>{trip.name}</span>
-                <div className="flex items-center space-x-1">
-                  <button onClick={(e) => { e.stopPropagation(); handleStartEdit(trip); }} className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-sky-300"><Edit3 className="w-3 h-3" /></button>
-                  {trips.length > 1 && <button onClick={(e) => handleDeleteTrip(trip.id, e)} className="p-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-rose-300"><Trash2 className="w-3 h-3" /></button>}
-                </div>
+              <div className="flex flex-col">
+                <span className="font-black text-[11px] truncate max-w-[130px] flex items-center gap-1">
+                  <Bookmark className="w-2.5 h-2.5 text-sky-300" /> {trip.name}
+                </span>
+                <span className="text-[9px] text-slate-400 truncate max-w-[130px]">
+                  {cleanAddressInput(trip.origin)} → {cleanAddressInput(trip.destination)}
+                </span>
               </div>
-              <div className="text-[10px] text-slate-400 truncate font-semibold">
-                <span className="text-slate-500 font-bold">De:</span> {cleanAddressInput(trip.origin)} <br />
-                <span className="text-slate-500 font-bold">À:</span> {cleanAddressInput(trip.destination)}
+              <div className="flex items-center space-x-1 pl-1 border-l border-slate-800">
+                <button onClick={(e) => { e.stopPropagation(); handleStartEdit(trip); }} className="p-1 rounded hover:text-sky-300">
+                  <Edit3 className="w-3 h-3" />
+                </button>
+                {trips.length > 1 && (
+                  <button onClick={(e) => handleDeleteTrip(trip.id, e)} className="p-1 rounded hover:text-rose-300">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             </div>
-          ))}
+          );
+        })}
+        <button 
+          onClick={() => { setEditingTrip(null); setNewName(''); setNewOrigin(''); setNewDestination(''); setShowAddModal(true); }} 
+          className="flex-shrink-0 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-dashed border-slate-700 font-black flex items-center gap-1 text-[11px] cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Ajouter</span>
+        </button>
+      </div>
+
+      {/* ZONE 2.5 : BLOC TRAJET À LA VOLÉE (GÉOLOCALISATION / LIBRE) */}
+      <div className={`border rounded-2xl p-3 shadow-md space-y-2 transition-all ${
+        isUsingFlyMode ? 'bg-[#121622] border-sky-400/80 shadow-sky-950/20' : 'bg-[#121622]/80 border-slate-700/60'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Crosshair className="w-3.5 h-3.5 text-sky-300" />
+            <span className="text-[11px] font-black text-white uppercase tracking-wider">Itinéraire à la volée (GPS / Libre)</span>
+          </div>
+          {isUsingFlyMode && (
+            <span className="px-2 py-0.5 rounded-md bg-sky-600/30 border border-sky-400/40 text-[9px] font-bold text-sky-300">
+              Actif
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-2">
+          {/* Ligne Départ */}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={flyOrigin}
+              onChange={(e) => { setFlyOrigin(e.target.value); setIsUsingFlyMode(true); }}
+              placeholder="Départ (Adresse ou GPS)"
+              className="flex-1 bg-[#050811] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold"
+            />
+            <button
+              type="button"
+              onClick={() => handleGetGpsPosition('origin')}
+              disabled={isLocatingOrigin}
+              title="Utiliser ma position GPS"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-950 border border-slate-700 hover:border-sky-400 text-sky-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+            >
+              {isLocatingOrigin ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
+              <span>Ma position</span>
+            </button>
+          </div>
+
+          {/* Bouton Inverser & Ligne Arrivée */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleSwapFlyRoute}
+              title="Inverser départ et arrivée"
+              className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-sky-300" />
+            </button>
+            <input
+              type="text"
+              value={flyDestination}
+              onChange={(e) => { setFlyDestination(e.target.value); setIsUsingFlyMode(true); }}
+              placeholder="Arrivée (Adresse ou GPS)"
+              className="flex-1 bg-[#050811] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-semibold"
+            />
+            <button
+              type="button"
+              onClick={() => handleGetGpsPosition('destination')}
+              disabled={isLocatingDestination}
+              title="Utiliser ma position GPS"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-sky-950 border border-slate-700 hover:border-sky-400 text-sky-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+            >
+              {isLocatingDestination ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
+              <span>Ma position</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* SÉLECTEUR DE MODE & BOUTON IA */}
-      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          
-          <div className="grid grid-cols-2 gap-2 w-full sm:w-auto flex-1">
+      {/* ZONE 3 : SÉLECTEUR DE MODE & BOUTON IA + ENCART TEMPS ESTIMÉ */}
+      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="grid grid-cols-2 gap-1.5 flex-1">
             <button 
-              onClick={() => { setActiveMode('car'); }} 
-              className={`p-2.5 rounded-xl border font-black text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-sm ${activeMode === 'car' ? 'bg-sky-600 border-sky-300 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'}`}
+              onClick={() => setActiveMode('car')} 
+              className={`py-2 px-3 rounded-xl border font-black text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all ${
+                activeMode === 'car' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+              }`}
             >
-              <Car className="w-4 h-4 text-sky-200" />
-              <span>En Voiture</span>
+              <Car className="w-3.5 h-3.5 text-sky-200" />
+              <span>Voiture</span>
             </button>
             <button 
-              onClick={() => { setActiveMode('bus'); }} 
-              className={`p-2.5 rounded-xl border font-black text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-sm ${activeMode === 'bus' ? 'bg-teal-600 border-teal-300 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'}`}
+              onClick={() => setActiveMode('bus')} 
+              className={`py-2 px-3 rounded-xl border font-black text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all ${
+                activeMode === 'bus' ? 'bg-teal-600 border-teal-300 text-white shadow-sm' : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+              }`}
             >
-              <Bus className="w-4 h-4 text-teal-200" />
-              <span>En Bus / Transports</span>
+              <Bus className="w-3.5 h-3.5 text-teal-200" />
+              <span>Bus / TC</span>
             </button>
           </div>
 
           <button
             onClick={handleRunAiTripAnalysis}
             disabled={isGeneratingAi || remainingQuota <= 0}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 border border-sky-300 disabled:bg-slate-800 disabled:border-slate-700 text-white font-black transition-all cursor-pointer inline-flex items-center justify-center gap-2 shadow-md text-xs whitespace-nowrap w-full sm:w-auto"
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 border border-sky-300 disabled:bg-slate-800 disabled:border-slate-700 text-white font-black transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm text-xs whitespace-nowrap"
           >
             {isGeneratingAi ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                <span>Analyse...</span>
-              </>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
             ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-sky-200" />
-                <span>Analyser avec IA</span>
-              </>
+              <Sparkles className="w-3.5 h-3.5 text-sky-200" />
             )}
+            <span>Analyser IA</span>
           </button>
+        </div>
 
+        {/* Encart temps estimé */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#050811] border border-slate-800">
+          <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+            {activeMode === 'car' ? 'Temps estimé (Voiture)' : 'Temps estimé (Transports)'}
+          </span>
+          <span className={`text-xs font-black flex items-center gap-1 ${activeMode === 'car' ? 'text-sky-300' : 'text-teal-300'}`}>
+            <Clock className="w-3.5 h-3.5" /> {currentActiveTime}
+          </span>
         </div>
       </div>
 
-      {/* TRANSPORTS EN COMMUN - LIEN GOOGLE MAPS TRANSIT */}
-      {activeMode === 'bus' && activeTrip && (
-        <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-2">
-            <div className="flex items-center space-x-2">
-              <Bus className="w-4 h-4 text-teal-300" />
-              <span className="text-white font-black text-xs uppercase tracking-wider">
-                ITINÉRAIRE TRANSPORTS EN COMMUN
-              </span>
-            </div>
-            <span className="text-[10px] text-teal-300 font-mono font-bold bg-teal-950/60 px-2.5 py-0.5 rounded border border-teal-500/30">
-              Direct Transit
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#050811] border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1.5 flex-1">
-              <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
-                <MapPin className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                <span className="text-slate-200">{cleanAddressInput(activeTrip.origin)}</span>
-                <span className="text-teal-400 font-black">→</span>
-                <span className="text-teal-300">{cleanAddressInput(activeTrip.destination)}</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
-                Le bouton ci-dessous ouvre le calcul d'itinéraire direct avec les lignes de bus/trains du Luxembourg pré-remplies.
-              </p>
-            </div>
-
-            <a
-              href={getMobiliteitPlannerUrl(activeTrip.origin, activeTrip.destination, (language as any) || 'fr')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-500 hover:to-sky-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer whitespace-nowrap border border-teal-400/30"
+      {/* ZONE 4 : TIROIR INFÉRIEUR À ONGLETS (TRAFIC / CARBURANT) */}
+      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md space-y-2.5">
+        {/* Onglets */}
+        <div className="flex border-b border-slate-700 pb-2 gap-2">
+          <button
+            onClick={() => setBottomTab('traffic')}
+            className={`flex-1 py-1.5 rounded-xl font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+              bottomTab === 'traffic'
+                ? 'bg-sky-600/20 text-sky-300 border border-sky-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Trafic & Diagnostic {isUsingAiMode ? '(IA)' : ''}</span>
+          </button>
+          
+          {activeMode === 'car' && (
+            <button
+              onClick={() => setBottomTab('fuel')}
+              className={`flex-1 py-1.5 rounded-xl font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                bottomTab === 'fuel'
+                  ? 'bg-teal-600/20 text-teal-300 border border-teal-500/40'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
             >
-              <span>Calculer cet itinéraire</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </div>
+              <Fuel className="w-3.5 h-3.5" />
+              <span>Carburant & Coûts</span>
+            </button>
+          )}
         </div>
-      )}
 
-      {/* TEMPS DE TRAJET ET CARTE GOOGLE MAPS */}
-      <div className="space-y-2 w-full">
-        <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 flex items-center justify-between shadow-md">
-          <div className="flex items-center space-x-2">
-            <div className={`p-1.5 rounded-xl bg-slate-900 border border-slate-700 ${activeMode === 'car' ? 'text-sky-300' : 'text-teal-300'}`}>
-              {activeMode === 'car' ? <Car className="w-4 h-4" /> : <Bus className="w-4 h-4" />}
+        {/* CONTENU DE L'ONGLET TRAFIC */}
+        {bottomTab === 'traffic' && (
+          <div className="space-y-2 text-[10px] pt-1">
+            <div className="bg-[#050811] p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+              <span className="text-slate-300 font-bold uppercase tracking-wide">État du trafic :</span>
+              <span className={`font-black ${trafficColor}`}>{trafficStatus}</span>
             </div>
-            <span className="text-[11px] font-black text-white uppercase tracking-wider">
-              {activeMode === 'car' ? 'Temps estimé (Voiture)' : 'Temps estimé (Transports)'}
-            </span>
+
+            <div className="bg-[#050811] p-2.5 rounded-xl border border-rose-950/60 flex items-start justify-between space-x-2">
+              <span className="text-slate-300 font-bold uppercase tracking-wide flex-shrink-0">Congestion :</span>
+              <span className="text-rose-200 text-right font-semibold">{congestionPoints}</span>
+            </div>
+
+            <div className="bg-[#050811] p-2.5 rounded-xl border border-sky-950/60 flex items-center justify-between">
+              <span className="text-sky-300 font-bold uppercase tracking-wide">Conseil :</span>
+              <span className="text-slate-200 text-right font-semibold">{smartAdvice}</span>
+            </div>
+
+            {recommendedWaypoint && (
+              <div className="bg-[#050811] p-2.5 rounded-xl border border-teal-950/60 flex items-center justify-between">
+                <span className="text-teal-300 font-bold uppercase tracking-wide flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Variante IA :
+                </span>
+                <span className="text-teal-200 text-right font-semibold">{recommendedWaypoint}</span>
+              </div>
+            )}
           </div>
-          <span className={`text-sm font-black flex items-center gap-1.5 ${activeMode === 'car' ? 'text-sky-300' : 'text-teal-300'}`}>
-            <Clock className="w-4 h-4" /> {currentActiveTime}
+        )}
+
+        {/* CONTENU DE L'ONGLET CARBURANT */}
+        {bottomTab === 'fuel' && activeMode === 'car' && (
+          <div className="space-y-2.5 pt-1">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-2 rounded-xl bg-[#050811] border border-slate-800 text-center">
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 95</span>
+                <span className="text-xs font-black text-white mt-0.5 block">{fuelPrices.super95}</span>
+              </div>
+              <div className="p-2 rounded-xl bg-[#050811] border border-slate-800 text-center">
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 98</span>
+                <span className="text-xs font-black text-white mt-0.5 block">{fuelPrices.super98}</span>
+              </div>
+              <div className="p-2 rounded-xl bg-[#050811] border border-slate-800 text-center">
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Diesel</span>
+                <span className="text-xs font-black text-white mt-0.5 block">{fuelPrices.diesel}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#050811] border border-sky-400/40 text-[10px]">
+              <div>
+                <span className="text-sky-200 font-bold">💡 Estimation coût trajet : </span>
+                <strong className="text-white">{fuelEstimate}</strong>
+              </div>
+              <button onClick={loadFuelPrices} disabled={isRefreshingFuel} className="text-slate-300 hover:text-white flex items-center gap-1 font-bold cursor-pointer">
+                <RefreshCw className={`w-3 h-3 text-sky-300 ${isRefreshingFuel ? 'animate-spin' : ''}`} />
+                <span>Actualiser</span>
+              </button>
+            </div>
+
+            <div className="text-right">
+              <a href="https://www.acl.lu/fr/mobilite/prix-des-carburants/" target="_blank" rel="noopener noreferrer" className="text-[9px] text-sky-300 hover:underline inline-flex items-center gap-1 font-mono font-bold">
+                <span>Cours officiels ACL</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ZONE 5 : CARTE GOOGLE MAPS + BOUTON D'ACTION EN BAS */}
+      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3 shadow-md space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-sky-300" /> CARTE & NAVIGATION
+          </span>
+          <span className="text-[9px] text-slate-400 font-mono">
+            {activeMode === 'car' ? 'Mode Voiture' : 'Mode Transports'}
           </span>
         </div>
 
-        <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-2 shadow-xl h-[450px] overflow-hidden relative w-full">
+        {/* CARTE GOOGLE MAPS */}
+        <div className="rounded-xl overflow-hidden h-[260px] border border-slate-700/80 shadow-inner relative w-full">
           <iframe
             key={`${activeMode}-${activeTrip?.id}-${recommendedWaypoint}`}
             title="Carte interactive du trajet"
             width="100%"
             height="100%"
-            style={{ border: 0, borderRadius: '12px', filter: 'invert(90%) hue-rotate(180deg)' }}
+            style={{ border: 0 }}
             loading="lazy"
             src={mapEmbedUrl}
           />
         </div>
+
+        {/* BOUTON D'ACTION PRINCIPAL EN BAS */}
+        {activeMode === 'bus' ? (
+          <a
+            href={getMobiliteitPlannerUrl(activeTrip.origin, activeTrip.destination, (language as any) || 'fr')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-500 hover:to-sky-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer border border-teal-400/35"
+          >
+            <span>Ouvrir l'itinéraire Transports en Commun</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        ) : (
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(cleanAddressInput(activeTrip.origin))}&destination=${encodeURIComponent(cleanAddressInput(activeTrip.destination))}&travelmode=driving`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-black text-xs inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer border border-sky-400/35"
+          >
+            <span>Lancer la navigation Google Maps (Voiture)</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
       </div>
-
-      {/* DIAGNOSTIC & TRAFIC */}
-      <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-3.5 shadow-md space-y-3 w-full">
-        <div className="flex items-center justify-between border-b border-slate-700 pb-2">
-          <div className="flex items-center space-x-2 text-white font-black text-xs uppercase tracking-wider">
-            <ShieldAlert className="w-4 h-4 text-sky-300" />
-            <span>DIAGNOSTIC & TRAFIC {isUsingAiMode ? '(Piloté par IA)' : '(Mode Standard)'}</span>
-          </div>
-          <LedLevelIndicator level={trafficLedLevel} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-2.5 text-[10px]">
-          <div className="bg-[#050811] p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
-            <span className="text-slate-300 font-bold uppercase tracking-wide">État du trafic :</span>
-            <span className={`font-black ${trafficColor}`}>{trafficStatus}</span>
-          </div>
-
-          <div className="bg-[#050811] p-2.5 rounded-xl border border-rose-950/60 flex items-start justify-between space-x-2">
-            <span className="text-slate-300 font-bold uppercase tracking-wide flex-shrink-0">Points de congestion :</span>
-            <span className="text-rose-200 text-right font-semibold">{congestionPoints}</span>
-          </div>
-
-          <div className="bg-[#050811] p-2.5 rounded-xl border border-sky-950/60 flex items-center justify-between">
-            <span className="text-sky-300 font-bold uppercase tracking-wide">Conseil & Itinéraire :</span>
-            <span className="text-slate-200 text-right font-semibold">{smartAdvice}</span>
-          </div>
-
-          {recommendedWaypoint && (
-            <div className="bg-[#050811] p-2.5 rounded-xl border border-teal-950/60 flex items-center justify-between">
-              <span className="text-teal-300 font-bold uppercase tracking-wide flex items-center gap-1"><MapPin className="w-3 h-3" /> Variante carte (IA) :</span>
-              <span className="text-teal-200 text-right font-semibold">{recommendedWaypoint}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* BARÈME & COÛT CARBURANT */}
-      {activeMode === 'car' && (
-        <div className="bg-[#121622] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3 w-full">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-2">
-            <span className="text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-              <Fuel className="w-4 h-4 text-sky-300" /> BARÈME & COÛT CARBURANT
-            </span>
-
-            <button onClick={loadFuelPrices} disabled={isRefreshingFuel} className="text-slate-300 hover:text-white flex items-center gap-1 text-[10px] font-bold cursor-pointer">
-              <RefreshCw className={`w-3 h-3 text-sky-300 ${isRefreshingFuel ? 'animate-spin' : ''}`} />
-              <span>{fuelPrices.updatedAt}</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="p-2.5 rounded-xl bg-[#050811] border border-slate-800 text-center shadow-sm">
-              <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 95</span>
-              <span className="text-sm font-black text-white mt-1 block">{fuelPrices.super95}</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#050811] border border-slate-800 text-center shadow-sm">
-              <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Super 98</span>
-              <span className="text-sm font-black text-white mt-1 block">{fuelPrices.super98}</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#050811] border border-slate-800 text-center shadow-sm">
-              <span className="text-[9px] text-slate-400 font-extrabold uppercase block tracking-wider">Diesel</span>
-              <span className="text-sm font-black text-white mt-1 block">{fuelPrices.diesel}</span>
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-[#050811] border border-sky-400/40 text-[10px] text-sky-200 font-bold shadow-sm">
-            💡 <strong className="text-white">Estimation coût trajet :</strong> {fuelEstimate}
-          </div>
-
-          <div className="pt-1 text-right">
-            <a href="https://www.acl.lu/fr/mobilite/prix-des-carburants/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-300 hover:underline inline-flex items-center gap-1 font-mono font-bold">
-              <span>Cours officiels ACL</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-      )}
 
     </div>
   );
