@@ -95,7 +95,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   const [activeMode, setActiveMode] = useState<'car' | 'bus'>('car');
   const [bottomTab, setBottomTab] = useState<'traffic' | 'fuel'>('traffic');
 
-  // États pour le mode "À la volée" synchronisés avec le trajet sélectionné par défaut
+  // États pour le mode "À la volée"
   const [isUsingFlyMode, setIsUsingFlyMode] = useState(false);
   const [flyOrigin, setFlyOrigin] = useState<string>(trips[0]?.origin || '66, Rue de Mersch, Kopstal');
   const [flyDestination, setFlyDestination] = useState<string>(trips[0]?.destination || 'Luxembourg, Stäreplatz / Étoile');
@@ -105,6 +105,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   // États pour la recherche d'arrêts de bus OpenStreetMap autour de la position GPS
   const [nearbyBusStops, setNearbyBusStops] = useState<OsmBusStop[]>([]);
   const [isLoadingBusStops, setIsLoadingBusStops] = useState(false);
+  const [busStopError, setBusStopError] = useState<string | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<RouteTrip | null>(null);
@@ -232,6 +233,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   // Recherche des arrêts de bus OpenStreetMap autour de la position actuelle
   const handleFindNearbyBusStops = async () => {
     setIsLoadingBusStops(true);
+    setBusStopError(null);
     try {
       let lat: number;
       let lon: number;
@@ -249,10 +251,16 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
       }
 
       const stops = await fetchNearbyBusStopsFromOSM(lat, lon, 1500);
+      
+      if (stops.length === 0) {
+        setBusStopError("Aucun arrêt de bus trouvé dans un rayon de 1,5 km.");
+      }
+      
       setNearbyBusStops(stops);
     } catch (err: any) {
       console.error('Erreur bus stop OSM:', err);
-      alert('Impossible de récupérer les arrêts de bus autour de vous.');
+      setBusStopError("Impossible de récupérer les arrêts (vérifiez votre connexion).");
+      setNearbyBusStops([]);
     } finally {
       setIsLoadingBusStops(false);
     }
@@ -776,6 +784,14 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
                 </button>
               </div>
             </div>
+
+            {/* Message d'erreur éventuel pour les bus */}
+            {busStopError && activeMode === 'bus' && (
+              <div className="p-2 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-[10px] font-semibold flex items-center justify-between">
+                <span>{busStopError}</span>
+                <button onClick={() => setBusStopError(null)} className="text-rose-400 hover:text-white font-bold ml-2">✕</button>
+              </div>
+            )}
 
             {/* CONTENU CONDITIONNEL : ARRÊTS DE BUS (SI MODE BUS) OU CARBURANT (SI MODE VOITURE) */}
             {activeMode === 'bus' ? (
