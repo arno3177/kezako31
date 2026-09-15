@@ -27,7 +27,6 @@ export const fetchNearbyBusStopsFromOSM = async (
   longitude: number,
   radiusMeters: number = 1500
 ): Promise<OsmBusStop[]> => {
-  // Requête ultra-rapide ciblant uniquement les nœuds d'arrêts avec un timeout court (10s)
   const overpassQuery = `
     [out:json][timeout:10];
     node["highway"="bus_stop"](around:${radiusMeters},${latitude},${longitude});
@@ -39,7 +38,7 @@ export const fetchNearbyBusStopsFromOSM = async (
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Erreur HTTP Overpass: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
     }
 
     const data = await response.json();
@@ -78,8 +77,10 @@ export const fetchNearbyBusStopsFromOSM = async (
     results.sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
     return results;
-  } catch (error) {
-    console.error('Erreur lors de la requête Overpass allégée:', error);
-    return [];
+  } catch (error: any) {
+    console.error('Erreur Overpass détaillée:', error);
+    // On propage l'erreur pour pouvoir l'afficher à l'écran sur Android
+    throw new Error(error.message || 'Erreur réseau inconnue');
   }
+
 };

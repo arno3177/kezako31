@@ -259,7 +259,8 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
       setNearbyBusStops(stops);
     } catch (err: any) {
       console.error('Erreur bus stop OSM:', err);
-      setBusStopError("Impossible de récupérer les arrêts (vérifiez votre connexion).");
+      // Affiche l'erreur exacte renvoyée par l'exception (ex: TypeError, Failed to fetch, etc.)
+      setBusStopError(`Erreur API Bus : ${err.message || 'Problème réseau'}`);
       setNearbyBusStops([]);
     } finally {
       setIsLoadingBusStops(false);
