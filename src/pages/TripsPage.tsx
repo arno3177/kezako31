@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { 
   Car, Bus, Navigation, Plus, Trash2, Edit3, 
-  RefreshCw, Fuel, ShieldAlert,
+  ExternalLink, RefreshCw, Fuel, ShieldAlert,
   Zap, Clock, MapPin, Sparkles, Loader2, X,
   Crosshair, ArrowUpDown, Bookmark, ListFilter, CheckCircle2,
   MousePointerClick
@@ -312,6 +312,9 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
   const destParamForMap = flyDestinationCoords ? flyDestinationCoords : encodeURIComponent(rawDestText.toLowerCase().includes('luxembourg') ? rawDestText : `${rawDestText}, Luxembourg`);
   
   const mapEmbedUrl = `https://maps.google.com/maps?f=d&saddr=${originParamForMap}&daddr=${destParamForMap}&dirflg=${activeMode === 'bus' ? 'r' : 'd'}&output=embed&hl=fr`;
+
+  const externalOrigin = encodeURIComponent(rawOriginText);
+  const externalDestination = encodeURIComponent(rawDestText);
 
   return (
     <div className="space-y-4 text-xs w-full max-w-xl mx-auto pb-10 px-1 font-sans text-slate-100">
@@ -679,24 +682,34 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
         )}
       </div>
 
-      {/* 5. CARTE & INDICATION INTERACTIVE */}
-      <div className="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800 shadow-md space-y-2.5">
-        <div className="rounded-xl overflow-hidden h-52 border border-slate-800 relative shadow-inner">
+      {/* 5. CARTE & NAVIGATION (Statique cliquable identique HomePage) */}
+      <div className="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800 shadow-md space-y-3">
+        <a
+          href={
+            activeMode === 'bus'
+              ? `https://www.google.com/maps/dir/?api=1&origin=${externalOrigin}&destination=${externalDestination}&travelmode=transit`
+              : `https://www.google.com/maps/dir/?api=1&origin=${externalOrigin}&destination=${externalDestination}&travelmode=driving`
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-xl overflow-hidden h-52 border border-slate-800 relative shadow-inner cursor-pointer group"
+        >
           <iframe
             key={`${activeMode}-${activeTrip?.id}-${originParamForMap}`}
             title="Carte du trajet"
             width="100%"
             height="100%"
-            style={{ border: 0 }}
+            style={{ border: 0, pointerEvents: 'none' }}
             loading="lazy"
             src={mapEmbedUrl}
           />
-        </div>
-
-        <div className="flex items-center justify-center gap-2 py-1 text-slate-400 text-[11px] font-medium">
-          <MousePointerClick className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
-          <span>Cliquez directement sur la carte pour interagir avec l'itinéraire</span>
-        </div>
+          <div className="absolute inset-0 bg-sky-950/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span className="px-3 py-1.5 rounded-xl bg-slate-950/80 text-sky-300 font-bold text-xs shadow-lg border border-sky-500/30 flex items-center gap-1.5">
+              <span>Ouvrir dans Google Maps</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </a>
       </div>
 
       {/* 6. TRAFIC & DIAGNOSTIC */}
