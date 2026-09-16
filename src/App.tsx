@@ -7,10 +7,10 @@ import { Article, PageView, TemperatureUnit, AppSettings } from './types';
 import { auth } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { GoogleAuthService } from './service/googleAuthService';
-import { HomePage } from './pages/HomePage';
+import HomePage from './pages/HomePage';
 import { SourcesNewsPage } from './pages/SourcesNewsPage';
 import { WeatherDetailPage } from './pages/WeatherDetailPage';
-import { SettingsPage } from './pages/SettingsPage';
+import SettingsPage from './pages/SettingsPage';
 import { TripsPage } from './pages/TripsPage';
 import { WorkspacePage } from './pages/WorkspacePage';
 import { SavedArticlesPage } from './pages/SavedArticlesPage';
@@ -256,7 +256,7 @@ export function App() {
             currentWeather={currentWeather}
             onBack={() => setActiveTab('home')}
             language={settings.language}
-             settings={settings}
+            
           />
         )}
         {activeTab === 'home' && (
