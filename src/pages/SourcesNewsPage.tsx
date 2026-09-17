@@ -15,7 +15,7 @@ interface SourcesNewsPageProps {
   language?: AppSettings['language'];
 }
 
-// --- SECROUS AUTONOME DE CHARGEMENT DIRECT DE NEWS (LE MONDE + FRANCE 24) ---
+// --- HOOK AUTONOME DE CHARGEMENT DIRECT DE NEWS (LE MONDE + FRANCE 24) ---
 function useInternalNewsFetcher() {
   const LOCAL_CACHE_KEY = 'news_lemonde_france24_mobile_v1';
 
@@ -187,7 +187,6 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
   onReadArticle,
   onBackToHome
 }) => {
-  // Utilisation autonome du hook si la prop reçue est vide
   const { articles: fetchedArticles, loading: isFetching, refetch } = useInternalNewsFetcher();
   const articles = propArticles && propArticles.length > 0 ? propArticles : fetchedArticles;
 
@@ -271,12 +270,12 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
   }, [articles, activeSourceFilter, searchFilter, activeCategory]);
 
   return (
-    <div className="space-y-6 animate-fade-in text-xs w-full max-w-4xl mx-auto pb-32 px-4 relative text-slate-100 font-sans">
+    <div className="space-y-4 animate-fade-in text-xs w-full max-w-xl mx-auto pb-32 px-1 relative text-slate-100 font-sans">
       
       {/* POPUP REFRESH */}
       {showPopup && (
         <div className="fixed inset-x-0 top-6 z-[9999999] flex justify-center pointer-events-none px-4">
-          <div className="bg-[#0b1d33] border border-sky-400 text-sky-100 p-4 rounded-2xl shadow-2xl backdrop-blur-xl max-w-lg w-full font-mono space-y-2">
+          <div className="bg-slate-900 border border-sky-400 text-sky-100 p-4 rounded-3xl shadow-2xl backdrop-blur-xl max-w-lg w-full font-mono space-y-2">
             <div className="flex items-center gap-2 border-b border-sky-400/30 pb-2">
               <CheckCircle2 className="w-4 h-4 text-sky-300 animate-pulse shrink-0" />
               <p className="font-bold uppercase text-xs">[FLUX_MIS_A_JOUR]</p>
@@ -292,13 +291,13 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
 
       {/* BOUTON REFRESH FLOTTANT */}
       <div 
-        className="fixed right-5 z-[999999] pointer-events-auto"
+        className="fixed right-3 z-[999999] pointer-events-auto"
         style={{ top: `calc(50vh + ${scrollY}px)` }}
       >
         <button
           onClick={handleRefreshNews}
           disabled={isRefreshing || isFetching}
-          className="p-3 rounded-full bg-[#0b192e] hover:bg-[#122b4f] border border-sky-400 text-sky-300 shadow-2xl transition-all cursor-pointer flex items-center justify-center group active:scale-95"
+          className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-sky-400 text-sky-300 shadow-2xl transition-all cursor-pointer flex items-center justify-center group active:scale-95"
           title="Rafraîchir les actualités"
         >
           <RefreshCw className={`w-4 h-4 transition-transform duration-700 ${isRefreshing || isFetching ? 'animate-spin text-white' : 'group-hover:rotate-180'}`} />
@@ -306,24 +305,24 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
       </div>
 
       {/* HEADER PRINCIPAL */}
-      <div className="bg-[#0b192e] border border-sky-900/50 rounded-3xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-4 backdrop-blur-md">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <button 
             onClick={onBackToHome}
-            className="px-3 py-1.5 rounded-xl bg-[#071120] hover:bg-[#102442] border border-sky-800/60 text-sky-300 transition-colors flex items-center gap-2 font-mono text-[11px]"
+            className="px-3.5 py-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-sky-400/30 text-sky-300 transition-colors flex items-center gap-2 font-mono text-[11px] cursor-pointer shadow-sm"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>RETOUR</span>
           </button>
 
           {/* FILTRES PAR SOURCE */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setActiveSourceFilter('all')}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${
                 activeSourceFilter === 'all' 
-                  ? 'bg-sky-500 border-sky-300 text-white shadow-md' 
-                  : 'bg-[#071120] border-sky-900/60 text-slate-400 hover:text-white'
+                  ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' 
+                  : 'bg-slate-900/90 border-sky-400/30 text-slate-300 hover:text-white'
               }`}
             >
               TOUTES ({articles.length})
@@ -337,10 +336,10 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
                 <button
                   key={source}
                   onClick={() => setActiveSourceFilter(source)}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${
                     isActive 
-                      ? 'bg-sky-500 border-sky-300 text-white shadow-md' 
-                      : 'bg-[#071120] border-sky-900/60 text-slate-400 hover:text-white'
+                      ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' 
+                      : 'bg-slate-900/90 border-sky-400/30 text-slate-300 hover:text-white'
                   }`}
                 >
                   {cleanLabel}
@@ -358,22 +357,22 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
             placeholder="Filtrer la timeline..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            className="w-full bg-[#050c17] border border-sky-900/80 rounded-2xl pl-11 pr-4 py-2.5 text-xs text-sky-200 placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono"
+            className="w-full bg-slate-900/90 border border-sky-400/30 rounded-2xl pl-11 pr-4 py-2.5 text-xs text-sky-200 placeholder-slate-400 focus:outline-none focus:border-sky-400 font-mono shadow-inner"
           />
         </div>
       </div>
 
       {/* --- TIMELINE DE NEWS --- */}
       {filteredArticles.length > 0 ? (
-        <div className="relative pl-6 md:pl-10 space-y-8 pt-4">
+        <div className="relative pl-6 sm:pl-10 space-y-6 pt-2">
           
           {/* LIGNE BLEUE VERTICALE */}
-          <div className="absolute left-6 md:left-10 top-0 bottom-0 w-0.5 bg-gradient-to-b from-sky-400 via-sky-600 to-sky-900 -translate-x-1/2 z-0" />
+          <div className="absolute left-6 sm:left-10 top-0 bottom-0 w-0.5 bg-gradient-to-b from-sky-400 via-sky-600 to-sky-900 -translate-x-1/2 z-0" />
 
           {/* ENTÊTE "EN DIRECT" */}
           <div className="relative z-10 flex items-center gap-3 -ml-3">
-            <div className="w-6 h-6 rounded-full bg-sky-400 border-4 border-[#071120] flex items-center justify-center shadow-[0_0_12px_rgba(56,189,248,0.8)]" />
-            <span className="font-mono text-[10px] font-bold tracking-widest text-sky-400 uppercase bg-[#071120] px-2.5 py-1 rounded-full border border-sky-800">
+            <div className="w-5 h-5 rounded-full bg-sky-400 border-4 border-slate-950 flex items-center justify-center shadow-[0_0_12px_rgba(56,189,248,0.8)]" />
+            <span className="font-mono text-[10px] font-bold tracking-widest text-sky-400 uppercase bg-slate-900/90 px-3 py-1 rounded-full border border-sky-400/30 shadow-sm">
               EN DIRECT • TODAY
             </span>
           </div>
@@ -385,31 +384,31 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
             const showImage = hasRealArticleImage(art.imageUrl);
 
             return (
-              <div key={art.id} className="relative z-10 pl-6 md:pl-10 group">
+              <div key={art.id} className="relative z-10 pl-5 sm:pl-8 group">
                 
                 {/* PUCE CIRCULAIRE SUR LA LIGNE */}
-                <div className="absolute -left-3 md:-left-3 top-1 -translate-x-1/2 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full bg-[#09182b] border-2 border-sky-400 group-hover:border-sky-200 group-hover:scale-110 transition-all shadow-[0_0_15px_rgba(56,189,248,0.3)] flex items-center justify-center overflow-hidden">
+                <div className="absolute -left-3 sm:-left-3 top-1 -translate-x-1/2 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 border-2 border-sky-400 group-hover:border-sky-300 group-hover:scale-110 transition-all shadow-md flex items-center justify-center overflow-hidden">
                     {art.author?.avatar ? (
-                      <img src={art.author.avatar} alt={cleanSource} className="w-6 h-6 rounded-full object-cover" />
+                      <img src={art.author.avatar} alt={cleanSource} className="w-5 h-5 rounded-full object-cover" />
                     ) : (
                       getCategoryIcon(art.title, art.source)
                     )}
                   </div>
                 </div>
 
-                {/* CARTE DE ARTICLE */}
+                {/* CARTE DE L'ARTICLE */}
                 <div 
                   onClick={() => onReadArticle(art)}
-                  className="bg-[#0b182b] border border-sky-900/60 hover:border-sky-400/80 rounded-2xl p-5 shadow-lg transition-all cursor-pointer space-y-3 group-hover:bg-[#0e2038]"
+                  className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 hover:border-sky-400 rounded-3xl p-5 shadow-xl transition-all cursor-pointer space-y-3 backdrop-blur-md"
                 >
                   {/* EN-TÊTE NODE */}
-                  <div className="flex items-center justify-between border-b border-sky-900/40 pb-2">
+                  <div className="flex items-center justify-between border-b border-sky-400/30 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sky-300 text-xs tracking-wide">
+                      <span className="font-extrabold text-sky-300 text-xs tracking-wide bg-slate-900/90 px-2.5 py-1 rounded-xl border border-sky-400/30">
                         {cleanSource.toUpperCase()}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                      <span className="text-[10px] text-slate-300 font-medium flex items-center gap-1">
                         <Clock className="w-3 h-3 text-sky-400" /> {art.publishedAt}
                       </span>
                     </div>
@@ -417,8 +416,8 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => onToggleSave(art.id)}
-                        className={`p-1.5 rounded-lg border transition-all ${
-                          isSaved ? 'bg-sky-500 text-white border-sky-300' : 'bg-[#050e1a] border-sky-900 text-slate-400 hover:text-white'
+                        className={`p-2 rounded-xl border transition-all cursor-pointer shadow-sm ${
+                          isSaved ? 'bg-sky-500 text-slate-950 border-sky-300 font-bold shadow-md' : 'bg-slate-900/90 border-sky-400/30 text-slate-300 hover:text-white'
                         }`}
                         title={isSaved ? "Retirer" : "Sauvegarder"}
                       >
@@ -430,7 +429,8 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
                           href={art.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-[#050e1a] border border-sky-900 text-slate-400 hover:text-sky-300 transition-colors"
+                          className="p-2 rounded-xl bg-slate-900/90 border border-sky-400/30 text-slate-300 hover:text-sky-300 transition-colors shadow-sm"
+                          title="Ouvrir la source externe"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
@@ -439,21 +439,21 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
                   </div>
 
                   {/* CONTENU TEXTE */}
-                  <div className="space-y-2">
-                    <h3 className="font-extrabold text-white text-sm group-hover:text-sky-300 transition-colors leading-snug">
+                  <div className="space-y-1.5">
+                    <h3 className="font-extrabold text-white text-xs group-hover:text-sky-300 transition-colors leading-snug">
                       {art.title}
                     </h3>
                     {art.excerpt && (
-                      <p className="text-slate-300 text-xs line-clamp-3 leading-relaxed font-normal">
+                      <p className="text-slate-300 text-[11px] line-clamp-3 leading-relaxed font-medium">
                         {art.excerpt}
                       </p>
                     )}
                   </div>
 
-                  {/* IMAGE - S'AICHE UNIQUEMENT SI UNE VRAIE PHOTO EST DÉTECTÉE */}
+                  {/* IMAGE - S'AFFICHE UNIQUEMENT SI UNE VRAIE PHOTO EST DÉTECTÉE */}
                   {showImage && (
-                    <div className="pt-2">
-                      <div className="h-36 w-full max-w-sm rounded-xl overflow-hidden border border-sky-950 shadow-inner">
+                    <div className="pt-1">
+                      <div className="h-36 w-full max-w-sm rounded-2xl overflow-hidden border border-sky-400/30 shadow-inner">
                         <img 
                           src={art.imageUrl} 
                           alt={art.title} 
@@ -469,9 +469,9 @@ export const SourcesNewsPage: React.FC<SourcesNewsPageProps> = ({
           })}
         </div>
       ) : (
-        <div className="bg-[#0b182b] border border-sky-900/60 rounded-3xl p-12 text-center space-y-3 font-mono">
+        <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-12 text-center space-y-3 font-mono shadow-xl backdrop-blur-md">
           <Newspaper className="w-10 h-10 text-sky-400 mx-auto animate-pulse" />
-          <p className="text-sm text-sky-200">
+          <p className="text-xs text-sky-200">
             {isFetching ? "CHARGEMENT DE LA TIMELINE EN COURS..." : "AUCUN ARTICLE TROUVÉ DANS LA TIMELINE."}
           </p>
         </div>

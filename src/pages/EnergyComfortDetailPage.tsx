@@ -177,7 +177,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const gFactor = isHighPerformance ? 0.30 : 0.65;
   const calculatedSolarGains = Math.round(glassSurface * effectiveIrradiance * gFactor * protectionFactor * orientationMultiplier);
 
-  const baseIndoorRef = 22; // Modifié à 22
+  const baseIndoorRef = 22; 
   const tempDelta = currentTemp - baseIndoorRef; 
 
   const baseConductionLosses = (baseIndoorRef - currentTemp) * (apartmentSurface * 0.08) * positionMultiplier; 
@@ -202,7 +202,6 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
   const estimatedEquilibriumTemp = Number((baseIndoorRef + (temperatureRiseRate * 2)).toFixed(1));
   const baseCalculatedTemp = Math.min(35, Math.max(15, estimatedEquilibriumTemp));
 
-  // État pour la correction manuelle de la température intérieure (sauvegardé en localStorage)
   const storageOffsetKey = `indoor_temp_offset_${homeCityName}`;
   const [tempOffset, setTempOffset] = useState<number>(() => {
     const saved = localStorage.getItem(storageOffsetKey);
@@ -283,33 +282,29 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
     return <circle cx="0" cy="0" r="24" fill="#38bdf8" />;
   };
 
-  const radius = 32;
-  const circumference = 2 * Math.PI * radius;
-  const solarRatio = Math.min(1, calculatedSolarGains / 600);
-  const solarOffset = circumference - solarRatio * circumference;
-
   const isVentilationActive = windowState === 'open' || windowState === 'ajar';
 
   return (
-    <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full pb-20 px-0 bg-[#050811] min-h-screen">
+    <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full max-w-xl mx-auto pb-20 px-1 font-sans">
       
       {/* EN-TÊTE UNIFIÉ */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
-        <div className="flex items-center space-x-3">
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
+        <div className="flex items-center space-x-3 min-w-0">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
+            className="p-2.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-sky-300 border border-sky-400/30 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm flex-shrink-0"
+            title="Retour"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 text-sky-400" />
             <span>Retour</span>
           </button>
-          <div>
-            <h1 className="text-sm font-black text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-sky-300" /> Bilan Thermique • <span className="text-sky-300 flex items-center gap-1"><Home className="w-3.5 h-3.5" /> {homeCityName} ({userCountry})</span>
+          <div className="min-w-0">
+            <h1 className="text-sm font-black text-white flex items-center gap-2 truncate">
+              <Award className="w-4 h-4 text-sky-400 flex-shrink-0" /> Bilan Thermique • <span className="text-sky-300 flex items-center gap-1"><Home className="w-3.5 h-3.5" /> {homeCityName} ({userCountry})</span>
             </h1>
-            <div className="text-[10px] text-slate-300 flex items-center gap-2.5 flex-wrap mt-0.5 font-semibold">
+            <div className="text-[11px] text-slate-300 flex items-center gap-2.5 flex-wrap mt-0.5 font-medium truncate">
               <span className="flex items-center gap-1 text-white">
-                <Cloud className="w-4 h-4 text-sky-300" /> {weatherCondition} ({currentTemp}°C)
+                <Cloud className="w-3.5 h-3.5 text-sky-400" /> {weatherCondition} ({currentTemp}°C)
               </span>
               <span>• Surface : <strong className="text-sky-300">{apartmentSurface} m²</strong></span>
               <span>• Classe : <strong className="text-sky-300">{energyClass}</strong></span>
@@ -320,7 +315,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
         <button
           onClick={handleRunAiAnalysis}
           disabled={isAnalyzing}
-          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400 text-sky-200 font-black flex items-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+          className="px-3.5 py-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-sky-400/30 text-sky-300 font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50 text-xs flex-shrink-0"
         >
           {isAnalyzing ? (
             <>
@@ -329,7 +324,7 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 text-sky-300" />
+              <Sparkles className="w-4 h-4 text-sky-400" />
               <span>Analyser avec l'IA</span>
             </>
           )}
@@ -337,48 +332,48 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
       </div>
 
       {aiAnalysis && (
-        <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-sky-400/60 rounded-2xl p-4 shadow-md space-y-2 backdrop-blur-md">
-          <div className="flex items-center space-x-2 text-sky-300 border-b border-slate-700/80 pb-2">
-            <Sparkles className="w-4 h-4 text-sky-300" />
+        <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/60 rounded-3xl p-5 shadow-xl space-y-2 backdrop-blur-md">
+          <div className="flex items-center space-x-2 text-sky-300 border-b border-sky-400/30 pb-2.5">
+            <Sparkles className="w-4 h-4 text-sky-400" />
             <h3 className="text-xs font-black text-white uppercase tracking-wider">Diagnostic Thermique Intelligent (Gemini)</h3>
           </div>
-          <div className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line pt-1">
+          <div className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line pt-1 font-medium">
             {aiAnalysis}
           </div>
         </div>
       )}
 
       {/* PANNEAU DE CONTRÔLE */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-md space-y-3 backdrop-blur-md">
-        <div className="flex items-center space-x-2 text-white border-b border-slate-700/80 pb-2">
-          <SlidersHorizontal className="w-4 h-4 text-sky-300" />
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3.5 backdrop-blur-md">
+        <div className="flex items-center space-x-2 text-white border-b border-sky-400/30 pb-2.5">
+          <SlidersHorizontal className="w-4 h-4 text-sky-400" />
           <h2 className="text-xs font-black uppercase tracking-wider text-white">Commandes & Scénarios en Direct</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2 shadow-sm">
-            <span className="text-[10px] font-bold text-slate-300">Position des Stores ({sunProtection.toUpperCase()})</span>
+          <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 flex flex-col justify-between space-y-2 shadow-inner">
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">Position des Stores ({sunProtection.toUpperCase()})</span>
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 onClick={() => setStoreState('open')}
-                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
-                  storeState === 'open' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                className={`py-2 px-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer border ${
+                  storeState === 'open' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'bg-slate-900 border-sky-400/30 text-slate-300 hover:text-white'
                 }`}
               >
                 ☀️ Ouverts
               </button>
               <button
                 onClick={() => setStoreState('active')}
-                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
-                  storeState === 'active' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                className={`py-2 px-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer border ${
+                  storeState === 'active' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'bg-slate-900 border-sky-400/30 text-slate-300 hover:text-white'
                 }`}
               >
                 🛡️ Actifs
               </button>
               <button
                 onClick={() => setStoreState('closed')}
-                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
-                  storeState === 'closed' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                className={`py-2 px-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer border ${
+                  storeState === 'closed' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'bg-slate-900 border-sky-400/30 text-slate-300 hover:text-white'
                 }`}
               >
                 🌙 Baissés
@@ -386,29 +381,29 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
             </div>
           </div>
 
-          <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col justify-between space-y-2 shadow-sm">
-            <span className="text-[10px] font-bold text-slate-300">État des Fenêtres & Aération</span>
+          <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 flex flex-col justify-between space-y-2 shadow-inner">
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">État des Fenêtres & Aération</span>
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 onClick={() => setWindowState('closed')}
-                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
-                  windowState === 'closed' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                className={`py-2 px-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer border ${
+                  windowState === 'closed' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'bg-slate-900 border-sky-400/30 text-slate-300 hover:text-white'
                 }`}
               >
                 🚪 Fermées
               </button>
               <button
                 onClick={() => setWindowState('ajar')}
-                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
-                  windowState === 'ajar' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                className={`py-2 px-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer border ${
+                  windowState === 'ajar' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black animate-pulse' : 'bg-slate-900 border-sky-400/30 text-slate-300 hover:text-white'
                 }`}
               >
                 🪟 Entrouvertes
               </button>
               <button
                 onClick={() => setWindowState('open')}
-                className={`py-1.5 px-2 rounded-lg font-black text-[10px] transition-all cursor-pointer border ${
-                  windowState === 'open' ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                className={`py-2 px-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer border ${
+                  windowState === 'open' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black animate-pulse' : 'bg-slate-900 border-sky-400/30 text-slate-300 hover:text-white'
                 }`}
               >
                 💨 Ouvertes
@@ -419,45 +414,45 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
       </div>
 
       {/* SYNTHÈSE PRINCIPALE (Avec correction manuelle + et - de la température) */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-sky-400/60 rounded-2xl p-4 shadow-lg space-y-3 backdrop-blur-md">
-        <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
-          <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5">
-            <Thermometer className="w-4 h-4 text-sky-300" /> Synthèse & Projections Thermiques
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3.5 backdrop-blur-md">
+        <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+          <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+            <Thermometer className="w-4 h-4 text-sky-400" /> Synthèse & Projections Thermiques
           </h2>
           <div className="flex items-center gap-2">
             {tempOffset !== 0 && (
               <button
                 onClick={() => setTempOffset(0)}
-                className="p-1 rounded-lg bg-slate-900 text-amber-400 border border-slate-700 hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-[9px] font-bold px-2 shadow-sm"
+                className="p-1 rounded-xl bg-slate-900 text-amber-300 border border-sky-400/30 hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-[9px] font-bold px-2.5 shadow-sm"
                 title="Réinitialiser la correction"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>{tempOffset > 0 ? `+${tempOffset}°C` : `${tempOffset}°C`}</span>
               </button>
             )}
-            <span className="text-[10px] font-mono font-bold text-sky-300 bg-slate-900 px-2.5 py-0.5 rounded-full border border-slate-700">
+            <span className="text-[10px] font-mono font-bold text-sky-300 bg-slate-900 px-3 py-1 rounded-xl border border-sky-400/30 shadow-sm">
               Classe {energyClass}
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center pt-1">
-          <div className="bg-[#050811] p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner flex flex-col justify-between">
             <div>
-              <span className="text-[9px] text-slate-400 block font-bold uppercase">Actuel (Intérieur)</span>
+              <span className="text-[9px] text-slate-300 block font-bold uppercase">Actuel (Intérieur)</span>
               <span className="text-lg font-black text-white">{targetEstimatedTemp}°C</span>
             </div>
-            <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-slate-800/80">
+            <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-sky-400/20">
               <button
                 onClick={() => setTempOffset(prev => prev - 0.5)}
-                className="w-6 h-6 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 flex items-center justify-center font-black cursor-pointer transition-colors shadow-sm"
+                className="w-6 h-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-sky-400/30 flex items-center justify-center font-black cursor-pointer transition-colors shadow-sm"
                 title="Diminuer de 0.5°C"
               >
                 <Minus className="w-3 h-3" />
               </button>
               <button
                 onClick={() => setTempOffset(prev => prev + 0.5)}
-                className="w-6 h-6 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 flex items-center justify-center font-black cursor-pointer transition-colors shadow-sm"
+                className="w-6 h-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-sky-400/30 flex items-center justify-center font-black cursor-pointer transition-colors shadow-sm"
                 title="Augmenter de 0.5°C"
               >
                 <Plus className="w-3 h-3" />
@@ -465,55 +460,55 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
             </div>
           </div>
 
-          <div className="bg-[#050811] p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner flex flex-col justify-between">
             <div>
               <span className="text-[9px] text-sky-300 block font-bold uppercase flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> +3h</span>
               <span className="text-lg font-black text-sky-300">{tempPlus3h}°C</span>
             </div>
-            <span className="text-[8px] text-slate-400 mt-2 pt-2 border-t border-slate-800/80 block">Projection</span>
+            <span className="text-[8px] text-slate-400 mt-2 pt-2 border-t border-sky-400/20 block font-semibold">Projection</span>
           </div>
 
-          <div className="bg-[#050811] p-3 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner flex flex-col justify-between">
             <div>
               <span className="text-[9px] text-sky-300 block font-bold uppercase flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> +6h</span>
               <span className="text-lg font-black text-sky-300">{tempPlus6h}°C</span>
             </div>
-            <span className="text-[8px] text-slate-400 mt-2 pt-2 border-t border-slate-800/80 block">Projection</span>
+            <span className="text-[8px] text-slate-400 mt-2 pt-2 border-t border-sky-400/20 block font-semibold">Projection</span>
           </div>
         </div>
 
-        <div className="text-center text-[10px] text-slate-300 font-medium bg-[#050811] p-2.5 rounded-xl border border-slate-800">
+        <div className="text-center text-[11px] text-slate-300 font-medium bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
           ✨ {isVentilationActive ? `Ventilation active (${windSpeed} km/h).` : `Maintien optimisé par l'enveloppe ${energyClass}.`}
-          <span className="block text-sky-300 mt-0.5 font-mono">Tendance de variation : {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}</span>
+          <span className="block text-sky-300 mt-1 font-mono font-bold">Tendance de variation : {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}</span>
         </div>
       </div>
 
       {/* BLOC ACCORDÉON AVEC SCHÉMA SVG FULL RESPONSIVE + SYNTHÈSE TEXTUELLE */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/80 rounded-2xl overflow-hidden shadow-md backdrop-blur-md">
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl overflow-hidden shadow-xl backdrop-blur-md">
         <button
           onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-          className="w-full p-3.5 flex items-center justify-between text-left font-black text-xs text-white hover:bg-slate-800/40 transition-colors cursor-pointer"
+          className="w-full p-4 flex items-center justify-between text-left font-black text-xs text-white hover:bg-slate-900/90 transition-colors cursor-pointer border-b border-sky-400/30"
         >
           <span className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-sky-300" />
+            <Activity className="w-4 h-4 text-sky-400" />
             <span>Schéma des Flux & Détails Techniques (Watts, Inertie, Bilans)</span>
           </span>
-          {showTechnicalDetails ? <ChevronUp className="w-4 h-4 text-sky-300" /> : <ChevronDown className="w-4 h-4 text-sky-300" />}
+          {showTechnicalDetails ? <ChevronUp className="w-4 h-4 text-sky-400" /> : <ChevronDown className="w-4 h-4 text-slate-300" />}
         </button>
 
         {showTechnicalDetails && (
-          <div className="p-4 pt-0 space-y-4 border-t border-slate-700/80 animate-fade-in">
+          <div className="p-4 space-y-4 animate-fade-in bg-slate-950/60">
             
             {/* SCHÉMA SVG PLEINEMENT RESPONSIVE */}
-            <div className="pt-3 space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-black text-white uppercase tracking-wider">Schéma des Flux • {homeCityName}</h3>
-                  <p className="text-[9px] text-slate-300 font-semibold">{roomsCount} pièces • {apartmentSurface} m² ({apartmentVolume} m³) • {buildingPosition}</p>
+                  <p className="text-[10px] text-slate-300 font-medium">{roomsCount} pièces • {apartmentSurface} m² ({apartmentVolume} m³) • {buildingPosition}</p>
                 </div>
               </div>
 
-              <div className="bg-[#050811] border border-slate-800 rounded-2xl p-2 sm:p-4 w-full overflow-hidden shadow-sm flex flex-col items-center">
+              <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3 sm:p-4 w-full overflow-hidden shadow-inner flex flex-col items-center">
                 <style>{`
                   @keyframes dashMoveIncoming { to { stroke-dashoffset: -20; } }
                   @keyframes dashMoveOutgoing { to { stroke-dashoffset: -20; } }
@@ -592,39 +587,39 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
             </div>
 
             {/* SYNTHÈSE TEXTUELLE COMPLÉMENTAIRE */}
-            <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-2">
+            <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 space-y-2 shadow-inner">
               <span className="text-[10px] font-black uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" /> Synthèse textuelle des flux énergétiques
+                <ShieldCheck className="w-3.5 h-3.5 text-sky-400" /> Synthèse textuelle des flux énergétiques
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-300">
-                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-300 font-medium">
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-sky-400/20 flex justify-between shadow-sm">
                   <span>Apports solaires entrants :</span>
-                  <strong className="text-sky-300">+{calculatedSolarGains} W</strong>
+                  <strong className="text-sky-300 font-black">+{calculatedSolarGains} W</strong>
                 </div>
-                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-sky-400/20 flex justify-between shadow-sm">
                   <span>Pertes & ventilation :</span>
-                  <strong className="text-sky-300">-{calculatedLosses} W</strong>
+                  <strong className="text-sky-300 font-black">-{calculatedLosses} W</strong>
                 </div>
-                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-sky-400/20 flex justify-between shadow-sm">
                   <span>Bilan net des flux :</span>
-                  <strong className="text-white">{netThermalBalance} W</strong>
+                  <strong className="text-white font-black">{netThermalBalance} W</strong>
                 </div>
-                <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex justify-between">
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-sky-400/20 flex justify-between shadow-sm">
                   <span>Vitesse d'évolution :</span>
-                  <strong className="text-sky-300">{temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}</strong>
+                  <strong className="text-sky-300 font-black">{temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C/h` : `${temperatureRiseRate}°C/h`}</strong>
                 </div>
               </div>
             </div>
 
             {/* CARTES DE DÉTAILS PHYSIQUES */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
               
-              <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between space-y-2">
-                <div className="w-full flex items-center justify-between">
+              <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 flex flex-col items-center justify-between space-y-2 shadow-inner">
+                <div className="w-full flex items-center justify-between border-b border-sky-400/20 pb-2">
                   <span className="text-[10px] font-bold text-white flex items-center gap-1">
-                    <SunDim className="w-3.5 h-3.5 text-sky-300" /> Apports Solaires
+                    <SunDim className="w-3.5 h-3.5 text-sky-400" /> Apports Solaires
                   </span>
-                  <span className="text-[9px] font-mono text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="text-[9px] font-mono text-sky-300 bg-slate-950 px-2 py-0.5 rounded-xl border border-sky-400/30 font-bold">
                     {Math.round(orientationMultiplier * 100)}% exp.
                   </span>
                 </div>
@@ -645,47 +640,47 @@ export const EnergyComfortDetailPage: React.FC<EnergyComfortDetailPageProps> = (
                     <span className="text-[7px] text-slate-400 uppercase font-bold">Watts</span>
                   </div>
                 </div>
-                <div className="w-full text-[9px] text-slate-400 flex justify-between pt-1 border-t border-slate-800">
+                <div className="w-full text-[9px] text-slate-300 font-medium flex justify-between pt-2 border-t border-sky-400/20">
                   <span>Volume : {apartmentVolume} m³</span>
                   <span>Vitrage : {glassSurface} m²</span>
                 </div>
               </div>
 
-              <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between space-y-2">
-                <div className="w-full flex items-center justify-between">
+              <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 flex flex-col items-center justify-between space-y-2 shadow-inner">
+                <div className="w-full flex items-center justify-between border-b border-sky-400/20 pb-2">
                   <span className="text-[10px] font-bold text-white flex items-center gap-1">
-                    <Thermometer className="w-3.5 h-3.5 text-sky-300" /> Inertie Thermique
+                    <Thermometer className="w-3.5 h-3.5 text-sky-400" /> Inertie Thermique
                   </span>
-                  <span className="text-[9px] font-mono text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="text-[9px] font-mono text-sky-300 bg-slate-950 px-2 py-0.5 rounded-xl border border-sky-400/30 font-bold">
                     {energyClass}
                   </span>
                 </div>
-                <div className="my-auto py-2 flex flex-col items-center justify-center text-center space-y-0.5 w-full bg-slate-900/60 rounded-lg border border-slate-800">
+                <div className="my-auto py-3 flex flex-col items-center justify-center text-center space-y-0.5 w-full bg-slate-950 rounded-2xl border border-sky-400/20 shadow-sm">
                   <span className="text-base font-black text-white">{thermalInertiaWhPerDegree}</span>
-                  <span className="text-[8px] text-slate-400 font-mono">Wh/°C d'inertie</span>
+                  <span className="text-[8px] text-slate-400 font-mono font-semibold">Wh/°C d'inertie</span>
                 </div>
-                <div className="w-full text-[9px] text-slate-400 text-center">
+                <div className="w-full text-[9px] text-slate-300 font-medium text-center pt-2 border-t border-sky-400/20">
                   Amortissement de l'enveloppe active.
                 </div>
               </div>
 
-              <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between space-y-2">
-                <div className="w-full flex items-center justify-between">
+              <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 flex flex-col items-center justify-between space-y-2 shadow-inner">
+                <div className="w-full flex items-center justify-between border-b border-sky-400/20 pb-2">
                   <span className="text-[10px] font-bold text-white flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-sky-300" /> Vitesse de Variation
+                    <TrendingUp className="w-3.5 h-3.5 text-sky-400" /> Vitesse de Variation
                   </span>
-                  <span className="text-[9px] font-mono text-sky-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                  <span className="text-[9px] font-mono text-sky-300 bg-slate-950 px-2 py-0.5 rounded-xl border border-sky-400/30 font-bold">
                     Flux d'air
                   </span>
                 </div>
-                <div className="my-auto py-2 flex flex-col items-center justify-center text-center space-y-0.5 w-full bg-slate-900/60 rounded-lg border border-slate-800">
+                <div className="my-auto py-3 flex flex-col items-center justify-center text-center space-y-0.5 w-full bg-slate-950 rounded-2xl border border-sky-400/20 shadow-sm">
                   <span className="text-base font-black text-white">
                     {temperatureRiseRate >= 0 ? `+${temperatureRiseRate}°C` : `${temperatureRiseRate}°C`}
                     <span className="text-[10px] font-normal text-slate-400"> /h</span>
                   </span>
-                  <span className="text-[8px] text-slate-400 font-mono">Dérive horaire</span>
+                  <span className="text-[8px] text-slate-400 font-mono font-semibold">Dérive horaire</span>
                 </div>
-                <div className="w-full text-[9px] text-slate-400 text-center">
+                <div className="w-full text-[9px] text-slate-300 font-medium text-center pt-2 border-t border-sky-400/20">
                   Vent ext : {windSpeed} km/h • Flux actifs.
                 </div>
               </div>

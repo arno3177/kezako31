@@ -216,47 +216,48 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
   const isApmPassed = currentHour >= 17;
 
   return (
-    <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full pb-20 px-0 bg-[#050811] min-h-screen">
+    <div className="space-y-4 text-xs animate-fade-in text-slate-100 w-full max-w-xl mx-auto pb-20 px-1 font-sans">
       
-      {/* 1. EN-TÊTE UNIFIÉ (Camaïeu de bleus) */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/85 rounded-2xl p-4 shadow-md flex items-center justify-between backdrop-blur-md">
-        <div className="flex items-center space-x-3">
+      {/* 1. EN-TÊTE UNIFIÉ */}
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl flex items-center justify-between gap-3 backdrop-blur-md">
+        <div className="flex items-center space-x-3 min-w-0">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm"
+            className="p-2.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-sky-300 border border-sky-400/30 font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-sm flex-shrink-0"
+            title="Retour"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 text-sky-400" />
             <span>Retour</span>
           </button>
-          <div>
-            <h1 className="text-sm font-black text-white flex items-center gap-2">
-              <Shirt className="w-4 h-4 text-sky-300" /> Assistant Tenues & Style
+          <div className="min-w-0">
+            <h1 className="text-sm font-black text-white flex items-center gap-2 truncate">
+              <Shirt className="w-4 h-4 text-sky-400 flex-shrink-0" /> Assistant Tenues & Style
             </h1>
-            <p className="text-[10px] text-slate-300 font-semibold mt-0.5">
+            <p className="text-[11px] text-slate-300 font-medium mt-0.5 truncate">
               {currentTemp}°C • {condition} {isUsingAiMode && `• 🤖 IA (${usedModelName})`}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-[9px] font-bold text-slate-300 shadow-sm" title="Requêtes restantes dans la minute">
-            <Zap className="w-3 h-3 text-sky-300" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-sky-400/30 text-[10px] font-bold text-slate-300 shadow-sm" title="Requêtes restantes dans la minute">
+            <Zap className="w-3.5 h-3.5 text-sky-400" />
             <span>{remainingQuota}/{MAX_RPM} req.</span>
           </div>
 
           <button
             onClick={handleRunAiOutfit}
             disabled={isGeneratingAi || remainingQuota <= 0}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400 disabled:border-slate-800 text-sky-200 font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm text-[10px]"
+            className="px-3.5 py-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-sky-400/30 disabled:border-slate-800 text-sky-300 font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm text-xs"
           >
             {isGeneratingAi ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-300" />
+                <Loader2 className="w-4 h-4 animate-spin text-sky-300" />
                 <span>Cascade IA...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-sky-300" />
+                <Sparkles className="w-4 h-4 text-sky-400" />
                 <span>{isUsingAiMode ? 'Actualiser Look' : 'Générer avec IA'}</span>
               </>
             )}
@@ -264,65 +265,65 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
 
           <button
             onClick={() => { setSeed(prev => prev + 1); setIsUsingAiMode(false); }}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-sky-400 text-sky-300 flex items-center gap-1 font-bold transition-all cursor-pointer shadow-sm"
+            className="p-2.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-sky-400/30 hover:border-sky-400 text-sky-300 flex items-center gap-1 font-bold transition-all cursor-pointer shadow-sm"
             title="Varier les looks"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4 text-sky-400" />
           </button>
         </div>
       </div>
 
       {aiError && (
-        <div className="bg-[#0f172a] border border-sky-400/60 rounded-xl p-3 text-sky-200 text-[11px] leading-relaxed shadow-md">
+        <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/60 rounded-3xl p-4 text-sky-200 text-xs leading-relaxed shadow-xl backdrop-blur-md">
           {aiError}
         </div>
       )}
 
       {/* 2. SÉLECTEUR DE PROFIL */}
       <div className="space-y-2">
-        <div className="grid grid-cols-3 gap-1.5 bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] p-1.5 border border-slate-700/85 rounded-2xl shadow-md backdrop-blur-md">
+        <div className="grid grid-cols-3 gap-1.5 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-2 border border-sky-400/40 rounded-3xl shadow-xl backdrop-blur-md">
           <button
             type="button"
             onClick={() => { setActiveProfile('adult'); setIsUsingAiMode(false); }}
-            className={`py-2 px-2 rounded-xl font-black text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
-              activeProfile === 'adult' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-transparent text-slate-300 hover:text-white bg-slate-900'
+            className={`py-2 px-2 rounded-2xl font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
+              activeProfile === 'adult' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'border-sky-400/20 text-slate-300 hover:text-white bg-slate-900/90'
             }`}
           >
-            <User className="w-3.5 h-3.5 text-sky-200" />
+            <User className="w-3.5 h-3.5 text-sky-300" />
             <span>Pour Moi</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveProfile('kids'); setIsUsingAiMode(false); }}
-            className={`py-2 px-2 rounded-xl font-black text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
-              activeProfile === 'kids' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-transparent text-slate-300 hover:text-white bg-slate-900'
+            className={`py-2 px-2 rounded-2xl font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
+              activeProfile === 'kids' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'border-sky-400/20 text-slate-300 hover:text-white bg-slate-900/90'
             }`}
           >
-            <Baby className="w-3.5 h-3.5 text-sky-200" />
+            <Baby className="w-3.5 h-3.5 text-sky-300" />
             <span>Enfants (École)</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveProfile('sport'); setIsUsingAiMode(false); }}
-            className={`py-2 px-2 rounded-xl font-black text-[10px] flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
-              activeProfile === 'sport' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-transparent text-slate-300 hover:text-white bg-slate-900'
+            className={`py-2 px-2 rounded-2xl font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer border ${
+              activeProfile === 'sport' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'border-sky-400/20 text-slate-300 hover:text-white bg-slate-900/90'
             }`}
           >
-            <Activity className="w-3.5 h-3.5 text-sky-200" />
+            <Activity className="w-3.5 h-3.5 text-sky-300" />
             <span>Sport / Actif</span>
           </button>
         </div>
 
         {activeProfile === 'adult' && (
-          <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] p-1.5 border border-slate-700/85 rounded-xl animate-fade-in shadow-sm backdrop-blur-md">
-            <span className="text-[9px] font-black text-slate-300 uppercase tracking-wide mr-1">Style :</span>
+          <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-2 border border-sky-400/40 rounded-2xl animate-fade-in shadow-xl backdrop-blur-md">
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide mr-1">Style :</span>
             <button
               type="button"
               onClick={() => { setActiveGender('male'); setIsUsingAiMode(false); }}
-              className={`py-1.5 px-3 rounded-lg font-black text-[9.5px] flex items-center gap-1 transition-all cursor-pointer border ${
-                activeGender === 'male' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-slate-700 text-slate-300 hover:text-white bg-slate-900'
+              className={`py-1.5 px-3 rounded-xl font-bold text-xs flex items-center gap-1 transition-all cursor-pointer border ${
+                activeGender === 'male' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'border-sky-400/30 text-slate-300 hover:text-white bg-slate-900/90'
               }`}
             >
               <span>👨</span>
@@ -331,8 +332,8 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
             <button
               type="button"
               onClick={() => { setActiveGender('female'); setIsUsingAiMode(false); }}
-              className={`py-1.5 px-3 rounded-lg font-black text-[9.5px] flex items-center gap-1 transition-all cursor-pointer border ${
-                activeGender === 'female' ? 'bg-sky-600 border-sky-300 text-white shadow-sm' : 'border-slate-700 text-slate-300 hover:text-white bg-slate-900'
+              className={`py-1.5 px-3 rounded-xl font-bold text-xs flex items-center gap-1 transition-all cursor-pointer border ${
+                activeGender === 'female' ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-md font-black' : 'border-sky-400/30 text-slate-300 hover:text-white bg-slate-900/90'
               }`}
             >
               <span>👩</span>
@@ -380,38 +381,38 @@ export const AssistantDetailPage: React.FC<AssistantDetailPageProps> = ({
 };
 
 const TimeSlotCard = ({ title, subtitle, pieces }: { title: string; subtitle: string; pieces: OutfitSlot }) => (
-  <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/85 rounded-2xl p-4 shadow-md space-y-3 backdrop-blur-md">
-    <div className="flex items-center justify-between border-b border-slate-700/85 pb-2">
-      <h2 className="text-[11px] font-black uppercase tracking-wider text-white flex items-center gap-1.5">
-        <Clock className="w-4 h-4 text-sky-300" />
+  <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3.5 backdrop-blur-md">
+    <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+      <h2 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+        <Clock className="w-4 h-4 text-sky-400" />
         {title}
       </h2>
-      <span className="text-[9px] text-slate-300 italic font-semibold">{subtitle}</span>
+      <span className="text-[10px] text-slate-300 italic font-medium">{subtitle}</span>
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
-        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">👕 Hauts / Couches</span>
+      <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 space-y-1 shadow-inner">
+        <span className="text-[10px] font-black text-sky-300 uppercase tracking-wide">👕 Hauts / Couches</span>
         <p className="text-xs text-white font-bold">{pieces?.tops}</p>
       </div>
 
-      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
-        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">👖 Bas / Pantalon</span>
+      <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 space-y-1 shadow-inner">
+        <span className="text-[10px] font-black text-sky-300 uppercase tracking-wide">👖 Bas / Pantalon</span>
         <p className="text-xs text-white font-bold">{pieces?.bottoms}</p>
       </div>
 
-      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
-        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">🧥 Veste / Manteau</span>
+      <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 space-y-1 shadow-inner">
+        <span className="text-[10px] font-black text-sky-300 uppercase tracking-wide">🧥 Veste / Manteau</span>
         <p className="text-xs text-white font-bold">{pieces?.outerwear}</p>
       </div>
 
-      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 shadow-sm">
-        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">👞 Chaussures</span>
+      <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 space-y-1 shadow-inner">
+        <span className="text-[10px] font-black text-sky-300 uppercase tracking-wide">👞 Chaussures</span>
         <p className="text-xs text-white font-bold">{pieces?.shoes}</p>
       </div>
 
-      <div className="bg-[#050811] border border-slate-800 rounded-xl p-3 space-y-1 sm:col-span-2 shadow-sm">
-        <span className="text-[9px] font-black text-sky-300 uppercase tracking-wide">🧣 Accessoires Indispensables</span>
+      <div className="bg-slate-900/90 border border-sky-400/30 rounded-2xl p-3.5 space-y-1 sm:col-span-2 shadow-inner">
+        <span className="text-[10px] font-black text-sky-300 uppercase tracking-wide">🧣 Accessoires Indispensables</span>
         <p className="text-xs text-white font-bold">{pieces?.accessories}</p>
       </div>
     </div>

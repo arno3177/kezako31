@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Bookmark, ExternalLink, Plus, Trash2, X } from 'lucide-react';
 
 export interface Shortcut {
@@ -78,55 +78,56 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5 animate-fade-in text-xs pb-16">
+    <div className="max-w-xl mx-auto space-y-4 animate-fade-in text-xs pb-20 px-1 font-sans text-slate-100">
       
       {/* En-tête de la page harmonisé */}
-      <div className="flex items-center justify-between bg-[#1c1114] border border-rose-500/30 p-4 rounded-2xl shadow-lg">
-        <div className="flex items-center space-x-3">
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl flex items-center justify-between gap-4 backdrop-blur-md">
+        <div className="flex items-center space-x-3 min-w-0">
           <button
             onClick={onBackToHome}
-            className="p-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700/50 rounded-xl transition-colors cursor-pointer"
+            className="p-2.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-sky-400/30 rounded-2xl transition-colors cursor-pointer shadow-sm flex-shrink-0"
+            title="Retour à l'accueil"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 text-sky-400" />
           </button>
-          <div>
-            <h1 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <Bookmark className="w-4 h-4 text-rose-400" /> Raccourcis Favoris & Utiles
+          <div className="min-w-0">
+            <h1 className="text-sm font-black text-white flex items-center gap-2 truncate">
+              <Bookmark className="w-4 h-4 text-sky-400 flex-shrink-0" /> Raccourcis Favoris & Utiles
             </h1>
-            <p className="text-[10px] text-slate-400">Gérez vos accès rapides personnalisés</p>
+            <p className="text-[11px] text-slate-300 font-medium truncate">Gérez vos accès rapides personnalisés</p>
           </div>
         </div>
 
         {/* Bouton d'ajout uniforme */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-rose-400 border border-rose-800/50 font-bold flex items-center gap-1.5 transition-colors text-[11px] cursor-pointer"
+          className="px-3.5 py-2 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-sky-300 border border-sky-400/30 font-semibold flex items-center gap-1.5 transition-colors text-xs cursor-pointer shadow-sm flex-shrink-0"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-3.5 h-3.5 text-sky-400" />
           <span>Ajouter un raccourci</span>
         </button>
       </div>
 
       {/* Grille des raccourcis */}
       {shortcuts.length === 0 ? (
-        <div className="bg-[#151824] border border-slate-800 rounded-2xl p-8 text-center text-slate-500">
+        <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-12 text-center text-slate-400 font-medium shadow-xl backdrop-blur-md">
           Aucun raccourci pour le moment.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {shortcuts.map((item) => (
             <div
               key={item.id}
-              className="relative p-4 bg-[#120a0d] border border-rose-950 hover:border-rose-500/50 rounded-2xl flex flex-col justify-between space-y-3 transition-all hover:bg-[#1c1114] group"
+              className="relative p-4 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 hover:border-sky-400 rounded-3xl flex flex-col justify-between space-y-3 transition-all shadow-xl group backdrop-blur-md"
             >
-              <div className="flex items-center justify-between">
-                <span className="px-2 py-0.5 bg-slate-900 text-rose-300 font-extrabold rounded text-[9px] uppercase tracking-wide">
+              <div className="flex items-center justify-between border-b border-sky-400/30 pb-2.5">
+                <span className="px-2.5 py-1 bg-slate-900/90 text-sky-300 font-extrabold rounded-xl text-[10px] uppercase tracking-wide border border-sky-400/30">
                   {item.category}
                 </span>
 
                 <button
                   onClick={(e) => handleDeleteShortcut(item.id, e)}
-                  className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl bg-slate-900/90 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 border border-sky-400/30 transition-colors cursor-pointer shadow-sm"
                   title="Supprimer ce raccourci"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -137,29 +138,29 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between pt-1 cursor-pointer"
+                className="flex items-center justify-between pt-1 cursor-pointer group/link"
               >
-                <span className="font-extrabold text-white group-hover:text-rose-300 transition-colors">
+                <span className="font-extrabold text-white group-hover/link:text-sky-300 transition-colors truncate pr-2">
                   {item.name}
                 </span>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-rose-400 transition-colors" />
+                <ExternalLink className="w-4 h-4 text-slate-400 group-hover/link:text-sky-300 transition-colors flex-shrink-0" />
               </a>
             </div>
           ))}
         </div>
       )}
 
-      {/* MODALE D'AJOUT UNIFORMISEÉ */}
+      {/* MODALE D'AJOUT UNIFORMISÉE */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#141215] border border-rose-500/40 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-rose-900/30 pb-3">
-              <h2 className="text-xs font-extrabold text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-rose-400" /> Ajouter un nouveau raccourci
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-fade-in">
+          <div className="bg-gradient-to-r from-sky-900/90 via-slate-800 to-sky-900/90 border border-sky-400/50 rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl relative backdrop-blur-md">
+            <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+              <h2 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-wider">
+                <Plus className="w-4 h-4 text-sky-400" /> Ajouter un nouveau raccourci
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg bg-slate-900 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-xl bg-slate-900 text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -167,51 +168,51 @@ export const ShortcutsPage: React.FC<ShortcutsPageProps> = ({ onBackToHome }) =>
 
             <form onSubmit={handleAddShortcut} className="space-y-3">
               <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase">Nom du site</label>
+                <label className="text-[10px] text-slate-300 font-bold uppercase tracking-wide">Nom du site</label>
                 <input
                   type="text"
                   placeholder="Ex: RTL.lu"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full mt-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 outline-none text-xs"
+                  className="w-full mt-1 p-2.5 bg-slate-900 border border-sky-400/40 rounded-2xl text-white placeholder-slate-400 focus:border-sky-400 outline-none text-xs shadow-inner font-semibold"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase">Adresse Web (URL)</label>
+                <label className="text-[10px] text-slate-300 font-bold uppercase tracking-wide">Adresse Web (URL)</label>
                 <input
                   type="text"
                   placeholder="Ex: www.rtl.lu"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full mt-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 outline-none text-xs"
+                  className="w-full mt-1 p-2.5 bg-slate-900 border border-sky-400/40 rounded-2xl text-white placeholder-slate-400 focus:border-sky-400 outline-none text-xs shadow-inner font-semibold"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase">Catégorie</label>
+                <label className="text-[10px] text-slate-300 font-bold uppercase tracking-wide">Catégorie</label>
                 <input
                   type="text"
                   placeholder="Ex: Favoris, Transport, Actus..."
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full mt-1 p-2.5 bg-[#0d0f17] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:border-rose-500 outline-none text-xs"
+                  className="w-full mt-1 p-2.5 bg-slate-900 border border-sky-400/40 rounded-2xl text-white placeholder-slate-400 focus:border-sky-400 outline-none text-xs shadow-inner font-semibold"
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800/60">
+              <div className="flex justify-end space-x-2 pt-2 border-t border-sky-400/30">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs cursor-pointer"
+                  className="px-4 py-2 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 font-bold text-xs cursor-pointer shadow-sm hover:bg-slate-800"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer shadow-md"
+                  className="px-4 py-2 rounded-2xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs cursor-pointer shadow-md"
                 >
                   Ajouter
                 </button>
