@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RouteTrip, AppSettings, WeatherData } from '../types';
 import { fetchLuxembourgFuelPrices } from '../service/fuelService';
-import { getMobiliteitPlannerUrl } from '../service/mobiliteitService';
 import { fetchNearbyBusStopsFromOSM, OsmBusStop } from '../service/osmBusService';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
@@ -26,7 +25,7 @@ interface GeoSuggestion {
   admin1?: string;
 }
 
-export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWeather }) => {
+export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
   const [trips, setTrips] = useState<RouteTrip[]>(() => {
     const saved = localStorage.getItem('user_saved_trips_extended');
     if (saved) {
@@ -89,16 +88,17 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
 
   useEffect(() => { loadFuelPrices(); }, []);
 
+  // Fonction pour obtenir la position GPS actuelle (uniquement si l'utilisateur clique explicitement sur le bouton visée du départ/arrivée)
   const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
     if (target === 'origin') setIsLocatingOrigin(true); else setIsLocatingDestination(true);
     try {
       let lat: number, lon: number;
       if (Capacitor.isNativePlatform()) {
         await Geolocation.requestPermissions();
-        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 5000 });
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
         lat = pos.coords.latitude; lon = pos.coords.longitude;
       } else {
-        const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 5000 }));
+        const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
         lat = pos.coords.latitude; lon = pos.coords.longitude;
       }
       const coordsDisplay = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
@@ -111,10 +111,15 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
         setFlyDestinationCoords(coordsClean);
       }
       setIsUsingFlyMode(true);
-    } catch (e: any) { alert(`Erreur GPS : ${e.message}`); } 
-    finally { setIsLocatingOrigin(false); setIsLocatingDestination(false); }
+    } catch (e: any) { 
+      alert(`Erreur GPS : ${e.message}`); 
+    } finally { 
+      setIsLocatingOrigin(false); 
+      setIsLocatingDestination(false); 
+    }
   };
 
+  // Récupération des arrêts de bus en se basant EXCLUSIVEMENT sur la position/texte configurée dans le point de départ
   const handleFindNearbyBusStops = async () => {
     setIsLoadingBusStops(true);
     setBusStopError(null);
@@ -122,65 +127,45 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
       let lat: number;
       let lon: number;
 
+      // 1. Si le départ contient déjà des coordonnées précises (ex: "49.6116,6.1319")
       if (flyOriginCoords) {
         const parts = flyOriginCoords.split(',');
         lat = parseFloat(parts[0]);
         lon = parseFloat(parts[1]);
       } else {
+        // 2. Vérifie si le texte du départ commence par des coordonnées
         const coordsMatch = flyOrigin.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
         if (coordsMatch) {
           lat = parseFloat(coordsMatch[1]);
           lon = parseFloat(coordsMatch[2]);
         } else if (flyOrigin && flyOrigin.trim().length > 3) {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(flyOrigin)}&limit=1`);
+          // 3. Sinon, géocode l'adresse textuelle du point de départ via OpenStreetMap Nominatim
+          const queryAddress = flyOrigin.toLowerCase().includes('luxembourg') ? flyOrigin : `${flyOrigin}, Luxembourg`;
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryAddress)}&limit=1`);
           const data = await res.json();
           if (data && data.length > 0) {
             lat = parseFloat(data[0].lat);
             lon = parseFloat(data[0].lon);
           } else {
-            lat = 49.6631;
-            lon = 6.0694;
+            lat = 49.6116;
+            lon = 6.1319;
+            setBusStopError("Adresse de départ introuvable : affichage autour de Luxembourg.");
           }
         } else {
-          if (Capacitor.isNativePlatform()) {
-            const permissionStatus = await Geolocation.checkPermissions();
-            if (permissionStatus.location !== 'granted') {
-              const req = await Geolocation.requestPermissions();
-              if (req.location !== 'granted') {
-                lat = 49.6116; lon = 6.1319;
-              } else {
-                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 4000 });
-                lat = pos.coords.latitude;
-                lon = pos.coords.longitude;
-              }
-            } else {
-              const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 4000 });
-              lat = pos.coords.latitude;
-              lon = pos.coords.longitude;
-            }
-          } else {
-            if (!navigator.geolocation) {
-              lat = 49.6116; lon = 6.1319;
-            } else {
-              const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 4000 });
-              });
-              lat = pos.coords.latitude;
-              lon = pos.coords.longitude;
-            }
-          }
+          lat = 49.6116;
+          lon = 6.1319;
         }
       }
 
       const stops = await fetchNearbyBusStopsFromOSM(lat, lon, 1000);
-      if (stops.length === 0) setBusStopError("Aucun arrêt de bus trouvé dans un rayon de 1 km.");
+      if (stops.length === 0) setBusStopError("Aucun arrêt de bus trouvé dans un rayon de 1 km autour du point de départ.");
       setNearbyBusStops(stops);
     } catch (err: any) {
       console.error('Erreur bus stop OSM:', err);
       try {
         const fallbackStops = await fetchNearbyBusStopsFromOSM(49.6116, 6.1319, 1000);
         setNearbyBusStops(fallbackStops);
-        setBusStopError("Position GPS indisponible : affichage autour de Luxembourg.");
+        setBusStopError("Erreur lors de la résolution du départ : affichage autour de Luxembourg.");
       } catch (e) {
         setBusStopError(`Échec du chargement des arrêts de bus.`);
         setNearbyBusStops([]);
@@ -192,7 +177,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
 
   useEffect(() => {
     if (activeMode === 'bus') handleFindNearbyBusStops(); else loadFuelPrices();
-  }, [activeMode]);
+  }, [activeMode, flyOrigin]);
 
   // Autocomplétion départ à la volée
   useEffect(() => {
@@ -513,7 +498,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
               className="text-[11px] font-semibold text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
             >
               {isLoadingBusStops ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListFilter className="w-3 h-3" />}
-              <span>Actualiser les bus</span>
+              <span>Actualiser les bus (Départ)</span>
             </button>
           )}
         </div>
@@ -617,12 +602,12 @@ export const TripsPage: React.FC<TripsPageProps> = ({ language = 'fr', currentWe
           </div>
         )}
 
-        {/* Arrêts de bus à proximité */}
+        {/* Arrêts de bus à proximité du départ configuré */}
         {activeMode === 'bus' && nearbyBusStops.length > 0 && (
           <div className="pt-3 space-y-2.5 border-t border-sky-400/30 animate-fade-in">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Bus className="w-3.5 h-3.5 text-teal-400" /> Arrêts à proximité ({nearbyBusStops.length})
+                <Bus className="w-3.5 h-3.5 text-teal-400" /> Arrêts près du départ ({nearbyBusStops.length})
               </span>
               <span className="text-[9px] text-slate-400 font-mono">Rayon 1 km</span>
             </div>
