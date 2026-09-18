@@ -110,4 +110,6 @@ export interface AppSettings {
   ventilationType?: 'double_flux' | 'simple_flux' | 'natural'; // 2. Type de ventilation
   sunProtection?: 'bso' | 'shutters' | 'indoor' | 'none';      // 3. Type de protection solaire
   buildingPosition?: 'intermediate' | 'top_floor' | 'ground_floor' | 'corner'; // 4. Position dans l'immeuble
+    isConnectedBuilding?: boolean;
+  hasInternalAppliances?: boolean;
 }

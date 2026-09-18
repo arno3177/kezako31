@@ -16,7 +16,7 @@ import { WorkspacePage } from './pages/WorkspacePage';
 import { SavedArticlesPage } from './pages/SavedArticlesPage';
 import { ShortcutsPage } from './pages/ShortcutsPage';
 import { AssistantDetailPage } from './pages/AssistantDetailPage';
-import { EnergyComfortDetailPage } from './pages/EnergyComfortDetailPage'; // <-- Import de ta nouvelle page de détails
+import  EnergyComfortDetailPage  from './pages/EnergyComfortDetailPage'; // <-- Import de ta nouvelle page de détails
 import { AddCityModal } from './components/AddCityModal';
 import { Footer } from './components/Footer';
 import { SavedArticlesModal } from './components/SavedArticlesModal';

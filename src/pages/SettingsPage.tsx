@@ -3,7 +3,7 @@ import { AppSettings, TemperatureUnit } from '../types';
 import { getTranslation } from '../utils/translations';
 import { 
   Settings, Globe, Languages, Bus, CheckCircle2, 
-  Thermometer, ArrowLeft, Key, Sparkles, Building2
+  Thermometer, ArrowLeft, Key, Sparkles, Building2, ShieldCheck, Zap
 } from 'lucide-react';
 
 interface SettingsPageProps { 
@@ -66,6 +66,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setTimeout(() => setSavedKeySuccess(false), 3000);
   };
 
+  // Valeurs par défaut pour les nouveaux paramètres thermiques
+  const isConnectedBuilding = settings.isConnectedBuilding ?? true;
+  const hasInternalAppliances = settings.hasInternalAppliances ?? true;
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in text-xs text-slate-200 pb-10">
       
@@ -90,8 +94,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1 pt-2">
           {t.generalSettings}
         </div>
-
-        
 
         {/* PAYS */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
@@ -252,8 +254,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <label className="text-[10px] text-slate-400 font-bold">Surface habitable (m²)</label>
               <input
                 type="number"
-                value={settings.apartmentSurface ?? 75}
-                onChange={(e) => onUpdateSettings({ apartmentSurface: parseFloat(e.target.value) || 75 })}
+                value={settings.apartmentSurface ?? 110}
+                onChange={(e) => onUpdateSettings({ apartmentSurface: parseFloat(e.target.value) || 110 })}
                 className="w-full bg-[#0d0f17] text-white font-bold p-2 rounded-xl border border-slate-800 text-xs"
               />
             </div>
@@ -327,8 +329,49 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </select>
             </div>
           </div>
+
+          {/* NOUVEAUX PARAMÈTRES : MITOYENNETÉ & APPAREILS PERMANENTS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800">
+            <div className="flex items-center justify-between bg-[#0d0f17] p-3 rounded-xl border border-slate-800">
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-white font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Mitoyenneté Chauffée
+                </span>
+                <p className="text-[9px] text-slate-400">Appartement entouré d'autres logements</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ isConnectedBuilding: !isConnectedBuilding })}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer border ${
+                  isConnectedBuilding ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-400'
+                }`}
+              >
+                {isConnectedBuilding ? 'Oui (Isolé)' : 'Non (Isolé ext.)'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between bg-[#0d0f17] p-3 rounded-xl border border-slate-800">
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-white font-bold flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" /> Appareils Permanents
+                </span>
+                <p className="text-[9px] text-slate-400">Frigo, box, TV en veille, prises...</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ hasInternalAppliances: !hasInternalAppliances })}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer border ${
+                  hasInternalAppliances ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-400'
+                }`}
+              >
+                {hasInternalAppliances ? 'Oui (Gains 24/7)' : 'Non'}
+              </button>
+            </div>
+          </div>
+
         </div>
-{/* CLÉ API GEMINI */}
+
+        {/* CLÉ API GEMINI */}
         <div className="bg-[#151824] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center space-x-2 text-indigo-400 border-b border-slate-800 pb-2">
             <Key className="w-4 h-4 text-amber-400" />
