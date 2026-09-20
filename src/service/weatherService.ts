@@ -8,6 +8,8 @@ const CITIES_COORDS: Record<string, { lat: number; lon: number; country: string 
   'Londres': { lat: 51.5074, lon: -0.1278, country: 'Royaume-Uni' },
   'New York': { lat: 40.7128, lon: -74.0060, country: 'États-Unis' },
   'Licata': { lat: 37.1037, lon: 13.9351, country: 'Italie' },
+  'Luxembourg': { lat: 49.6116, lon: 6.1319, country: 'Luxembourg' },
+  'Kopstal': { lat: 49.6533, lon: 6.0694, country: 'Luxembourg' },
 };
 
 const mapWmoCodeToCondition = (code: number): string => {
@@ -46,16 +48,15 @@ export const geocodeCity = async (cityName: string): Promise<{ lat: number; lon:
 export const fetchRealWeatherData = async (cityName: string): Promise<WeatherData> => {
   const coords = await geocodeCity(cityName);
   
-  // 1. URL Météo standard enrichie avec wind_direction_10m
+  // 1. URL Météo standard
   const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,weather_code&hourly=temperature_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max&timezone=auto`;
 
-  // 2. URL Air Quality / Pollen d'Open-Meteo
-  const pollenUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${coords.lat}&longitude=${coords.lon}&hourly=grass_pollen,birch_pollen,olive_pollen,ragweed_pollen&timezone=auto`;
+  // 2. URL Air Quality / Pollen d'Open-Meteo (incluant european_aqi)
+  const pollenUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${coords.lat}&longitude=${coords.lon}&hourly=european_aqi,grass_pollen,birch_pollen,olive_pollen,ragweed_pollen&timezone=auto`;
 
-  // Exécution des deux requêtes en parallèle
   const [weatherRes, pollenRes] = await Promise.all([
     fetch(weatherUrl),
-    fetch(pollenUrl).catch(() => null) // Sécurité si l'API pollen échoue
+    fetch(pollenUrl).catch(() => null)
   ]);
 
   if (!weatherRes.ok) {
@@ -69,13 +70,13 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
   const hourly = data.hourly;
   const daily = data.daily;
   const pollenHourly = pollenData?.hourly || {};
+  const aqiHourly = pollenData?.hourly?.european_aqi || [];
 
   const temp = Math.round(current.temperature_2m);
   const maxTemp = Math.round(daily.temperature_2m_max[0] || temp);
   const windSpeed = Math.round(current.wind_speed_10m);
   const weatherCode = current.weather_code;
 
-  // --- ANALYSE DES ALERTES ---
   let alertData = null;
   if (maxTemp >= 31 || temp >= 31) {
     alertData = {
@@ -97,7 +98,6 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
     };
   }
 
-  // 1. Heure par heure (17 prochaines heures)
   const nowIsoString = new Date().toISOString().slice(0, 13);
   let startIndex = hourly.time.findIndex((t: string) => t.startsWith(nowIsoString));
   if (startIndex === -1) startIndex = 0;
@@ -115,7 +115,6 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
     };
   });
 
-  // 2. Prévisions sur plusieurs jours (Matin vs Soir)
   const formattedForecast = daily.time.map((dateStr: string, index: number) => {
     const dateObj = new Date(dateStr);
     const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
@@ -137,16 +136,13 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
     const mornWind = Math.round(hourly.wind_speed_10m[mornIdx] ?? current.wind_speed_10m);
     const eveWind = Math.round(hourly.wind_speed_10m[eveIdx] ?? current.wind_speed_10m);
 
-    // Vraie direction du vent en degrés (0 - 360) transmise au composant
     const mornWindDir = hourly.wind_direction_10m?.[mornIdx] ?? current.wind_direction_10m ?? 0;
     const eveWindDir = hourly.wind_direction_10m?.[eveIdx] ?? current.wind_direction_10m ?? 0;
 
-    // Récupération des vraies valeurs de pollen (graminées par ex, ou max des allergènes disponibles)
     const getPollenLevel = (idx: number) => {
       const grass = pollenHourly?.grass_pollen?.[idx] ?? 0;
       const birch = pollenHourly?.birch_pollen?.[idx] ?? 0;
       const maxPollen = Math.max(grass, birch);
-      // Conversion de la concentration brute en grains/m³ vers une échelle de 1 à 5 pour l'affichage LED
       if (maxPollen > 100) return 5;
       if (maxPollen > 50) return 4;
       if (maxPollen > 20) return 3;
@@ -176,14 +172,15 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
 
       windMorn: mornWind,
       windEve: eveWind,
-      windDirMorn: mornWindDir, // <--- Vraie orientation en degrés
-      windDirEve: eveWindDir,   // <--- Vraie orientation en degrés
+      windDirMorn: mornWindDir,
+      windDirEve: eveWindDir,
 
-      pollenMorn: getPollenLevel(mornIdx), // <--- Vraie valeur calculée via l'API Pollen
-      pollenEve: getPollenLevel(eveIdx),   // <--- Vraie valeur calculée via l'API Pollen
+      pollenMorn: getPollenLevel(mornIdx),
+      pollenEve: getPollenLevel(eveIdx),
 
-      aqiMorn: 30 + (index * 2) % 40,
-      aqiEve: 40 + (index * 3) % 50,
+      // Récupération de l'AQI réel depuis l'API
+      aqiMorn: Math.round(aqiHourly[mornIdx] ?? 30),
+      aqiEve: Math.round(aqiHourly[eveIdx] ?? 40),
 
       uvMorn: Math.max(1, Math.round((daily.uv_index_max[index] || 4) * 0.4)),
       uvEve: Math.max(1, Math.round((daily.uv_index_max[index] || 4) * 0.8)),
@@ -208,7 +205,7 @@ export const fetchRealWeatherData = async (cityName: string): Promise<WeatherDat
     uvIndex: Math.round(daily.uv_index_max[0] || 4),
     visibility: 10,
     icon: current.weather_code === 0 ? 'Sun' : 'Cloud',
-    airQuality: { aqi: 35, status: 'Bon', pm25: 8.0, pm10: 15.2 },
+   airQuality: { aqi: Math.round(aqiHourly[startIndex] ?? 35), status: 'Bon', pm25: 8.0, pm10: 15.2 },
     alert: alertData,
     activities: {
       fitness: { ideal: temp >= 12 && temp <= 25, score: 85, label: 'Excellentes conditions' },

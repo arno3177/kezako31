@@ -3,7 +3,7 @@ import { WeatherData, TemperatureUnit, AppSettings } from '../types';
 import { getTranslation, translateCondition } from '../utils/translations';
 import { 
   CloudSun, Sun, Cloud, CloudRain, Droplets, Wind, 
-  Calendar, ChevronDown, ChevronUp, 
+  Calendar, 
   BarChart3, Activity, Bike, Dumbbell, Trees, Gauge, SunMedium,
   Thermometer, Umbrella, Compass, Flower2, Clock, X, Plus, Trash2, ShieldCheck, Info,
   RefreshCw, CheckCircle2, Award, Leaf, Sprout, Flower, CloudSnow, CloudLightning, Home
@@ -26,7 +26,6 @@ type WeatherTab = 'temp' | 'aqi' | 'uv' | 'activities';
 const STORAGE_KEY = 'weather_saved_cities';
 const HOME_CITY_KEY = 'weather_home_city';
 
-// --- GRILLE EXACTE DES PALIERS DE TEMPÉRATURE (LEDs) ---
 interface TempLevelConfig {
   bars: number;
   colorClass: string;
@@ -53,26 +52,88 @@ const getTempLevelConfig = (temp: number): TempLevelConfig => {
   return { bars: 3, colorClass: 'bg-red-500 shadow-[0_0_10px_#ef4444]' };
 };
 
-const ACTIVITY_LEVEL_CONFIG: Record<number, { bars: number; colorClass: string }> = {
-  9: { bars: 3, colorClass: 'bg-teal-300 shadow-[0_0_8px_#5eead4]' },
-  8: { bars: 2, colorClass: 'bg-teal-300 shadow-[0_0_8px_#5eead4]' },
-  7: { bars: 1, colorClass: 'bg-teal-200 shadow-[0_0_8px_#99f6e4]' },
-  6: { bars: 3, colorClass: 'bg-sky-300 shadow-[0_0_8px_#7dd3fc]' },
-  5: { bars: 2, colorClass: 'bg-sky-300 shadow-[0_0_8px_#7dd3fc]' },
-  4: { bars: 1, colorClass: 'bg-sky-200 shadow-[0_0_8px_#bae6fd]' },
-  3: { bars: 3, colorClass: 'bg-indigo-300 shadow-[0_0_8px_#a5b4fc]' },
-  2: { bars: 2, colorClass: 'bg-indigo-300 shadow-[0_0_8px_#a5b4fc]' },
-  1: { bars: 1, colorClass: 'bg-indigo-200 shadow-[0_0_8px_#c7d2fe]' },
+interface AqiLevelConfig {
+  bars: number;
+  colorClass: string;
+}
+
+const getAqiLevelConfig = (aqi: number): AqiLevelConfig => {
+  if (aqi <= 10) return { bars: 3, colorClass: 'bg-purple-900 shadow-[0_0_8px_#581c87]' };
+  if (aqi <= 15) return { bars: 2, colorClass: 'bg-purple-600 shadow-[0_0_8px_#9333ea]' };
+  if (aqi <= 20) return { bars: 1, colorClass: 'bg-purple-300 shadow-[0_0_8px_#d8b4fe]' };
+  if (aqi <= 25) return { bars: 3, colorClass: 'bg-red-900 shadow-[0_0_8px_#7f1d1d]' };
+  if (aqi <= 30) return { bars: 2, colorClass: 'bg-red-600 shadow-[0_0_8px_#dc2626]' };
+  if (aqi <= 35) return { bars: 1, colorClass: 'bg-red-300 shadow-[0_0_8px_#fca5a5]' };
+  if (aqi <= 40) return { bars: 3, colorClass: 'bg-amber-700 shadow-[0_0_8px_#b45309]' };
+  if (aqi <= 43) return { bars: 2, colorClass: 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' };
+  if (aqi <= 48) return { bars: 1, colorClass: 'bg-amber-200 shadow-[0_0_8px_#fde68a]' };
+  if (aqi <= 53) return { bars: 3, colorClass: 'bg-blue-900 shadow-[0_0_8px_#1e3a8a]' };
+  if (aqi <= 60) return { bars: 2, colorClass: 'bg-blue-600 shadow-[0_0_8px_#2563eb]' };
+  if (aqi <= 70) return { bars: 1, colorClass: 'bg-blue-300 shadow-[0_0_8px_#93c5fd]' };
+  if (aqi <= 80) return { bars: 3, colorClass: 'bg-emerald-800 shadow-[0_0_8px_#065f46]' };
+  if (aqi <= 90) return { bars: 2, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]' };
+  return { bars: 1, colorClass: 'bg-emerald-200 shadow-[0_0_8px_#a7f3d0]' };
 };
 
-// Indicateur horizontal en ligne (petits points LED côte à côte)
-const LedHorizontalIndicator: React.FC<{ temp?: number; level?: number; isActivity?: boolean }> = ({ temp, level = 5, isActivity = false }) => {
-  let config: TempLevelConfig;
-  if (temp !== undefined && !isActivity) {
+interface UvLevelConfig {
+  bars: number;
+  colorClass: string;
+}
+
+const getUvLevelConfig = (uv: number): UvLevelConfig => {
+  if (uv <= 0.8) return { bars: 3, colorClass: 'bg-emerald-800 shadow-[0_0_8px_#065f46]' };
+  if (uv <= 1.5) return { bars: 2, colorClass: 'bg-emerald-500 shadow-[0_0_8px_#10b981]' };
+  if (uv <= 2.5) return { bars: 1, colorClass: 'bg-emerald-200 shadow-[0_0_8px_#a7f3d0]' };
+  if (uv <= 3.5) return { bars: 3, colorClass: 'bg-blue-900 shadow-[0_0_8px_#1e3a8a]' };
+  if (uv <= 4.5) return { bars: 2, colorClass: 'bg-blue-600 shadow-[0_0_8px_#2563eb]' };
+  if (uv <= 5.5) return { bars: 1, colorClass: 'bg-blue-300 shadow-[0_0_8px_#93c5fd]' };
+  if (uv <= 6.5) return { bars: 3, colorClass: 'bg-amber-700 shadow-[0_0_8px_#b45309]' };
+  if (uv <= 7.5) return { bars: 2, colorClass: 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' };
+  if (uv <= 8.5) return { bars: 1, colorClass: 'bg-amber-200 shadow-[0_0_8px_#fde68a]' };
+  if (uv <= 9.5) return { bars: 3, colorClass: 'bg-red-900 shadow-[0_0_8px_#7f1d1d]' };
+  if (uv <= 10.5) return { bars: 2, colorClass: 'bg-red-600 shadow-[0_0_8px_#dc2626]' };
+  if (uv <= 11.5) return { bars: 1, colorClass: 'bg-red-300 shadow-[0_0_8px_#fca5a5]' };
+  if (uv <= 13) return { bars: 3, colorClass: 'bg-purple-900 shadow-[0_0_8px_#581c87]' };
+  if (uv <= 15) return { bars: 2, colorClass: 'bg-purple-600 shadow-[0_0_8px_#9333ea]' };
+  return { bars: 1, colorClass: 'bg-purple-300 shadow-[0_0_8px_#d8b4fe]' };
+};
+
+interface ActivityLevelConfig {
+  bars: number;
+  colorClass: string;
+}
+
+const getActivityLevelConfig = (score: number): ActivityLevelConfig => {
+  if (score >= 90) return { bars: 3, colorClass: 'bg-teal-300 shadow-[0_0_8px_#5eead4]' };
+  if (score >= 75) return { bars: 2, colorClass: 'bg-teal-400 shadow-[0_0_8px_#2dd4bf]' };
+  if (score >= 60) return { bars: 1, colorClass: 'bg-teal-200 shadow-[0_0_8px_#99f6e4]' };
+  if (score >= 45) return { bars: 3, colorClass: 'bg-sky-300 shadow-[0_0_8px_#7dd3fc]' };
+  if (score >= 30) return { bars: 2, colorClass: 'bg-sky-400 shadow-[0_0_8px_#38bdf8]' };
+  if (score >= 15) return { bars: 1, colorClass: 'bg-sky-200 shadow-[0_0_8px_#bae6fd]' };
+  return { bars: 1, colorClass: 'bg-slate-600 shadow-[0_0_4px_#475569]' };
+};
+
+const LedHorizontalIndicator: React.FC<{ 
+  temp?: number; 
+  aqi?: number; 
+  uv?: number; 
+  activityScore?: number;
+  isActivity?: boolean; 
+  isAqi?: boolean; 
+  isUv?: boolean 
+}> = ({ temp, aqi, uv, activityScore, isActivity = false, isAqi = false, isUv = false }) => {
+  let config: TempLevelConfig | AqiLevelConfig | UvLevelConfig | ActivityLevelConfig;
+  
+  if (isUv && uv !== undefined) {
+    config = getUvLevelConfig(uv);
+  } else if (isAqi && aqi !== undefined) {
+    config = getAqiLevelConfig(aqi);
+  } else if (isActivity && activityScore !== undefined) {
+    config = getActivityLevelConfig(activityScore);
+  } else if (temp !== undefined) {
     config = getTempLevelConfig(temp);
   } else {
-    const safeLevel = Math.max(1, Math.min(9, Math.round(level)));
-    config = isActivity ? ACTIVITY_LEVEL_CONFIG[safeLevel] : { bars: 2, colorClass: 'bg-sky-300 shadow-[0_0_8px_#7dd3fc]' };
+    config = { bars: 2, colorClass: 'bg-sky-300 shadow-[0_0_8px_#7dd3fc]' };
   }
 
   return (
@@ -94,7 +155,6 @@ const LedHorizontalIndicator: React.FC<{ temp?: number; level?: number; isActivi
 
 const ConfidenceDotsIndicator: React.FC<{ level: number }> = ({ level }) => {
   const safeLevel = Math.max(1, Math.min(5, Math.round(level)));
-
   return (
     <div className="flex flex-col items-center justify-center gap-1 p-0 bg-transparent w-6 py-1.5" title={`Indice de confiance : ${safeLevel}/5`}>
       {[5, 4, 3, 2, 1].map((dotIndex) => {
@@ -179,9 +239,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   language = 'en'
 }) => {
   const t = getTranslation(language);
-  const [activeTab, setActiveTab] = useState<WeatherTab>('temp');
   const [selectedActivity, setSelectedActivity] = useState<'fitness' | 'tennis' | 'cycling' | 'forestWalk'>('fitness');
-  const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -334,6 +392,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
   const fifteenDaysData = useMemo(() => {
     const baseList: any[] = [...forecastData];
     const needed = Math.max(0, 15 - baseList.length);
+
     for (let i = 0; i < needed; i++) {
       const dayIndex = baseList.length + i;
       baseList.push({
@@ -343,6 +402,7 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         precipMorn: 0, precipEve: 0, windMorn: 10, windEve: 14, windDirMorn: 'N', windDirEve: 'NE', pollenMorn: 1, pollenEve: 2
       });
     }
+
     return baseList.slice(0, 15).map((d: any, idx: number) => {
       const rawCondition = (d.condition || d.eveCondition || '').toLowerCase();
       let detectedPrecipType = 'rain';
@@ -353,19 +413,33 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
       const mornTemp = d.mornTemp ?? d.tempMin ?? 15;
       const eveTemp = d.eveTemp ?? d.tempMax ?? 24;
       const precipEve = Number(d.precipEve ?? d.precipitation ?? 0);
-      const mornPrecip = Number(d.precipMorn ?? 0);
-      const windEve = d.windEve ?? 14;
-      const mornWind = d.windMorn ?? 10;
+      const precipMorn = Number(d.precipMorn ?? 0);
+      const windEve = Number(d.windEve ?? (12 + (idx % 7)));
+      const windMorn = Number(d.windMorn ?? (8 + (idx % 5)));
+      const pollenVal = Number(d.pollenEve ?? ((idx % 4) + 1));
+
+      const aqiMorn = d.aqiMorn ?? 30;
+      const aqiEve = d.aqiEve ?? 45;
+      const uvMorn = d.uvMorn ?? 2;
+      const uvEve = d.uvEve ?? 5;
 
       const calcScore = (temp: number, precip: number, wind: number, type: string) => {
-        let score = 90;
-        if (precip > 2) score -= 40;
-        if (precip > 5) score -= 30;
-        if (wind > 30) score -= 25;
-        if (type === 'cycling' && wind > 25) score -= 20;
-        if (type === 'tennis' && (wind > 20 || precip > 0)) score -= 35;
-        if (temp < 2 || temp > 34) score -= 25;
-        return Math.max(15, Math.min(100, score));
+        let score = 85;
+        if (type === 'fitness') {
+          if (temp > 30 || temp < 2) score -= 25;
+          if (precip > 1) score -= 35;
+        } else if (type === 'tennis') {
+          if (wind > 18) score -= 40;
+          if (precip > 0) score -= 50;
+          if (temp > 32 || temp < 10) score -= 30;
+        } else if (type === 'cycling') {
+          if (wind > 25) score -= 45;
+          if (precip > 0.5) score -= 40;
+        } else if (type === 'forestWalk') {
+          if (pollenVal >= 4) score -= 30;
+          if (precip > 2) score -= 35;
+        }
+        return Math.max(20, Math.min(100, score - (idx % 3) * 5));
       };
 
       return {
@@ -374,24 +448,24 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         eveTemp,
         mornCondition: d.mornCondition ?? d.condition ?? 'Ensoleillé',
         eveCondition: d.eveCondition ?? d.condition ?? 'Ensoleillé',
-        aqiMorn: d.aqiMorn ?? 30,
-        aqiEve: d.aqiEve ?? 45,
-        uvMorn: d.uvMorn ?? 2,
-        uvEve: d.uvEve ?? 5,
-        feelsMorn: d.feelsMorn ?? 15,
-        feelsEve: d.feelsEve ?? 23,
-        precipMorn: mornPrecip,
+        aqiMorn,
+        aqiEve,
+        uvMorn,
+        uvEve,
+        feelsMorn: d.feelsMorn ?? (mornTemp - 2),
+        feelsEve: d.feelsEve ?? (eveTemp + 1),
+        precipMorn,
         precipEve,
         precipTypeMorn: d.precipTypeMorn ?? detectedPrecipType,
         precipTypeEve: d.precipTypeEve ?? detectedPrecipType,
-        windMorn: mornWind,
+        windMorn,
         windEve,
         confidence: d.confidence ?? Math.max(1, 5 - Math.floor(idx / 3)),
         activityScores: {
-          fitness: { morn: calcScore(mornTemp, mornPrecip, mornWind, 'fitness'), eve: calcScore(eveTemp, precipEve, windEve, 'fitness') },
-          tennis: { morn: calcScore(mornTemp, mornPrecip, mornWind, 'tennis'), eve: calcScore(eveTemp, precipEve, windEve, 'tennis') },
-          cycling: { morn: calcScore(mornTemp, mornPrecip, mornWind, 'cycling'), eve: calcScore(eveTemp, precipEve, windEve, 'cycling') },
-          forestWalk: { morn: calcScore(mornTemp, mornPrecip, mornWind, 'forestWalk'), eve: calcScore(eveTemp, precipEve, windEve, 'forestWalk') }
+          fitness: { morn: calcScore(mornTemp, precipMorn, windMorn, 'fitness'), eve: calcScore(eveTemp, precipEve, windEve, 'fitness') },
+          tennis: { morn: calcScore(mornTemp, precipMorn, windMorn, 'tennis'), eve: calcScore(eveTemp, precipEve, windEve, 'tennis') },
+          cycling: { morn: calcScore(mornTemp, precipMorn, windMorn, 'cycling'), eve: calcScore(eveTemp, precipEve, windEve, 'cycling') },
+          forestWalk: { morn: calcScore(mornTemp, precipMorn, windMorn, 'forestWalk'), eve: calcScore(eveTemp, precipEve, windEve, 'forestWalk') }
         }
       };
     });
@@ -411,6 +485,13 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
     tennis: { title: 'Tennis', icon: <Activity className="w-4 h-4 text-sky-300" /> },
     cycling: { title: 'Cyclisme', icon: <Bike className="w-4 h-4 text-teal-300" /> },
     forestWalk: { title: 'Forêt', icon: <Trees className="w-4 h-4 text-teal-300" /> },
+  };
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   if (!currentWeather) {
@@ -606,8 +687,42 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       )}
 
-      {/* 2. MÉTÉO HEURE PAR HEURE (INDICATEURS LED HORIZONTAUX ALIGNÉS) */}
-      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3.5 backdrop-blur-md">
+      {/* BANDEAU DE NAVIGATION RAPIDE PAR SECTION */}
+      <div className="bg-gradient-to-r from-sky-900/80 via-slate-800 to-sky-900/80 border border-sky-400/40 p-2.5 rounded-3xl shadow-xl backdrop-blur-md flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <button type="button" onClick={() => scrollToSection('section-hourly')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Clock className="w-3 h-3 text-sky-400" /> Horaire
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-daily')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <BarChart3 className="w-3 h-3 text-sky-400" /> Températures
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-feels')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Thermometer className="w-3 h-3 text-sky-400" /> Ressentie
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-activities')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Activity className="w-3 h-3 text-indigo-400" /> Activités
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-precip')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Umbrella className="w-3 h-3 text-teal-300" /> Pluie
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-uv')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <SunMedium className="w-3 h-3 text-amber-300" /> UV
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-wind')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Compass className="w-3 h-3 text-sky-400" /> Vent
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-aqi')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Gauge className="w-3 h-3 text-teal-400" /> Air
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-pollen')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Flower2 className="w-3 h-3 text-teal-300" /> Pollen
+        </button>
+        <button type="button" onClick={() => scrollToSection('section-confidence')} className="px-2.5 py-1.5 rounded-2xl bg-slate-900/90 hover:bg-sky-950 text-sky-200 border border-sky-400/30 text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shadow-sm">
+          <Award className="w-3 h-3 text-sky-400" /> Confiance
+        </button>
+      </div>
+
+      {/* 2. MÉTÉO HEURE PAR HEURE */}
+      <div id="section-hourly" className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3.5 backdrop-blur-md scroll-mt-4">
         <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
           <span className="font-black text-white text-xs flex items-center gap-2">
             <Clock className="w-4 h-4 text-sky-400" /> Météo Heure par Heure (Les 16 prochaines heures)
@@ -625,24 +740,12 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
               return (
                 <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1 h-full items-center border border-sky-400/20 hover:border-sky-400 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
-                  
-                  {/* 1. Indicateur LED horizontal du haut */}
-                  <div className="w-full pb-0.5" title={`LED : ${item.temp}°C`}>
-                    <LedHorizontalIndicator temp={item.temp} />
-                  </div>
-
-                  {/* 2. Barre horaire principale */}
+                  <div className="w-full pb-0.5" title={`LED : ${item.temp}°C`}><LedHorizontalIndicator temp={item.temp} /></div>
                   <div style={{ height: `${h}%` }} className="w-full max-w-[26px] mx-auto flex flex-col justify-center items-center rounded-xl overflow-hidden border border-sky-400/50 bg-gradient-to-b from-sky-900/85 via-indigo-950/90 to-slate-950 relative shadow-[0_0_12px_rgba(56,189,248,0.15)] py-1 gap-1 my-0.5 self-end">
                     <span className="text-[9px] font-black text-white z-10 shrink-0">{item.temp}°</span>
                     <div className="z-10 shrink-0">{getWeatherIcon(item.condition, "w-3.5 h-3.5")}</div>
                   </div>
-
-                  {/* 3. Indicateur LED horizontal du bas */}
-                  <div className="w-full pt-0.5" title={`LED : ${item.temp}°C`}>
-                    <LedHorizontalIndicator temp={item.temp} />
-                  </div>
-
-                  {/* 4. Heure */}
+                  <div className="w-full pt-0.5" title={`LED : ${item.temp}°C`}><LedHorizontalIndicator temp={item.temp} /></div>
                   <span className="text-[9px] text-sky-300 font-semibold border-t border-slate-800 pt-1 w-full text-center truncate">{item.time}</span>
                 </div>
               );
@@ -659,7 +762,6 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
             <span className="text-xs font-black text-white">{currentWeather.humidity ?? 0}%</span>
           </div>
         </div>
-
         <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 p-4 rounded-3xl flex items-center space-x-3 shadow-xl backdrop-blur-md">
           <Wind className="w-4 h-4 text-sky-400 flex-shrink-0" />
           <div className="min-w-0">
@@ -669,76 +771,21 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-2 border border-sky-400/40 rounded-3xl shadow-xl backdrop-blur-md">
-        <button type="button" onClick={() => setActiveTab('temp')} className={`py-2 px-1 rounded-2xl font-semibold text-[11px] flex items-center justify-center space-x-1 cursor-pointer transition-all shadow-sm ${activeTab === 'temp' ? 'bg-sky-500 text-slate-950 font-bold shadow-md ring-1 ring-sky-300' : 'text-slate-300 bg-slate-900/90 border border-sky-400/20 hover:text-white'}`}>
-          <Calendar className="w-3.5 h-3.5" /><span className="truncate">Températures</span>
-        </button>
-        <button type="button" onClick={() => setActiveTab('aqi')} className={`py-2 px-1 rounded-2xl font-semibold text-[11px] flex items-center justify-center space-x-1 cursor-pointer transition-all shadow-sm ${activeTab === 'aqi' ? 'bg-teal-500 text-slate-950 font-bold shadow-md ring-1 ring-teal-300' : 'text-slate-300 bg-slate-900/90 border border-sky-400/20 hover:text-white'}`}>
-          <Gauge className="w-3.5 h-3.5" /><span className="truncate">Air (AQI)</span>
-        </button>
-        <button type="button" onClick={() => setActiveTab('uv')} className={`py-2 px-1 rounded-2xl font-semibold text-[11px] flex items-center justify-center space-x-1 cursor-pointer transition-all shadow-sm ${activeTab === 'uv' ? 'bg-sky-500 text-slate-950 font-bold shadow-md ring-1 ring-sky-300' : 'text-slate-300 bg-slate-900/90 border border-sky-400/20 hover:text-white'}`}>
-          <SunMedium className="w-3.5 h-3.5" /><span className="truncate">Indice UV</span>
-        </button>
-        <button type="button" onClick={() => setActiveTab('activities')} className={`py-2 px-1 rounded-2xl font-semibold text-[11px] flex items-center justify-center space-x-1 cursor-pointer transition-all shadow-sm ${activeTab === 'activities' ? 'bg-indigo-500 text-slate-950 font-bold shadow-md ring-1 ring-indigo-300' : 'text-slate-300 bg-slate-900/90 border border-sky-400/20 hover:text-white'}`}>
-          <Activity className="w-3.5 h-3.5" /><span className="truncate">Activités</span>
-        </button>
-      </div>
-
-      {/* 4. DIAGRAMME PRINCIPAL (HAUTEUR HARMONISÉE À h-60) */}
-      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 p-5 rounded-3xl shadow-xl space-y-4 backdrop-blur-md">
+      {/* 3. MÉTÉO JOUR PAR JOUR (SANS BANDEAU DE NAVIGATION) */}
+      <div id="section-daily" className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 p-5 rounded-3xl shadow-xl space-y-4 backdrop-blur-md scroll-mt-4">
         <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
           <h2 className="text-xs font-black uppercase text-white flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-sky-400" /> 
-            {activeTab === 'temp' && "Tendance Températures (15 Jours)"}
-            {activeTab === 'aqi' && "Qualité de l'Air AQI (15 Jours)"}
-            {activeTab === 'uv' && "Évolution Indice UV (15 Jours)"}
-            {activeTab === 'activities' && `Scores - ${activityMeta[selectedActivity].title} (15 Jours)`}
+            <BarChart3 className="w-4 h-4 text-sky-400" /> Tendance Températures (15 Jours)
           </h2>
-          <div className="flex items-center gap-3 text-[10px] font-bold">
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sky-300 inline-block border border-white/60"></span><span className="text-white">Matin</span></div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-teal-300 inline-block border border-white/60"></span><span className="text-teal-300">Soir/Apm</span></div>
-          </div>
         </div>
-
-        {activeTab === 'activities' && (
-          <div className="flex gap-1.5 pb-1 overflow-x-auto">
-            {(Object.keys(activityMeta) as Array<keyof typeof activityMeta>).map((actKey) => (
-              <button
-                key={actKey}
-                type="button"
-                onClick={() => setSelectedActivity(actKey)}
-                className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold border flex items-center gap-1.5 cursor-pointer transition-all shadow-sm ${
-                  selectedActivity === actKey ? 'bg-sky-500 text-slate-950 font-bold border-sky-300' : 'bg-slate-900/90 text-slate-300 border-sky-400/30 hover:text-white'
-                }`}
-              >
-                {activityMeta[actKey].icon}
-                <span>{activityMeta[actKey].title}</span>
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 overflow-x-auto shadow-inner">
           {fifteenDaysData.map((day: any, idx: number) => {
-            let evePercent = 50;
-            let mornPercent = 50;
-
             const mornVal = day.mornTemp;
             const eveVal = day.eveTemp;
 
-            if (activeTab === 'temp') {
-              evePercent = Math.max(25, Math.min(100, Math.round(((eveVal - minDaily) / tempRange) * 100)));
-              mornPercent = Math.max(25, Math.min(100, Math.round(((mornVal - minDaily) / tempRange) * 100)));
-            } else if (activeTab === 'aqi') {
-              evePercent = Math.max(25, Math.min(100, Math.round((day.aqiEve / 120) * 100)));
-              mornPercent = Math.max(25, Math.min(100, Math.round((day.aqiMorn / 120) * 100)));
-            } else if (activeTab === 'uv') {
-              evePercent = Math.max(25, Math.min(100, Math.round((day.uvEve / 10) * 100)));
-              mornPercent = Math.max(25, Math.min(100, Math.round((day.uvMorn / 10) * 100)));
-            } else {
-              evePercent = Math.max(25, Math.min(100, day.activityScores[selectedActivity].eve));
-              mornPercent = Math.max(25, Math.min(100, day.activityScores[selectedActivity].morn));
-            }
+            const evePercent = Math.max(25, Math.min(100, Math.round(((eveVal - minDaily) / tempRange) * 100)));
+            const mornPercent = Math.max(25, Math.min(100, Math.round(((mornVal - minDaily) / tempRange) * 100)));
 
             const combinedVal = evePercent + mornPercent; 
             const totalHeightPercent = Math.max(60, Math.min(100, Math.round(combinedVal / 1.6)));
@@ -747,59 +794,28 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
 
             return (
               <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1 h-full items-center border border-sky-400/25 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
-                
-                {/* 1. Indicateur LED horizontal supérieur (Après-midi) */}
-                <div className="w-full pb-0.5" title={`LED APM : ${eveVal}°C`}>
-                  <LedHorizontalIndicator 
-                    temp={activeTab === 'temp' ? eveVal : undefined} 
-                    level={activeTab !== 'temp' ? 6 : undefined} 
-                    isActivity={activeTab === 'activities'} 
-                  />
+                <div className="w-full pb-0.5">
+                  <LedHorizontalIndicator temp={eveVal} />
                 </div>
 
-                {/* 2. Barre principale de hauteur variable */}
                 <div style={{ height: `${totalHeightPercent}%` }} className="w-full max-w-[26px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden border border-sky-400/50 bg-slate-950 relative shadow-[0_0_12px_rgba(56,189,248,0.15)] my-0.5 self-end">
-                  
-                  {/* Section Après-midi (Haut) */}
                   <div style={{ height: `${eveShare}%` }} className="bg-gradient-to-b from-sky-900/90 via-teal-950/95 to-slate-950 flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 relative border-b border-sky-400/30 min-h-0">
-                    <span className="text-[9px] font-black text-teal-200 z-10 shrink-0">
-                      {activeTab === 'temp' && `${eveVal}°`}
-                      {activeTab === 'aqi' && `${day.aqiEve}`}
-                      {activeTab === 'uv' && `${day.uvEve}`}
-                      {activeTab === 'activities' && `${day.activityScores[selectedActivity].eve}%`}
-                    </span>
-                    <div className="z-10 shrink-0" title={`Après-midi : ${day.eveCondition || 'Ensoleillé'}`}>
-                      {getWeatherIcon(day.eveCondition, "w-3 h-3")}
-                    </div>
+                    <span className="text-[9px] font-black text-teal-200 z-10 shrink-0">{eveVal}°</span>
+                    <div className="z-10 shrink-0">{getWeatherIcon(day.eveCondition, "w-3 h-3")}</div>
                   </div>
 
                   <div className="w-full h-[2px] bg-sky-300 z-20 flex-shrink-0 shadow-[0_0_8px_#38bdf8]" />
 
-                  {/* Section Matin (Bas) */}
                   <div style={{ height: `${mornShare}%` }} className="bg-gradient-to-b from-slate-950 via-indigo-950/95 to-sky-950/80 flex flex-col items-center justify-center gap-0.5 py-1 px-0.5 relative min-h-0">
-                    <span className="text-[9px] font-black text-sky-200 z-10 shrink-0">
-                      {activeTab === 'temp' && `${mornVal}°`}
-                      {activeTab === 'aqi' && `${day.aqiMorn}`}
-                      {activeTab === 'uv' && `${day.uvMorn}`}
-                      {activeTab === 'activities' && `${day.activityScores[selectedActivity].morn}%`}
-                    </span>
-                    <div className="z-10 shrink-0" title={`Matin : ${day.mornCondition || 'Ensoleillé'}`}>
-                      {getWeatherIcon(day.mornCondition, "w-3 h-3")}
-                    </div>
+                    <span className="text-[9px] font-black text-sky-200 z-10 shrink-0">{mornVal}°</span>
+                    <div className="z-10 shrink-0">{getWeatherIcon(day.mornCondition, "w-3 h-3")}</div>
                   </div>
-
                 </div>
 
-                {/* 3. Indicateur LED horizontal inférieur (Matin) */}
-                <div className="w-full pt-0.5" title={`LED Matin : ${mornVal}°C`}>
-                  <LedHorizontalIndicator 
-                    temp={activeTab === 'temp' ? mornVal : undefined} 
-                    level={activeTab !== 'temp' ? 4 : undefined} 
-                    isActivity={activeTab === 'activities'} 
-                  />
+                <div className="w-full pt-0.5">
+                  <LedHorizontalIndicator temp={mornVal} />
                 </div>
 
-                {/* 4. Jour */}
                 <span className="text-[9px] text-sky-300 font-semibold border-t border-slate-800 pt-1 w-full text-center truncate">{day.day}</span>
               </div>
             );
@@ -807,179 +823,247 @@ export const WeatherDetailPage: React.FC<WeatherDetailPageProps> = ({
         </div>
       </div>
 
-      {/* 5. DÉTAILS AVANCÉS (METEO RESSENTIE) */}
-      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl overflow-hidden shadow-xl backdrop-blur-md">
-        <button
-          type="button"
-          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
-          className="w-full flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 transition-colors cursor-pointer text-left shadow-sm border-b border-sky-400/30"
-        >
-          <div className="flex items-center space-x-2.5 text-white font-black text-xs uppercase tracking-wider">
-            <Calendar className="w-4 h-4 text-sky-400" />
-            <span className="text-white">Graphiques Avancés (Temp. Ressentie, Précipitations, Vent, Pollen, Confiance)</span>
+      {/* 4. GRAPHIQUES AVANCÉS DANS L'ORDRE DEMANDÉ */}
+      <div className="space-y-4 pt-2">
+
+        {/* A. Température Ressentie */}
+        <div id="section-feels" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Thermometer className="w-4 h-4 text-sky-400" /> Ressentie (15 Jours)
+            </span>
           </div>
-          {isDetailsOpen ? <ChevronUp className="w-4 h-4 text-sky-400" /> : <ChevronDown className="w-4 h-4 text-slate-300" />}
-        </button>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const h = Math.max(35, Math.min(100, Math.round(((day.feelsEve + 5) / 45) * 100)));
+              const eveFeels = day.feelsEve ?? 20;
+              const mornFeels = day.feelsMorn ?? 15;
 
-        {isDetailsOpen && (
-          <div className="p-4 space-y-4 animate-fade-in bg-slate-950/60">
-            
-            {/* Ressentie */}
-            <div className="space-y-2 bg-slate-900/90 p-4 rounded-2xl border border-sky-400/30 shadow-inner">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-white text-xs flex items-center gap-2">
-                  <Thermometer className="w-4 h-4 text-sky-400" /> Ressentie (15 Jours)
-                </span>
-              </div>
-              <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-950 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
-                {fifteenDaysData.map((day: any, idx: number) => {
-                  const h = Math.max(35, Math.min(100, Math.round(((day.feelsEve + 5) / 45) * 100)));
-                  const eveFeels = day.feelsEve ?? 20;
-                  const mornFeels = day.feelsMorn ?? 15;
+              let faceIcon = '😌';
+              let faceColor = 'text-sky-300';
+              if (eveFeels < 5) { faceIcon = '🥶'; faceColor = 'text-cyan-300'; }
+              else if (eveFeels < 15) { faceIcon = '🧥'; faceColor = 'text-sky-200'; }
+              else if (eveFeels >= 28) { faceIcon = '🥵'; faceColor = 'text-teal-300'; }
 
-                  let faceIcon = '😌';
-                  let faceColor = 'text-sky-300';
-                  if (eveFeels < 5) { faceIcon = '🥶'; faceColor = 'text-cyan-300'; }
-                  else if (eveFeels < 15) { faceIcon = '🧥'; faceColor = 'text-sky-200'; }
-                  else if (eveFeels >= 28) { faceIcon = '🥵'; faceColor = 'text-teal-300'; }
-
-                  return (
-                    <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1 h-full items-center border border-sky-400/25 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
-                      <div className="w-full pb-0.5"><LedHorizontalIndicator temp={eveFeels} /></div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 my-1 bg-slate-950 min-h-[100px] self-end">
-                        
-                        {/* Section Après-midi (Haut) */}
-                        <div className="flex-1 bg-gradient-to-b from-sky-900/90 via-teal-950 to-slate-950 flex flex-col items-center justify-between py-1 px-0.5 relative min-h-0">
-                          <span className="text-[8px] font-black text-teal-200 z-10 shrink-0">{eveFeels}°</span>
-                          <span className={`text-[9px] select-none ${faceColor} z-10 shrink-0`}>{faceIcon}</span>
-                        </div>
-
-                        {/* Section Matin (Bas) */}
-                        <div className="flex-1 bg-gradient-to-b from-slate-950 via-indigo-950 to-sky-900/80 flex flex-col items-center justify-between py-1 px-0.5 border-t border-sky-400/40 relative min-h-0">
-                          <span className="text-[8px] font-black text-sky-200 z-10 shrink-0">{mornFeels}°</span>
-                        </div>
-
-                      </div>
-                      <div className="w-full pt-0.5"><LedHorizontalIndicator temp={mornFeels} /></div>
-                      <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1 h-full items-center border border-sky-400/25 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full pb-0.5"><LedHorizontalIndicator temp={eveFeels} /></div>
+                  <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 my-1 bg-slate-950 min-h-[100px] self-end">
+                    <div className="flex-1 bg-gradient-to-b from-sky-900/90 via-teal-950 to-slate-950 flex flex-col items-center justify-between py-1 px-0.5 relative min-h-0">
+                      <span className="text-[8px] font-black text-teal-200 z-10 shrink-0">{eveFeels}°</span>
+                      <span className={`text-[9px] select-none ${faceColor} z-10 shrink-0`}>{faceIcon}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Précipitations */}
-            <div className="space-y-2 bg-slate-900/90 p-4 rounded-2xl border border-sky-400/30 shadow-inner">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-white text-xs flex items-center gap-2">
-                  <Umbrella className="w-4 h-4 text-teal-300" /> Précipitations (15 Jours)
-                </span>
-              </div>
-              <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-950 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
-                {fifteenDaysData.map((day: any, idx: number) => {
-                  const h = Math.max(35, Math.min(100, Math.round((Math.max(day.precipEve, 0.1) / 8) * 100)));
-                  const precipLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.precipEve / 8) * 4)));
-                  return (
-                    <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
-                      <div className="w-full flex items-center justify-center gap-1">
-                        <LedHorizontalIndicator level={precipLedLevel} />
-                        {getPrecipitationIcon(day.precipTypeEve ?? 'rain', day.precipEve ?? 0, "w-3 h-3")}
-                      </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
-                        <div className="flex-1 bg-gradient-to-b from-sky-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.precipEve}</span></div>
-                        <div className="flex-1 bg-gradient-to-b from-indigo-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.precipMorn}</span></div>
-                      </div>
-                      <div className="w-full"><span className="opacity-0">.</span></div>
-                      <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                    <div className="flex-1 bg-gradient-to-b from-slate-950 via-indigo-950 to-sky-900/80 flex flex-col items-center justify-between py-1 px-0.5 border-t border-sky-400/40 relative min-h-0">
+                      <span className="text-[8px] font-black text-sky-200 z-10 shrink-0">{mornFeels}°</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Vent */}
-            <div className="space-y-2 bg-slate-900/90 p-4 rounded-2xl border border-sky-400/30 shadow-inner">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-white text-xs flex items-center gap-2">
-                  <Compass className="w-4 h-4 text-sky-400" /> Vent & Direction (15 Jours)
-                </span>
-              </div>
-              <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-950 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
-                {fifteenDaysData.map((day: any, idx: number) => {
-                  const h = Math.max(35, Math.min(100, Math.round((day.windEve / 35) * 100)));
-                  const windLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.windEve / 35) * 4)));
-                  return (
-                    <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
-                      <div className="w-full flex items-center justify-center gap-1">
-                        <LedHorizontalIndicator level={windLedLevel} />
-                        {getWindDirectionIcon(day.windDirEve ?? 'N', "w-3 h-3")}
-                      </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
-                        <div className="flex-1 bg-gradient-to-b from-sky-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.windEve}</span></div>
-                        <div className="flex-1 bg-gradient-to-b from-indigo-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.windMorn}</span></div>
-                      </div>
-                      <div className="w-full"><span className="opacity-0">.</span></div>
-                      <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Pollen */}
-            <div className="space-y-2 bg-slate-900/90 p-4 rounded-2xl border border-sky-400/30 shadow-inner">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-white text-xs flex items-center gap-2">
-                  <Flower2 className="w-4 h-4 text-teal-300" /> Pollen (15 Jours)
-                </span>
-              </div>
-              <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-950 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
-                {fifteenDaysData.map((day: any, idx: number) => {
-                  const h = Math.max(35, Math.min(100, Math.round((day.pollenEve / 5) * 100)));
-                  const pollenLedLevel = Math.max(1, Math.min(9, Math.round((day.pollenEve / 5) * 8) + 1));
-                  return (
-                    <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
-                      <div className="w-full flex items-center justify-center gap-1">
-                        <LedHorizontalIndicator level={pollenLedLevel} />
-                        {getPollenIcon(day.pollenEve, "w-3 h-3")}
-                      </div>
-                      <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
-                        <div className="flex-1 bg-gradient-to-b from-sky-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.pollenEve}</span></div>
-                        <div className="flex-1 bg-gradient-to-b from-indigo-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.pollenMorn}</span></div>
-                      </div>
-                      <div className="w-full"><span className="opacity-0">.</span></div>
-                      <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Indice de Confiance */}
-            <div className="space-y-2 bg-slate-900/90 p-4 rounded-2xl border border-sky-400/30 shadow-inner">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-white text-xs flex items-center gap-2">
-                  <Award className="w-4 h-4 text-sky-400" /> Indice de Confiance Météo (15 Jours)
-                </span>
-              </div>
-              <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-950 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
-                {fifteenDaysData.map((day: any, idx: number) => {
-                  const conf = day.confidence ?? 3;
-                  return (
-                    <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto] gap-2 h-full items-center border border-sky-400/20 rounded-2xl p-1.5 bg-slate-900 shadow-sm text-center">
-                      <div className="w-full"><span className="opacity-0">.</span></div>
-                      <div className="w-full flex items-center justify-center">
-                        <ConfidenceDotsIndicator level={conf} />
-                      </div>
-                      <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
+                  </div>
+                  <div className="w-full pt-0.5"><LedHorizontalIndicator temp={mornFeels} /></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
+
+        {/* B. Activités (Placé sous la température ressentie) */}
+        <div id="section-activities" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-400" /> Activités - {activityMeta[selectedActivity].title} (15 Jours)
+            </span>
+          </div>
+          <div className="flex gap-1.5 pb-2 overflow-x-auto pt-1">
+            {(Object.keys(activityMeta) as Array<keyof typeof activityMeta>).map((actKey) => (
+              <button
+                key={actKey}
+                type="button"
+                onClick={() => setSelectedActivity(actKey)}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold border flex items-center gap-1.5 cursor-pointer transition-all shadow-sm ${
+                  selectedActivity === actKey ? 'bg-indigo-500 text-slate-950 font-bold border-indigo-300' : 'bg-slate-900/90 text-slate-300 border-sky-400/30 hover:text-white'
+                }`}
+              >
+                {activityMeta[actKey].icon}
+                <span>{activityMeta[actKey].title}</span>
+              </button>
+            ))}
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const eveScore = day.activityScores[selectedActivity].eve;
+              const mornScore = day.activityScores[selectedActivity].morn;
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1 h-full items-center border border-sky-400/25 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full pb-0.5"><LedHorizontalIndicator activityScore={eveScore} isActivity={true} /></div>
+                  <div className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 my-1 bg-slate-950 min-h-[100px] self-end" style={{ height: `${Math.round((eveScore + mornScore) / 2)}%` }}>
+                    <div className="flex-1 bg-gradient-to-b from-indigo-900/90 via-sky-950 to-slate-950 flex flex-col items-center justify-center py-1 px-0.5"><span className="text-[8px] font-black text-indigo-200">{eveScore}%</span></div>
+                    <div className="flex-1 bg-gradient-to-b from-slate-950 via-sky-950 to-indigo-900/80 flex flex-col items-center justify-center py-1 px-0.5 border-t border-sky-400/40"><span className="text-[8px] font-black text-sky-200">{mornScore}%</span></div>
+                  </div>
+                  <div className="w-full pt-0.5"><LedHorizontalIndicator activityScore={mornScore} isActivity={true} /></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* C. Précipitations */}
+        <div id="section-precip" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Umbrella className="w-4 h-4 text-teal-300" /> Précipitations (15 Jours)
+            </span>
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const h = Math.max(35, Math.min(100, Math.round((Math.max(day.precipEve, 0.1) / 8) * 100)));
+              const precipLedLevel = Math.max(1, Math.min(9, Math.round(5 + (day.precipEve / 8) * 4)));
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full flex items-center justify-center gap-1">
+                    <LedHorizontalIndicator activityScore={precipLedLevel * 10} isActivity={true} />
+                    {getPrecipitationIcon(day.precipTypeEve ?? 'rain', day.precipEve ?? 0, "w-3 h-3")}
+                  </div>
+                  <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
+                    <div className="flex-1 bg-gradient-to-b from-sky-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.precipEve}</span></div>
+                    <div className="flex-1 bg-gradient-to-b from-indigo-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.precipMorn}</span></div>
+                  </div>
+                  <div className="w-full"><span className="opacity-0">.</span></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* D. Indice UV (Placé sous les précipitations) */}
+        <div id="section-uv" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <SunMedium className="w-4 h-4 text-amber-300" /> Indice UV (15 Jours - Réel)
+            </span>
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const h = Math.max(35, Math.min(100, Math.round((day.uvEve / 15) * 100)));
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full"><LedHorizontalIndicator uv={day.uvEve} isUv={true} /></div>
+                  <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
+                    <div className="flex-1 bg-gradient-to-b from-amber-900/90 to-amber-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-amber-200">{day.uvEve}</span></div>
+                    <div className="flex-1 bg-gradient-to-b from-sky-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.uvMorn}</span></div>
+                  </div>
+                  <div className="w-full"><LedHorizontalIndicator uv={day.uvMorn} isUv={true} /></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* E. Vent */}
+        <div id="section-wind" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Compass className="w-4 h-4 text-sky-400" /> Vent & Direction (15 Jours)
+            </span>
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const h = Math.max(35, Math.min(100, Math.round((day.windEve / 35) * 100)));
+              const windScore = Math.max(10, 100 - (day.windEve / 35) * 80);
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full flex items-center justify-center gap-1">
+                    <LedHorizontalIndicator activityScore={windScore} isActivity={true} />
+                    {getWindDirectionIcon(day.windDirEve ?? 'N', "w-3 h-3")}
+                  </div>
+                  <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
+                    <div className="flex-1 bg-gradient-to-b from-sky-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.windEve}</span></div>
+                    <div className="flex-1 bg-gradient-to-b from-indigo-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.windMorn}</span></div>
+                  </div>
+                  <div className="w-full"><span className="opacity-0">.</span></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* F. Qualité de l'Air AQI (Placé sous le vent) */}
+        <div id="section-aqi" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Gauge className="w-4 h-4 text-teal-400" /> Qualité de l'Air AQI (15 Jours - Réel)
+            </span>
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const h = Math.max(35, Math.min(100, Math.round((day.aqiEve / 100) * 100)));
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full"><LedHorizontalIndicator aqi={day.aqiEve} isAqi={true} /></div>
+                  <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
+                    <div className="flex-1 bg-gradient-to-b from-teal-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.aqiEve}</span></div>
+                    <div className="flex-1 bg-gradient-to-b from-sky-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.aqiMorn}</span></div>
+                  </div>
+                  <div className="w-full"><LedHorizontalIndicator aqi={day.aqiMorn} isAqi={true} /></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* G. Pollen */}
+        <div id="section-pollen" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Flower2 className="w-4 h-4 text-teal-300" /> Pollen (15 Jours)
+            </span>
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const h = Math.max(35, Math.min(100, Math.round((day.pollenEve / 5) * 100)));
+              const pollenScore = Math.max(10, 100 - (day.pollenEve / 5) * 80);
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto_auto] gap-1.5 h-full items-center border border-sky-400/20 rounded-2xl p-1 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full flex items-center justify-center gap-1">
+                    <LedHorizontalIndicator activityScore={pollenScore} isActivity={true} />
+                    {getPollenIcon(day.pollenEve, "w-3 h-3")}
+                  </div>
+                  <div style={{ height: `${h}%` }} className="w-full max-w-[24px] mx-auto flex flex-col justify-between rounded-xl overflow-hidden shadow-[0_0_10px_rgba(56,189,248,0.15)] border border-sky-400/50 bg-slate-950 min-h-[90px] self-end">
+                    <div className="flex-1 bg-gradient-to-b from-sky-900/90 to-teal-950 flex items-center justify-center min-h-0"><span className="text-[8px] font-black text-teal-200">{day.pollenEve}</span></div>
+                    <div className="flex-1 bg-gradient-to-b from-indigo-950 to-sky-900/80 flex items-center justify-center border-t border-sky-400/40 min-h-0"><span className="text-[8px] font-black text-sky-200">{day.pollenMorn}</span></div>
+                  </div>
+                  <div className="w-full"><span className="opacity-0">.</span></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* H. Indice de Confiance */}
+        <div id="section-confidence" className="space-y-2 bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 p-4 rounded-3xl border border-sky-400/40 shadow-xl backdrop-blur-md scroll-mt-4">
+          <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
+            <span className="font-black text-white text-xs flex items-center gap-2">
+              <Award className="w-4 h-4 text-sky-400" /> Indice de Confiance Météo (15 Jours)
+            </span>
+          </div>
+          <div className="h-60 flex items-end justify-between gap-1.5 pt-3 pb-1.5 overflow-x-auto bg-slate-900/90 p-3 rounded-2xl border border-sky-400/30 shadow-inner">
+            {fifteenDaysData.map((day: any, idx: number) => {
+              const conf = day.confidence ?? 3;
+              return (
+                <div key={idx} className="flex-1 min-w-[50px] max-w-[58px] grid grid-rows-[auto_1fr_auto] gap-2 h-full items-center border border-sky-400/20 rounded-2xl p-1.5 bg-slate-900 shadow-sm text-center">
+                  <div className="w-full"><span className="opacity-0">.</span></div>
+                  <div className="w-full flex items-center justify-center"><ConfidenceDotsIndicator level={conf} /></div>
+                  <span className="text-[9px] text-slate-300 font-semibold border-t border-slate-800 pt-1 w-full text-center">{day.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
 
     </div>
