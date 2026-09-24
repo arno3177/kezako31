@@ -17,20 +17,16 @@ async function updateFuelPrices() {
     
     const html = await response.text();
     
-    // Recherche de tous les prix au format X.XXX ou X,XXX (ex: 1.520 ou 1,520) dans le texte brut
-    const regex = /[1-2][,\.]\d{3}/g;
-    const matches = html.match(regex) || [];
-    
-    // Nettoyage et déduplication des prix trouvés
-    const pricesFound = [...new Set(matches.map(p => p.replace(',', '.')))];
+    // Recherche spécifique de la première ligne de prix TVAC dans le tableau HTML
+    // On cherche les trois valeurs à 3 décimales qui se suivent dans la première ligne
+    const regex = /<td>2\d{2}\/\d{2}\/\d{4}<\/td>\s*<td>([1-2][,\.]\d{3})<\/td>\s*<td>([1-2][,\.]\d{3})<\/td>\s*<td>([1-2][,\.]\d{3})<\/td>/;
+    const match = html.match(regex);
 
-    console.log("Prix trouvés :", pricesFound);
-
-    if (pricesFound.length >= 3) {
+    if (match && match.length >= 4) {
       const data = {
-        super98: `${pricesFound[0]} €`,
-        super95: `${pricesFound[1]} €`,
-        diesel: `${pricesFound[2]} €`,
+        super98: `${match[1].replace(',', '.')} €`,
+        super95: `${match[2].replace(',', '.')} €`,
+        diesel: `${match[3].replace(',', '.')} €`,
         updatedAt: new Date().toISOString().split('T')[0]
       };
 
@@ -38,7 +34,7 @@ async function updateFuelPrices() {
       fs.writeFileSync(outputPath, JSON.stringify(data, null, 2), 'utf-8');
       console.log('Fichier public/fuel.json mis à jour avec succès :', data);
     } else {
-      throw new Error(`Impossible de trouver les prix (trouvés: ${pricesFound.length}).`);
+      throw new Error("Impossible de trouver la ligne des prix TVAC dans le HTML.");
     }
   } catch (error) {
     console.error('Erreur lors du scraping des prix du carburant :', error);
