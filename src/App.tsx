@@ -23,6 +23,7 @@ import { SavedArticlesModal } from './components/SavedArticlesModal';
 import { NewsletterModal } from './components/NewsletterModal';
 import { X, Bookmark, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { CyberDock } from './components/CyberDock';
+import { HomePulsePage } from './pages/HomePulsePage';
 
 const CITIES_STORAGE_KEY = 'mon_journal_cities';
 const ACTIVE_CITY_STORAGE_KEY = 'mon_journal_active_city';
@@ -31,7 +32,7 @@ const SETTINGS_STORAGE_KEY = 'mon_journal_settings';
 const DEFAULT_CITIES = ['Paris', 'Montréal', 'Tokyo', 'Genève', 'Londres', 'New York'];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings' | 'assistant' | 'energy-comfort'>('home');
+  const [activeTab, setActiveTab] = useState<PageView | 'workspace' | 'saved' | 'shortcuts' | 'settings' | 'assistant' | 'energy-comfort'| 'homepulse'>('home');
   const [selectedTripMode, setSelectedTripMode] = useState<'car' | 'bus'>('car');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
@@ -250,15 +251,22 @@ export function App() {
            
           />
         )}
+        {activeTab === 'homepulse' && (
+      <HomePulsePage
+        currentWeather={currentWeather}
+        onBack={() => setActiveTab('home')}
+        language={settings.language}
+      />
+    )}
         {/* NOUVELLE PAGE DE DÉTAILS : Suivi Énergétique & Confort Maison */}
         {activeTab === 'energy-comfort' && (
-          <EnergyComfortDetailPage
-            currentWeather={currentWeather}
-            onBack={() => setActiveTab('home')}
-            language={settings.language}
-            
-          />
-        )}
+  <EnergyComfortDetailPage
+    currentWeather={currentWeather}
+    onBack={() => setActiveTab('home')}
+    language={settings.language}
+    settings={settings}
+  />
+)}
         {activeTab === 'home' && (
           <HomePage
             articles={articles}
@@ -279,6 +287,7 @@ export function App() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             language={settings.language}
+            onViewHomePulse={() => setActiveTab('homepulse')}
           />
         )}
       </main>

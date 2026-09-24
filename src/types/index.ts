@@ -61,8 +61,3 @@ export interface WeatherData {
   forecast?: DailyForecast[];
   hourly?: HourlyForecast[];
 }
-export interface AppSettings {
-  // ... vos propriétés existantes (language, country, energyClass, etc.)
-  isConnectedBuilding?: boolean;
-  hasInternalAppliances?: boolean;
-}

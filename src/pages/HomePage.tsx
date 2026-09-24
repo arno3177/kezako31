@@ -207,10 +207,12 @@ interface HomePageProps {
   onViewShortcuts?: () => void;
   onViewAssistant?: () => void;
   onViewEnergyComfort?: () => void;
+  onViewHomePulse?: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   language?: AppSettings['language'];
   onBack?: () => void;
+  
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -225,6 +227,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onViewShortcuts,
   onViewAssistant,
   onViewEnergyComfort,
+  onViewHomePulse,
   searchQuery,
   language = 'en',
   onBack
@@ -817,7 +820,23 @@ export const HomePage: React.FC<HomePageProps> = ({
           ))}
         </div>
       </div>
-
+{/* 2.2. HOME-PULSE / GESTION HABITAT */}
+<div 
+  onClick={onViewHomePulse}
+  className="bg-gradient-to-r from-slate-800 via-slate-800/90 to-slate-800 border border-slate-700 hover:border-slate-500 rounded-3xl p-5 shadow-xl space-y-3 transition-all duration-200 active:scale-[0.99] cursor-pointer group backdrop-blur-md"
+>
+  <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+    <h2 className="text-xs font-black uppercase tracking-wider text-slate-200 flex items-center gap-2">
+      <Home className="w-4 h-4 text-slate-300" /> HomePulse & Habitudes Foyer
+    </h2>
+    <span className="text-[10px] font-bold px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-slate-300">
+      Gestion active
+    </span>
+  </div>
+  <p className="text-[11px] text-slate-400 font-medium">
+    Suivi des micro-tâches, maintenance et entretien de la maison sans charge mentale.
+  </p>
+</div>
       {/* 5. ACTUALITÉS (Carrousel multi-sources) */}
       <div 
         onClick={onViewSourcesNews}
