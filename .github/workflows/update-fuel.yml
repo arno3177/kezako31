@@ -8,7 +8,11 @@ on:
 jobs:
   update-fuel:
     runs-on: ubuntu-latest
-  
+    
+    # AJOUTER CETTE SECTION PERMISSIONS :
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,7 +27,6 @@ jobs:
 
       - name: Build project
         run: npm run build
-        # Cela va compiler ton application React pour vérifier qu'il n'y a pas d'erreurs
 
       - name: Commit and push changes (si nécessaire)
         uses: stefanzweifel/git-auto-commit-action@v5
