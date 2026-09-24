@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { JSDOM } from 'jsdom';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,18 +16,15 @@ async function updateFuelPrices() {
     }
     
     const html = await response.text();
-    const dom = new JSDOM(html);
-    const cells = dom.window.document.querySelectorAll('td');
     
-    const pricesFound = [];
-    cells.forEach(cell => {
-      const text = cell.textContent?.trim() || "";
-      if (/^[1-2][,\.]\d{3}$/.test(text)) {
-        pricesFound.push(text.replace(',', '.'));
-      }
-    });
+    // Recherche de tous les prix au format X.XXX ou X,XXX (ex: 1.520 ou 1,520) dans le texte brut
+    const regex = /[1-2][,\.]\d{3}/g;
+    const matches = html.match(regex) || [];
+    
+    // Nettoyage et déduplication des prix trouvés
+    const pricesFound = [...new Set(matches.map(p => p.replace(',', '.')))];
 
-    console.log("Prix trouvés dans le DOM :", pricesFound);
+    console.log("Prix trouvés :", pricesFound);
 
     if (pricesFound.length >= 3) {
       const data = {
@@ -42,7 +38,7 @@ async function updateFuelPrices() {
       fs.writeFileSync(outputPath, JSON.stringify(data, null, 2), 'utf-8');
       console.log('Fichier public/fuel.json mis à jour avec succès :', data);
     } else {
-      throw new Error(`Impossible de trouver les prix dans le DOM (trouvés: ${pricesFound.length}).`);
+      throw new Error(`Impossible de trouver les prix (trouvés: ${pricesFound.length}).`);
     }
   } catch (error) {
     console.error('Erreur lors du scraping des prix du carburant :', error);
