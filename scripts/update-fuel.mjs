@@ -16,17 +16,27 @@ async function updateFuelPrices() {
     }
     
     const html = await response.text();
-    
-    // Recherche spécifique de la première ligne de prix TVAC dans le tableau HTML
-    // On cherche les trois valeurs à 3 décimales qui se suivent dans la première ligne
-    const regex = /<td>2\d{2}\/\d{2}\/\d{4}<\/td>\s*<td>([1-2][,\.]\d{3})<\/td>\s*<td>([1-2][,\.]\d{3})<\/td>\s*<td>([1-2][,\.]\d{3})<\/td>/;
-    const match = html.match(regex);
 
-    if (match && match.length >= 4) {
+    // 1. Isoler la première ligne du tableau (celle contenant 'TVAC')
+    const tvacIndex = html.indexOf('TVAC');
+    if (tvacIndex === -1) {
+      throw new Error("Impossible de trouver la mention 'TVAC' dans la page.");
+    }
+    
+    // On extrait le bloc HTML autour de cette première ligne
+    const snippet = html.substring(tvacIndex - 800, tvacIndex);
+
+    // 2. Extraire tous les nombres décimaux à 3 chiffres après la virgule dans ce bloc (ex: 2.059, 1.835, 2.055)
+    const matches = snippet.match(/[1-2][,\.]\d{3}/g) ||;
+    const cleanPrices = [...new Set(matches.map(p => p.replace(',', '.')))];
+
+    console.log("Prix TVAC extraits :", cleanPrices);
+
+    if (cleanPrices.length >= 3) {
       const data = {
-        super98: `${match[1].replace(',', '.')} €`,
-        super95: `${match[2].replace(',', '.')} €`,
-        diesel: `${match[3].replace(',', '.')} €`,
+        super98: `${cleanPrices[0]} €`,
+        super95: `${cleanPrices[1]} €`,
+        diesel: `${cleanPrices[2]} €`,
         updatedAt: new Date().toISOString().split('T')[0]
       };
 
@@ -34,7 +44,7 @@ async function updateFuelPrices() {
       fs.writeFileSync(outputPath, JSON.stringify(data, null, 2), 'utf-8');
       console.log('Fichier public/fuel.json mis à jour avec succès :', data);
     } else {
-      throw new Error("Impossible de trouver la ligne des prix TVAC dans le HTML.");
+      throw new Error(`Nombre de prix insuffisants trouvés (${cleanPrices.length}).`);
     }
   } catch (error) {
     console.error('Erreur lors du scraping des prix du carburant :', error);
