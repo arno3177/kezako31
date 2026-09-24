@@ -3,13 +3,12 @@ name: Update Fuel Prices
 on:
   schedule:
     - cron: '0 6 * * *' # Exécution tous les jours à 6h du matin
-  workflow_dispatch: # Permet de le lancer manuellement depuis GitHub
+  workflow_dispatch: # Permet de le lancer manuellement depuis l'onglet Actions
 
 jobs:
   update-fuel:
     runs-on: ubuntu-latest
     
-    # AJOUTER CETTE SECTION PERMISSIONS :
     permissions:
       contents: write
 
@@ -25,11 +24,15 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Run fuel scraping script
+        run: node scripts/update-fuel.mjs
+
       - name: Build project
         run: npm run build
 
-      - name: Commit and push changes (si nécessaire)
+      - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Automatic build check"
+          commit_message: "Auto-update fuel prices from petrol.lu"
           branch: main
+          file_pattern: public/fuel.json dist/
