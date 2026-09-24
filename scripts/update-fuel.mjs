@@ -26,8 +26,8 @@ async function updateFuelPrices() {
     // On extrait le bloc HTML autour de cette première ligne
     const snippet = html.substring(tvacIndex - 800, tvacIndex);
 
-    // 2. Extraire tous les nombres décimaux à 3 chiffres après la virgule dans ce bloc (ex: 2.059, 1.835, 2.055)
-    const matches = snippet.match(/[1-2][,\.]\d{3}/g) ||;
+    // 2. Extraire tous les nombres décimaux à 3 chiffres après la virgule dans ce bloc
+    const matches = snippet.match(/[1-2][,\.]\d{3}/g) || [];
     const cleanPrices = [...new Set(matches.map(p => p.replace(',', '.')))];
 
     console.log("Prix TVAC extraits :", cleanPrices);
