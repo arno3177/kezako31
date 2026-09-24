@@ -282,7 +282,7 @@ export function App() {
             onViewSourcesNews={() => setActiveTab('sources-news')}
             onViewShortcuts={() => setActiveTab('shortcuts')} 
             onViewTrips={handleViewTrips}
-            onViewAssistant={() => setActiveTab('assistant')}
+          //  onViewAssistant={() => setActiveTab('assistant')}
             onViewEnergyComfort={() => setActiveTab('energy-comfort')} // <--- Connexion du clic de la carte vers la page de détails
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
