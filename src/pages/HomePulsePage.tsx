@@ -33,18 +33,18 @@ interface Category {
   label: string;
 }
 
-const STORAGE_KEY_KEEP_NOTES = 'homepulse_keep_notes_true_metallic_v1';
-const STORAGE_KEY_CATEGORIES = 'homepulse_categories_true_metallic_v1';
+const STORAGE_KEY_KEEP_NOTES = 'homepulse_keep_notes_vibrant_metal_v1';
+const STORAGE_KEY_CATEGORIES = 'homepulse_categories_vibrant_metal_v1';
 
-// PALETTE GRIS MÉTALLIQUE ÉQUILIBRÉ (Ni trop sombre, ni trop clair)
+// PALETTE MÉTALLIQUE AUX COULEURS TRÈS PRONONCÉES ET VIBRANTES
 const NOTE_COLORS = [
-  { id: 'titanium', name: 'Titane Brossé', bg: 'bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900', border: 'border-slate-500 text-slate-100' },
-  { id: 'amber', name: 'Ambre Métal', bg: 'bg-gradient-to-br from-slate-700 via-amber-950/60 to-slate-900', border: 'border-amber-500/60 text-amber-100' },
-  { id: 'emerald', name: 'Menthe Métal', bg: 'bg-gradient-to-br from-slate-700 via-emerald-950/60 to-slate-900', border: 'border-emerald-500/60 text-emerald-100' },
-  { id: 'purple', name: 'Améthyste Métal', bg: 'bg-gradient-to-br from-slate-700 via-purple-950/60 to-slate-900', border: 'border-purple-500/60 text-purple-100' },
-  { id: 'sky', name: 'Acier Bleu', bg: 'bg-gradient-to-br from-slate-700 via-sky-950/60 to-slate-900', border: 'border-sky-500/60 text-sky-100' },
-  { id: 'rose', name: 'Titane Rosé', bg: 'bg-gradient-to-br from-slate-700 via-rose-950/60 to-slate-900', border: 'border-rose-500/60 text-rose-100' },
-  { id: 'orange', name: 'Cuivre Bruni', bg: 'bg-gradient-to-br from-slate-700 via-orange-950/60 to-slate-900', border: 'border-orange-500/60 text-orange-100' },
+  { id: 'titanium', name: 'Titane Profond', bg: 'bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950', border: 'border-slate-400 text-slate-100 shadow-[0_4px_25px_rgba(148,163,184,0.15)]' },
+  { id: 'cyan', name: 'Cyan Fluo', bg: 'bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900', border: 'border-cyan-400 text-cyan-100 shadow-[0_4px_25px_rgba(6,182,212,0.35)]' },
+  { id: 'amber', name: 'Ambre Intense', bg: 'bg-gradient-to-br from-slate-900 via-amber-950 to-slate-900', border: 'border-amber-400 text-amber-100 shadow-[0_4px_25px_rgba(251,191,36,0.35)]' },
+  { id: 'emerald', name: 'Émeraude Vif', bg: 'bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900', border: 'border-emerald-400 text-emerald-100 shadow-[0_4px_25px_rgba(52,211,153,0.35)]' },
+  { id: 'purple', name: 'Violet Électrique', bg: 'bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900', border: 'border-purple-400 text-purple-100 shadow-[0_4px_25px_rgba(192,132,252,0.35)]' },
+  { id: 'rose', name: 'Rose Fushia', bg: 'bg-gradient-to-br from-slate-900 via-rose-950 to-slate-900', border: 'border-rose-400 text-rose-100 shadow-[0_4px_25px_rgba(244,63,94,0.35)]' },
+  { id: 'orange', name: 'Orange Flamboyant', bg: 'bg-gradient-to-br from-slate-900 via-orange-950 to-slate-900', border: 'border-orange-400 text-orange-100 shadow-[0_4px_25px_rgba(251,146,60,0.35)]' },
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -306,12 +306,12 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
 
   const getNoteColorStyle = (colorId: string) => {
     const found = NOTE_COLORS.find(c => c.id === colorId);
-    return found ? `${found.bg} ${found.border} shadow-xl` : 'bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 border-slate-500 text-slate-100 shadow-xl';
+    return found ? `${found.bg} ${found.border}` : 'bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border-slate-400 text-slate-100 shadow-xl';
   };
 
   return (
     <div 
-      className="space-y-4 text-xs animate-fade-in text-slate-200 w-full max-w-xl mx-auto pb-28 px-2 font-sans bg-[#262b36] min-h-screen pt-4" 
+      className="space-y-4 text-xs animate-fade-in text-slate-200 w-full max-w-xl mx-auto pb-28 px-2 font-sans bg-[#1a1f2c] min-h-screen pt-4" 
       onClick={() => { 
         setActivePaletteNoteId(null); 
         if (editingTextNoteId) setEditingTextNoteId(null);
@@ -319,32 +319,32 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
       }}
     >
       
-      {/* 1. EN-TÊTE DU MODULE (GRIS MÉTALLIQUE ÉQUILIBRÉ) */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 border border-slate-500/80 rounded-3xl p-5 shadow-xl space-y-3.5 relative overflow-hidden text-white">
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400" />
+      {/* 1. EN-TÊTE DU MODULE */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/60 rounded-3xl p-5 shadow-2xl space-y-3.5 relative overflow-hidden text-white">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-400" />
         
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-2xl bg-slate-900/50 border border-slate-500/50 text-slate-200 shadow-inner">
-              <Home className="w-5 h-5 text-slate-100" />
+            <div className="p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 shadow-inner">
+              <Home className="w-5 h-5 text-cyan-300" />
             </div>
             <div>
               <h1 className="text-sm font-black tracking-wide text-white">HomePulse & Notes Habitat</h1>
-              <p className="text-[11px] text-slate-300 font-medium">Notes & Listes (Gris Métallique)</p>
+              <p className="text-[11px] text-cyan-200/90 font-medium">Notes & Listes (Couleurs Vives)</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); setShowCatManager(true); }}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-500/60 text-slate-200 transition-colors cursor-pointer shadow-sm"
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-indigo-500/50 text-cyan-300 transition-colors cursor-pointer shadow-sm"
               title="Gérer les catégories"
             >
               <Settings className="w-4 h-4" />
             </button>
             <button
               onClick={onBack}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-500/60 text-slate-200 font-bold transition-colors cursor-pointer text-xs shadow-sm"
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-indigo-500/50 text-cyan-300 font-bold transition-colors cursor-pointer text-xs shadow-sm"
             >
               ← Retour
             </button>
@@ -354,11 +354,11 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
 
       {/* MODAL GESTION DES CATÉGORIES */}
       {showCatManager && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in" onClick={e => e.stopPropagation()}>
-          <div className="bg-slate-800 border border-slate-500 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-              <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-slate-200">
-                <Tag className="w-4 h-4 text-slate-300" /> Gérer les Catégories
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div className="bg-slate-900 border border-indigo-500/60 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-cyan-300">
+                <Tag className="w-4 h-4 text-cyan-400" /> Gérer les Catégories
               </h3>
               <button onClick={() => setShowCatManager(false)} className="text-slate-400 hover:text-white cursor-pointer">✕</button>
             </div>
@@ -369,16 +369,16 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                 placeholder="Nouvelle catégorie (ex: Bricolage)..."
                 value={newCatLabel}
                 onChange={e => setNewCatLabel(e.target.value)}
-                className="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-slate-400"
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400"
               />
-              <button type="submit" className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow-md border border-slate-400">
+              <button type="submit" className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow-md">
                 Ajouter
               </button>
             </form>
 
             <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
               {categories.map(cat => (
-                <div key={cat.id} className="flex items-center justify-between bg-slate-900/80 border border-slate-700 px-3 py-2 rounded-xl">
+                <div key={cat.id} className="flex items-center justify-between bg-slate-950/80 border border-slate-800 px-3 py-2 rounded-xl">
                   <span className="text-xs font-bold text-slate-200">{cat.label}</span>
                   {categories.length > 1 && (
                     <button 
@@ -394,7 +394,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
             </div>
 
             <div className="pt-2 flex justify-end">
-              <button onClick={() => setShowCatManager(false)} className="px-4 py-1.5 bg-slate-900 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer border border-slate-600">
+              <button onClick={() => setShowCatManager(false)} className="px-4 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold cursor-pointer border border-slate-800">
                 Fermer
               </button>
             </div>
@@ -406,27 +406,27 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
       {!showEditor ? (
         <div 
           onClick={handleOpenCreator}
-          className="bg-slate-800 border border-slate-500 hover:border-slate-300 rounded-2xl p-4 shadow-md cursor-pointer flex items-center justify-between text-slate-300 transition-all font-semibold"
+          className="bg-slate-900 border border-indigo-500/50 hover:border-cyan-400 rounded-2xl p-4 shadow-xl cursor-pointer flex items-center justify-between text-slate-200 transition-all font-semibold"
         >
           <span className="text-xs">Prendre une note, liste de courses, rappel...</span>
-          <Plus className="w-4 h-4 text-slate-200" />
+          <Plus className="w-4 h-4 text-cyan-400" />
         </div>
       ) : (
-        <form onSubmit={handleSaveNewNote} onClick={e => e.stopPropagation()} className="bg-slate-800 border border-slate-400 rounded-2xl p-4 shadow-xl space-y-3 animate-fade-in text-slate-100">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+        <form onSubmit={handleSaveNewNote} onClick={e => e.stopPropagation()} className="bg-slate-900 border border-cyan-400 rounded-2xl p-4 shadow-2xl space-y-3 animate-fade-in text-slate-100">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <input
               type="text"
               placeholder="Titre"
               value={noteTitle}
               onChange={e => setNoteTitle(e.target.value)}
-              className="w-full bg-transparent text-white font-black text-xs focus:outline-none placeholder:text-slate-400"
+              className="w-full bg-transparent text-white font-black text-xs focus:outline-none placeholder:text-slate-500"
               autoFocus
             />
-            <div className="flex items-center bg-slate-900 border border-slate-600 rounded-xl p-0.5 shrink-0">
+            <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-0.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setNoteType('text')}
-                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${noteType === 'text' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${noteType === 'text' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                 title="Texte libre"
               >
                 <AlignLeft className="w-3.5 h-3.5" />
@@ -434,7 +434,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
               <button
                 type="button"
                 onClick={() => setNoteType('bullets')}
-                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${noteType === 'bullets' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${noteType === 'bullets' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
                 title="Liste à cocher"
               >
                 <List className="w-3.5 h-3.5" />
@@ -447,7 +447,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
               placeholder="Écrivez votre note ici..."
               value={noteContent}
               onChange={e => setNoteContent(e.target.value)}
-              className="w-full bg-transparent text-slate-200 text-xs focus:outline-none placeholder:text-slate-400 resize-none h-24 font-normal leading-relaxed"
+              className="w-full bg-transparent text-slate-200 text-xs focus:outline-none placeholder:text-slate-500 resize-none h-24 font-normal leading-relaxed"
             />
           ) : (
             <div className="space-y-2">
@@ -458,12 +458,12 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                   value={newItemText}
                   onChange={e => setNewItemText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddChecklistItem(e); }}}
-                  className="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-slate-400"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400"
                 />
                 <button
                   type="button"
                   onClick={handleAddChecklistItem}
-                  className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow-sm border border-slate-400"
+                  className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow-sm"
                 >
                   Ajouter
                 </button>
@@ -471,15 +471,15 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
 
               <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                 {checklistItems.map(item => (
-                  <div key={item.id} className="flex items-center justify-between bg-slate-900/70 border border-slate-700 px-3 py-1.5 rounded-xl">
+                  <div key={item.id} className="flex items-center justify-between bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl">
                     <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
                       <input
                         type="checkbox"
                         checked={item.completed}
                         onChange={() => handleToggleChecklistItemInEditor(item.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-500 text-slate-600 focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-slate-700 text-cyan-600 focus:ring-0 cursor-pointer"
                       />
-                      <span className={`text-xs truncate ${item.completed ? 'line-through text-slate-400' : 'text-slate-200 font-medium'}`}>
+                      <span className={`text-xs truncate ${item.completed ? 'line-through text-slate-500' : 'text-slate-200 font-medium'}`}>
                         {item.text}
                       </span>
                     </label>
@@ -496,12 +496,12 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800">
             <div className="flex items-center gap-2">
               <select
                 value={noteCategory}
                 onChange={e => setNoteCategory(e.target.value)}
-                className="bg-slate-900 border border-slate-600 text-slate-200 text-[10px] rounded-xl px-2.5 py-1.5 focus:outline-none font-bold"
+                className="bg-slate-950 border border-indigo-500/40 text-cyan-200 text-[10px] rounded-xl px-2.5 py-1.5 focus:outline-none font-bold"
               >
                 {categories.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -511,7 +511,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
               <select
                 value={noteColor}
                 onChange={e => setNoteColor(e.target.value)}
-                className="bg-slate-900 border border-slate-600 text-slate-200 text-[10px] rounded-xl px-2.5 py-1.5 focus:outline-none font-bold"
+                className="bg-slate-950 border border-indigo-500/40 text-cyan-200 text-[10px] rounded-xl px-2.5 py-1.5 focus:outline-none font-bold"
               >
                 {NOTE_COLORS.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -523,13 +523,13 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
               <button
                 type="button"
                 onClick={() => setShowEditor(false)}
-                className="px-3 py-1.5 bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-xl text-[10px] font-bold cursor-pointer border border-slate-700"
+                className="px-3 py-1.5 bg-slate-950 text-slate-300 hover:bg-slate-800 rounded-xl text-[10px] font-bold cursor-pointer border border-slate-800"
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-bold cursor-pointer shadow-md border border-slate-400"
+                className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-[10px] font-bold cursor-pointer shadow-md"
               >
                 Terminer
               </button>
@@ -544,8 +544,8 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
           onClick={() => setFilterCategory('all')}
           className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${
             filterCategory === 'all' 
-              ? 'bg-slate-600 text-white border-slate-400 shadow-md' 
-              : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'
+              ? 'bg-cyan-600 text-white border-cyan-400 shadow-md' 
+              : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
           }`}
         >
           Toutes
@@ -556,8 +556,8 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
             onClick={() => setFilterCategory(cat.id)}
             className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer whitespace-nowrap ${
               filterCategory === cat.id 
-                ? 'bg-slate-600 text-white border-slate-400 shadow-md' 
-                : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'
+                ? 'bg-cyan-600 text-white border-cyan-400 shadow-md' 
+                : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
             }`}
           >
             {cat.label}
@@ -565,10 +565,10 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
         ))}
       </div>
 
-      {/* 4. GRILLE DES NOTES (GRIS MÉTALLIQUE) */}
+      {/* 4. GRILLE DES NOTES (COULEURS TRÈS PRONONCÉES) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
         {filteredNotes.length === 0 ? (
-          <div className="col-span-full bg-slate-800 border border-slate-600 rounded-3xl p-8 text-center text-slate-400 shadow-sm">
+          <div className="col-span-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center text-slate-400 shadow-sm">
             <p>Aucune note enregistrée dans cette catégorie.</p>
           </div>
         ) : (
@@ -584,7 +584,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
             return (
               <div 
                 key={note.id}
-                className={`${getNoteColorStyle(note.color)} border rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 transition-all relative group h-auto backdrop-blur-sm`}
+                className={`${getNoteColorStyle(note.color)} border-2 rounded-2xl p-4 shadow-2xl flex flex-col justify-between space-y-3 transition-all relative group h-auto backdrop-blur-md`}
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -592,14 +592,14 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                     <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setActivePaletteNoteId(isPaletteOpen ? null : note.id); }}
-                        className="p-1 rounded-lg text-slate-300 hover:text-white transition-colors cursor-pointer bg-slate-900/50 border border-slate-500/50"
+                        className="p-1 rounded-lg text-slate-200 hover:text-white transition-colors cursor-pointer bg-slate-950/70 border border-white/20"
                         title="Changer la couleur"
                       >
                         <Palette className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={(e) => handleTogglePin(note.id, e)}
-                        className={`text-slate-300 hover:text-white transition-colors cursor-pointer p-1 rounded-lg bg-slate-900/50 border border-slate-500/50 ${note.pinned ? 'text-amber-300 bg-amber-500/20 border-amber-400' : ''}`}
+                        className={`text-slate-200 hover:text-white transition-colors cursor-pointer p-1 rounded-lg bg-slate-950/70 border border-white/20 ${note.pinned ? 'text-amber-300 bg-amber-500/30 border-amber-400' : ''}`}
                         title="Épingler"
                       >
                         <Pin className="w-3.5 h-3.5" />
@@ -613,19 +613,19 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                         <textarea
                           value={inlineTextContent}
                           onChange={(e) => setInlineTextContent(e.target.value)}
-                          className="w-full bg-slate-900/80 border border-slate-500 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-slate-300 resize-none h-24 leading-relaxed font-medium shadow-inner"
+                          className="w-full bg-slate-950/90 border border-cyan-400 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-cyan-300 resize-none h-24 leading-relaxed font-medium shadow-inner"
                           autoFocus
                         />
                         <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => setEditingTextNoteId(null)}
-                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-700 text-slate-300 rounded-lg text-[10px] font-bold cursor-pointer border border-slate-700"
+                            className="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-lg text-[10px] font-bold cursor-pointer border border-slate-800"
                           >
                             Annuler
                           </button>
                           <button
                             onClick={() => handleSaveInlineText(note.id)}
-                            className="px-3 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-[10px] font-bold cursor-pointer shadow-sm border border-slate-400"
+                            className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-[10px] font-bold cursor-pointer shadow-sm"
                           >
                             Enregistrer
                           </button>
@@ -638,7 +638,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                           setEditingTextNoteId(note.id);
                           setInlineTextContent(note.content);
                         }}
-                        className="text-[11px] text-slate-200 whitespace-pre-line leading-relaxed font-medium cursor-text max-h-48 overflow-y-auto p-1.5 rounded-lg hover:bg-slate-900/30 transition-colors scrollbar-thin"
+                        className="text-[11px] text-slate-100 whitespace-pre-line leading-relaxed font-medium cursor-text max-h-48 overflow-y-auto p-1.5 rounded-lg hover:bg-white/10 transition-colors scrollbar-thin"
                         title="Cliquer pour modifier directement"
                       >
                         {note.content || <span className="italic text-slate-400">Cliquer pour ajouter du texte...</span>}
@@ -656,7 +656,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                             const val = e.target.value;
                             setQuickItemInputs(prev => ({ ...prev, [note.id]: val }));
                           }}
-                          className="flex-1 bg-slate-900/60 border border-slate-600 rounded-xl px-2.5 py-1 text-[11px] text-white placeholder:text-slate-400 focus:outline-none focus:border-slate-400 shadow-xs"
+                          className="flex-1 bg-slate-950/70 border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] text-white placeholder:text-slate-400 focus:outline-none focus:border-cyan-400 shadow-xs"
                         />
                       </form>
 
@@ -666,14 +666,14 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                         return (
                           <div 
                             key={item.id} 
-                            className="flex items-center justify-between text-[11px] text-slate-200 group/item py-1 px-1.5 rounded-lg hover:bg-slate-900/30 transition-colors"
+                            className="flex items-center justify-between text-[11px] text-slate-100 group/item py-1 px-1.5 rounded-lg hover:bg-white/10 transition-colors"
                           >
                             <div className="flex items-center space-x-2.5 flex-1 min-w-0">
                               <div 
                                 onClick={(e) => handleToggleChecklistItemDirect(note.id, item.id, e)}
-                                className="w-4 h-4 rounded border border-slate-400 bg-slate-900/60 flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                                className="w-4 h-4 rounded border border-cyan-400 bg-slate-950/80 flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
                               >
-                                {item.completed && <Check className="w-3 h-3 text-white" />}
+                                {item.completed && <Check className="w-3 h-3 text-cyan-300" />}
                               </div>
 
                               {isEditingThisItem ? (
@@ -686,7 +686,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                                     if (e.key === 'Escape') setEditingItemId(null);
                                   }}
                                   onBlur={() => handleSaveInlineItem(note.id, item.id)}
-                                  className="flex-1 bg-slate-900 border border-slate-400 rounded px-2 py-0.5 text-[11px] text-white focus:outline-none shadow-xs"
+                                  className="flex-1 bg-slate-950 border border-cyan-400 rounded px-2 py-0.5 text-[11px] text-white focus:outline-none shadow-xs"
                                   autoFocus
                                 />
                               ) : (
@@ -696,7 +696,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                                     setEditingItemId(item.id);
                                     setInlineItemText(item.text);
                                   }}
-                                  className="font-medium truncate flex-1 cursor-text text-slate-200"
+                                  className="font-medium truncate flex-1 cursor-text text-slate-100"
                                   title="Cliquer pour modifier cet élément"
                                 >
                                   {item.text}
@@ -711,14 +711,14 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                                   setEditingItemId(item.id);
                                   setInlineItemText(item.text);
                                 }}
-                                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                                className="text-slate-300 hover:text-white p-1 cursor-pointer"
                                 title="Modifier"
                               >
                                 <Edit2 className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={(e) => handleDeleteChecklistItemDirect(note.id, item.id, e)}
-                                className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer"
+                                className="text-slate-300 hover:text-rose-400 p-1 cursor-pointer"
                                 title="Supprimer"
                               >
                                 ✕
@@ -730,21 +730,21 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
 
                       {/* Éléments cochés */}
                       {completedItems.length > 0 && (
-                        <div className="pt-2 border-t border-white/10 space-y-1">
+                        <div className="pt-2 border-t border-white/15 space-y-1">
                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block px-1">Terminés ({completedItems.length})</span>
                           {completedItems.map(item => {
                             const isEditingThisItem = editingItemId === item.id;
                             return (
                               <div 
                                 key={item.id} 
-                                className="flex items-center justify-between text-[11px] text-slate-400 group/item py-1 px-1.5 rounded-lg hover:bg-slate-900/30 transition-colors"
+                                className="flex items-center justify-between text-[11px] text-slate-400 group/item py-1 px-1.5 rounded-lg hover:bg-white/10 transition-colors"
                               >
                                 <div className="flex items-center space-x-2.5 flex-1 min-w-0">
                                   <div 
                                     onClick={(e) => handleToggleChecklistItemDirect(note.id, item.id, e)}
-                                    className="w-4 h-4 rounded border border-slate-500 bg-slate-900 flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                                    className="w-4 h-4 rounded border border-cyan-500 bg-cyan-950 flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
                                   >
-                                    <Check className="w-3 h-3 text-slate-300" />
+                                    <Check className="w-3 h-3 text-cyan-400" />
                                   </div>
 
                                   {isEditingThisItem ? (
@@ -757,7 +757,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                                         if (e.key === 'Escape') setEditingItemId(null);
                                       }}
                                       onBlur={() => handleSaveInlineItem(note.id, item.id)}
-                                      className="flex-1 bg-slate-900 border border-slate-400 rounded px-2 py-0.5 text-[11px] text-white focus:outline-none shadow-xs"
+                                      className="flex-1 bg-slate-950 border border-cyan-400 rounded px-2 py-0.5 text-[11px] text-white focus:outline-none shadow-xs"
                                       autoFocus
                                     />
                                   ) : (
@@ -782,7 +782,7 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
                                       setEditingItemId(item.id);
                                       setInlineItemText(item.text);
                                     }}
-                                    className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                                    className="text-slate-300 hover:text-white p-1 cursor-pointer"
                                     title="Modifier"
                                   >
                                     <Edit2 className="w-3 h-3" />
@@ -806,35 +806,35 @@ export const HomePulsePage: React.FC<HomePulsePageProps> = ({
 
                 {/* SÉLECTEUR DE COULEUR FLOTTANT */}
                 {isPaletteOpen && (
-                  <div onClick={e => e.stopPropagation()} className="absolute top-10 right-2 bg-slate-800 border border-slate-500 rounded-2xl p-2.5 shadow-2xl flex items-center gap-2 z-20 animate-fade-in">
+                  <div onClick={e => e.stopPropagation()} className="absolute top-10 right-2 bg-slate-900 border border-cyan-400 rounded-2xl p-2.5 shadow-2xl flex items-center gap-2 z-20 animate-fade-in">
                     {NOTE_COLORS.map(c => (
                       <button
                         key={c.id}
                         onClick={() => handleChangeNoteColor(note.id, c.id)}
-                        className={`w-5 h-5 rounded-full border transition-transform cursor-pointer ${
-                          c.id === 'titanium' ? 'bg-slate-600 border-slate-400' :
-                          c.id === 'amber' ? 'bg-amber-600 border-amber-400' :
-                          c.id === 'emerald' ? 'bg-emerald-600 border-emerald-400' :
-                          c.id === 'purple' ? 'bg-purple-600 border-purple-400' :
-                          c.id === 'sky' ? 'bg-sky-600 border-sky-400' :
-                          c.id === 'rose' ? 'bg-rose-600 border-rose-400' : 'bg-orange-600 border-orange-400'
-                        } hover:scale-125 shadow-xs`}
+                        className={`w-5 h-5 rounded-full border-2 transition-transform cursor-pointer ${
+                          c.id === 'titanium' ? 'bg-slate-700 border-slate-300' :
+                          c.id === 'cyan' ? 'bg-cyan-500 border-cyan-200 shadow-[0_0_10px_#06b6d4]' :
+                          c.id === 'amber' ? 'bg-amber-500 border-amber-200 shadow-[0_0_10px_#fbbf24]' :
+                          c.id === 'emerald' ? 'bg-emerald-500 border-emerald-200 shadow-[0_0_10px_#34d399]' :
+                          c.id === 'purple' ? 'bg-purple-500 border-purple-200 shadow-[0_0_10px_#c084fc]' :
+                          c.id === 'rose' ? 'bg-rose-500 border-rose-200 shadow-[0_0_10px_#f43f5e]' : 'bg-orange-500 border-orange-200 shadow-[0_0_10px_#fb923c]'
+                        } hover:scale-125`}
                         title={c.name}
                       />
                     ))}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[10px]">
-                  <span className="px-2 py-0.5 rounded-md border font-bold uppercase tracking-wider bg-slate-900/60 text-slate-200 border-slate-600">
+                <div className="flex items-center justify-between pt-2 border-t border-white/15 text-[10px]">
+                  <span className="px-2 py-0.5 rounded-md border font-bold uppercase tracking-wider bg-slate-950/80 text-cyan-300 border-cyan-500/50">
                     {catLabel}
                   </span>
 
-                  <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                    <span className="text-[9px] text-slate-400 font-mono">{note.createdAt}</span>
+                  <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    <span className="text-[9px] text-slate-300 font-mono">{note.createdAt}</span>
                     <button
                       onClick={(e) => handleDeleteNote(note.id, e)}
-                      className="p-1 rounded-lg text-slate-300 hover:text-rose-400 hover:bg-rose-950/60 transition-colors cursor-pointer ml-1"
+                      className="p-1 rounded-lg text-slate-200 hover:text-rose-400 hover:bg-rose-950/80 transition-colors cursor-pointer ml-1"
                       title="Supprimer la note"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

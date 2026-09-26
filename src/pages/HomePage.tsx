@@ -11,7 +11,7 @@ import {
   Car, Bus, 
   Sunrise, Sunset, Sparkles,
   Trash2, Info, Mail, UserCheck, UserX,
-  Home, Thermometer, ShieldCheck
+  Home, Thermometer, ShieldCheck, Navigation
 } from 'lucide-react';
 import { DEFAULT_SHORTCUTS, SHORTCUTS_STORAGE_KEY, Shortcut } from './ShortcutsPage';
 import { AppLauncher } from '@capacitor/app-launcher';
@@ -190,6 +190,18 @@ function useNewsFetcher() {
   return { articles, loading };
 }
 
+// --- INTERFACE STATIONNEMENT ---
+interface ParkedCar {
+  lat: number;
+  lng: number;
+  timestamp: number;
+  originLat?: number;
+  originLng?: number;
+  originCoords?: string | null;
+}
+
+const STORAGE_KEY_PARKED_CAR = 'homepulse_parked_car_v1';
+
 // --- COMPOSANT HOMEPAGE ---
 interface HomePageProps {
   articles: Article[];
@@ -231,6 +243,125 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const t = getTranslation(language);
   const [activeMapMode, setActiveMapMode] = useState<'car' | 'bus'>('car');
+
+  // --- ÉTAT STATIONNEMENT & MODE CARTE ---
+  const [parkedCar, setParkedCar] = useState<ParkedCar | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PARKED_CAR);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  });
+  
+  const [showWalkingRoute, setShowWalkingRoute] = useState(false);
+  const [parkingLoading, setParkingLoading] = useState(false);
+  const [parkingNotice, setParkingNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      if (parkedCar) {
+        localStorage.setItem(STORAGE_KEY_PARKED_CAR, JSON.stringify(parkedCar));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_PARKED_CAR);
+        setShowWalkingRoute(false);
+        setParkingNotice(null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [parkedCar]);
+
+  const handleSaveParkingLocation = () => {
+    if (!navigator.geolocation) {
+      setParkingNotice("La géolocalisation n'est pas supportée par votre navigateur.");
+      return;
+    }
+    setParkingLoading(true);
+    setParkingNotice(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const currentLat = position.coords.latitude;
+        const currentLng = position.coords.longitude;
+        const newCar: ParkedCar = {
+          lat: currentLat,
+          lng: currentLng,
+          timestamp: Date.now()
+        };
+        setParkedCar(newCar);
+        setShowWalkingRoute(false);
+        setParkingLoading(false);
+      },
+      (error) => {
+        console.error(error);
+        setParkingNotice("Impossible de récupérer votre position GPS.");
+        setParkingLoading(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  };
+
+  const handleClearParking = () => {
+    setParkedCar(null);
+    setShowWalkingRoute(false);
+    setParkingNotice(null);
+  };
+
+  // Calcul de distance (en mètres) entre deux coordonnées GPS (formule de Haversine)
+  const getDistanceFromLatLonInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const handleCalculateRouteToCar = () => {
+    if (!parkedCar) return;
+    if (!navigator.geolocation) {
+      setParkingNotice("La géolocalisation n'est pas supportée par votre appareil.");
+      return;
+    }
+
+    setParkingLoading(true);
+    setParkingNotice(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const currentLat = position.coords.latitude;
+        const currentLng = position.coords.longitude;
+
+        const distanceMeters = getDistanceFromLatLonInMeters(currentLat, currentLng, parkedCar.lat, parkedCar.lng);
+        if (distanceMeters < 15) {
+          setParkingNotice("Vous êtes déjà à côté de votre véhicule (moins de 15 m) ! Aucun itinéraire nécessaire.");
+          setParkingLoading(false);
+          return;
+        }
+
+        const coordsClean = `${currentLat},${currentLng}`;
+        setParkedCar(prev => prev ? {
+          ...prev,
+          originLat: currentLat,
+          originLng: currentLng,
+          originCoords: coordsClean,
+          timestamp: Date.now()
+        } : null);
+
+        setShowWalkingRoute(true);
+        setParkingLoading(false);
+      },
+      (error) => {
+        console.error("Erreur GPS lors du calcul d'itinéraire :", error);
+        setParkingNotice("Impossible de récupérer votre position GPS actuelle pour tracer l'itinéraire.");
+        setParkingLoading(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  };
 
   const { articles: fetchedArticles, loading: newsLoading } = useNewsFetcher();
   const articles = propArticles && propArticles.length > 0 ? propArticles : fetchedArticles;
@@ -456,7 +587,13 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   const originQuery = encodeURIComponent(mainTrip?.origin || 'Kopstal');
-  const destQuery = encodeURIComponent(mainTrip?.destination || 'Luxembourg');
+  const destQuery = encodeURIComponent(mainTrip?.destination || 'Luxembourg, Stäreplatz');
+
+  const mapEmbedUrl = parkedCar && showWalkingRoute
+    ? `https://maps.google.com/maps?f=d&saddr=${parkedCar.originCoords || (parkedCar.originLat || parkedCar.lat) + ',' + (parkedCar.originLng || parkedCar.lng)}&daddr=${parkedCar.lat},${parkedCar.lng}&dirflg=w&output=embed&hl=fr`
+    : parkedCar
+    ? `https://maps.google.com/maps?q=${parkedCar.lat},${parkedCar.lng}&z=16&output=embed&hl=fr`
+    : `https://maps.google.com/maps?f=d&saddr=${originQuery}&daddr=${destQuery}&dirflg=${activeMapMode === 'bus' ? 'r' : 'd'}&output=embed&hl=fr`;
 
   return (
     <div 
@@ -545,7 +682,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 1. SECTION MÉTÉO - Bloc Teinté Bleu Ciel / Solaire */}
+      {/* 1. SECTION MÉTÉO */}
       {currentWeather && (
         <div 
           onClick={onViewWeatherDetail}
@@ -612,7 +749,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
-      {/* 2. SUIVI ÉNERGÉTIQUE & CONFORT MAISON - Bloc Teinté Émeraude / Foyer */}
+      {/* 2. SUIVI ÉNERGÉTIQUE & CONFORT MAISON */}
       <div 
         onClick={onViewEnergyComfort}
         className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-teal-950/80 border border-emerald-500/40 hover:border-emerald-400 rounded-3xl p-5 shadow-2xl space-y-4 transition-all duration-200 active:scale-[0.99] cursor-pointer group backdrop-blur-md"
@@ -658,7 +795,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </p>
       </div>
 
-      {/* 2.2. HOME-PULSE / NOTES HABITAT - Bloc Teinté Violet / Keep */}
+      {/* 2.2. HOME-PULSE / NOTES HABITAT */}
       <div 
         onClick={onViewHomePulse}
         className="bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950/80 border border-purple-500/40 hover:border-purple-400 rounded-3xl p-5 shadow-2xl space-y-3 transition-all duration-200 active:scale-[0.99] cursor-pointer group backdrop-blur-md"
@@ -679,11 +816,11 @@ export const HomePage: React.FC<HomePageProps> = ({
         </p>
       </div>
 
-      {/* 3. TRAJET PRINCIPAL - Bloc Teinté Bleu Saphir / Transport */}
+      {/* 3. TRAJET PRINCIPAL & CARTE INTERACTIVE (Redirige vers TripsPage au clic via callback sécurisé) */}
       {mainTrip && (
         <div 
-          onClick={() => onViewTrips && onViewTrips(activeMapMode)}
-          className="bg-gradient-to-r from-blue-950/80 via-slate-900 to-indigo-950/80 border border-blue-500/40 hover:border-blue-400 rounded-3xl p-5 shadow-2xl space-y-4 w-full backdrop-blur-md cursor-pointer transition-all duration-200 active:scale-[0.99]"
+          onClick={() => onViewTrips?.()}
+          className="bg-gradient-to-r from-blue-950/80 via-slate-900 to-indigo-950/80 border border-blue-500/40 hover:border-blue-400 rounded-3xl p-5 shadow-2xl space-y-4 w-full backdrop-blur-md transition-all duration-200 active:scale-[0.99] cursor-pointer group"
         >
           <div className="flex items-center justify-between border-b border-blue-500/30 pb-3">
             <div className="flex items-center space-x-2.5 text-blue-200 min-w-0">
@@ -691,53 +828,129 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <Car className="w-4 h-4" />
               </div>
               <h2 className="text-xs font-black uppercase tracking-wider text-white truncate">
-                {t.detailedRoute}
+                {showWalkingRoute ? "Itinéraire Piéton vers la voiture" : parkedCar ? "Position de la voiture" : t.detailedRoute}
               </h2>
             </div>
+            <span className="text-[10px] font-bold text-blue-300 group-hover:translate-x-0.5 transition-transform">
+              Mode trajets →
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setActiveMapMode('car')}
-              className={`p-3 rounded-2xl border font-black flex items-center justify-center space-x-2 cursor-pointer transition-all active:scale-95 shadow-md ${
-                activeMapMode === 'car' ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-slate-950 border-blue-500/30 text-blue-300 hover:text-white'
-              }`}
-            >
-              <Car className="w-4 h-4 text-blue-200" />
-              <span>{t.byCar}</span>
-            </button>
+          {!parkedCar && (
+            <div className="grid grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setActiveMapMode('car')}
+                className={`p-3 rounded-2xl border font-black flex items-center justify-center space-x-2 cursor-pointer transition-all active:scale-95 shadow-md ${
+                  activeMapMode === 'car' ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-slate-950 border-blue-500/30 text-blue-300 hover:text-white'
+                }`}
+              >
+                <Car className="w-4 h-4 text-blue-200" />
+                <span>{t.byCar}</span>
+              </button>
 
-            <button
-              onClick={() => setActiveMapMode('bus')}
-              className={`p-3 rounded-2xl border font-black flex items-center justify-center space-x-2 cursor-pointer transition-all active:scale-95 shadow-md ${
-                activeMapMode === 'bus' ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-slate-950 border-blue-500/30 text-blue-300 hover:text-white'
-              }`}
-            >
-              <Bus className="w-4 h-4 text-blue-200" />
-              <span>{t.byBus}</span>
-            </button>
-          </div>
+              <button
+                onClick={() => setActiveMapMode('bus')}
+                className={`p-3 rounded-2xl border font-black flex items-center justify-center space-x-2 cursor-pointer transition-all active:scale-95 shadow-md ${
+                  activeMapMode === 'bus' ? 'bg-blue-600 border-blue-400 text-white shadow-lg' : 'bg-slate-950 border-blue-500/30 text-blue-300 hover:text-white'
+                }`}
+              >
+                <Bus className="w-4 h-4 text-blue-200" />
+                <span>{t.byBus}</span>
+              </button>
+            </div>
+          )}
 
-          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-blue-500/30 space-y-1.5 shadow-inner">
-            <p className="text-blue-100 font-semibold truncate"><span className="text-blue-300 font-bold">{t.departure}:</span> {mainTrip.origin}</p>
-            <p className="text-blue-100 font-semibold truncate"><span className="text-blue-300 font-bold">{t.arrival}:</span> {mainTrip.destination}</p>
-          </div>
+          {!parkedCar && (
+            <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-blue-500/30 space-y-1.5 shadow-inner">
+              <p className="text-blue-100 font-semibold truncate"><span className="text-blue-300 font-bold">{t.departure}:</span> {mainTrip.origin}</p>
+              <p className="text-blue-100 font-semibold truncate"><span className="text-blue-300 font-bold">{t.arrival}:</span> {mainTrip.destination}</p>
+            </div>
+          )}
 
-          <div className="h-48 rounded-2xl overflow-hidden border border-blue-500/30 w-full relative shadow-inner">
+          {/* LA CARTE INTERACTIVE */}
+          <div className="h-48 rounded-2xl overflow-hidden border border-blue-500/30 w-full relative shadow-inner" onClick={(e) => e.stopPropagation()}>
             <iframe
-              key={activeMapMode}
-              title="Carte interactive du trajet"
+              key={`${activeMapMode}-${showWalkingRoute}-${parkedCar?.timestamp || 0}`}
+              title="Carte interactive"
               width="100%"
               height="100%"
               style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) brightness(85%)' }}
               loading="lazy"
-              src={`https://maps.google.com/maps?saddr=${originQuery}&daddr=${destQuery}&dirflg=${activeMapMode === 'bus' ? 'r' : 'd'}&output=embed`}
+              src={mapEmbedUrl}
             />
+          </div>
+
+          {/* SOUS LA CARTE : MODULE "OÙ EST MA VOITURE ?" */}
+          <div className="pt-2 border-t border-blue-500/20" onClick={(e) => e.stopPropagation()}>
+            {!parkedCar ? (
+              <div className="flex items-center justify-between pt-1 gap-2">
+                <span className="text-[11px] text-blue-200/80 font-medium">Où avez-vous garé votre véhicule ?</span>
+                <button 
+                  onClick={handleSaveParkingLocation}
+                  disabled={parkingLoading}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-bold transition-all shadow-md border border-cyan-500/40 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Navigation className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{parkingLoading ? 'Localisation...' : '📍 Mémoriser ma position'}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between text-[11px] bg-slate-950/80 p-3 rounded-2xl border border-cyan-500/40 shadow-inner">
+                  <div className="space-y-0.5">
+                    <span className="font-black text-white flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                      Véhicule enregistré
+                    </span>
+                    <span className="text-cyan-200/80 text-[10px]">
+                      Il y a {Math.max(1, Math.floor((Date.now() - parkedCar.timestamp) / 60000))} min
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleClearParking}
+                    className="p-2 rounded-xl bg-slate-900 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 border border-slate-700 transition-colors cursor-pointer"
+                    title="Effacer la position"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {!showWalkingRoute ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleCalculateRouteToCar}
+                      disabled={parkingLoading}
+                      className="w-full px-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95 border border-cyan-400 disabled:opacity-50"
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                      <span>{parkingLoading ? 'Calcul GPS...' : "Calculer le chemin vers ma voiture"}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      onClick={() => setShowWalkingRoute(false)}
+                      className="w-full px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all shadow-inner border border-slate-700 cursor-pointer"
+                    >
+                      Retourner à l'affichage de la position seule
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MESSAGE TEXTUEL SOUS LE BOUTON */}
+            {parkingNotice && (
+              <div className="mt-2.5 p-3 rounded-xl bg-amber-950/80 border border-amber-500/50 text-amber-200 text-xs font-medium flex items-center gap-2 shadow-inner animate-fade-in">
+                <Info className="w-4 h-4 text-amber-300 flex-shrink-0" />
+                <span>{parkingNotice}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* 4. RACCOURCIS FAVORIS - Bloc Teinté Rose / Magenta */}
+      {/* 4. RACCOURCIS FAVORIS */}
       <div 
         onClick={onViewShortcuts}
         className="bg-gradient-to-r from-rose-950/70 via-slate-900 to-pink-950/70 border border-rose-500/40 hover:border-rose-400 rounded-3xl p-5 shadow-2xl space-y-4 w-full backdrop-blur-md cursor-pointer transition-all duration-200 active:scale-[0.99]"
@@ -792,7 +1005,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* 5. ACTUALITÉS - Bloc Teinté Cyan / Actualités */}
+      {/* 5. ACTUALITÉS */}
       <div 
         onClick={onViewSourcesNews}
         className="bg-gradient-to-r from-cyan-950/80 via-slate-900 to-sky-950/80 border border-cyan-500/40 hover:border-cyan-400 rounded-3xl p-5 shadow-2xl space-y-4 w-full backdrop-blur-md cursor-pointer group transition-all duration-200 active:scale-[0.99]"
