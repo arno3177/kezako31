@@ -4,7 +4,7 @@ import { useWeatherData } from './hook/useWeatherData';
 import { fetchRealWeatherData } from './service/weatherService';
 import { getTranslation } from './utils/translations';
 import { Article, PageView, TemperatureUnit, AppSettings } from './types';
-import { auth } from './firebase';
+import { auth } from "./firebase";
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { GoogleAuthService } from './service/googleAuthService';
 import HomePage from './pages/HomePage';
