@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Article, WeatherData, RouteTrip, AppSettings } from '../types';
-import { getTranslation, translateCondition } from '../utils/translations';
+import { getTranslation } from '../utils/translations';
 import { auth } from '../firebase';
 import { GoogleAuthService } from '../service/googleAuthService';
 import { fetchUnreadEmailCount } from '../service/gmailService';
@@ -9,7 +9,6 @@ import {
   Car, 
   Sparkles, 
   Trash2, 
-  Info, 
   Mail, 
   UserCheck, 
   UserX, 
@@ -24,7 +23,8 @@ import {
   Check,
   Bus,
   GripVertical,
-  RotateCcw
+  RotateCcw,
+  Palette
 } from 'lucide-react';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
@@ -41,6 +41,7 @@ interface ParkedCar {
 
 const STORAGE_KEY_PARKED_CAR = 'homepulse_parked_car_v1';
 const STORAGE_KEY_WIDGET_ORDER = 'homepulse_widget_order_v1';
+const STORAGE_KEY_WIDGET_COLORS = 'homepulse_widget_colors_v1';
 
 const DEFAULT_WIDGET_ORDER = [
   'weather',
@@ -50,6 +51,56 @@ const DEFAULT_WIDGET_ORDER = [
   'trips',
   'news'
 ];
+
+type WidgetTheme = 'amber' | 'emerald' | 'blue' | 'purple' | 'rose' | 'cyan';
+
+const DEFAULT_WIDGET_COLORS: Record<string, WidgetTheme> = {
+  weather: 'amber',
+  homepulse: 'purple',
+  energy: 'emerald',
+  shortcuts: 'rose',
+  trips: 'blue',
+  news: 'cyan'
+};
+
+const THEME_STYLES: Record<WidgetTheme, { gradient: string; border: string; glow: string; dot: string }> = {
+  amber: {
+    gradient: 'from-amber-950/60 via-slate-900 to-amber-950/60',
+    border: 'border-amber-500/80 hover:border-amber-400',
+    glow: 'shadow-amber-500/10',
+    dot: 'bg-amber-500'
+  },
+  emerald: {
+    gradient: 'from-emerald-950/60 via-slate-900 to-emerald-950/60',
+    border: 'border-emerald-500/80 hover:border-emerald-400',
+    glow: 'shadow-emerald-500/10',
+    dot: 'bg-emerald-500'
+  },
+  blue: {
+    gradient: 'from-blue-950/60 via-slate-900 to-blue-950/60',
+    border: 'border-blue-500/80 hover:border-blue-400',
+    glow: 'shadow-blue-500/10',
+    dot: 'bg-blue-500'
+  },
+  purple: {
+    gradient: 'from-purple-950/60 via-slate-900 to-purple-950/60',
+    border: 'border-purple-500/80 hover:border-purple-400',
+    glow: 'shadow-purple-500/10',
+    dot: 'bg-purple-500'
+  },
+  rose: {
+    gradient: 'from-rose-950/60 via-slate-900 to-rose-950/60',
+    border: 'border-rose-500/80 hover:border-rose-400',
+    glow: 'shadow-rose-500/10',
+    dot: 'bg-rose-500'
+  },
+  cyan: {
+    gradient: 'from-cyan-950/60 via-slate-900 to-cyan-950/60',
+    border: 'border-cyan-500/80 hover:border-cyan-400',
+    glow: 'shadow-cyan-500/10',
+    dot: 'bg-cyan-500'
+  }
+};
 
 interface HomePageProps {
   articles: Article[];
@@ -106,6 +157,27 @@ export const HomePage: React.FC<HomePageProps> = ({
     return DEFAULT_WIDGET_ORDER;
   });
 
+  // --- COULEURS ET THÈMES INDIVIDUELS DE WIDGETS ---
+  const [widgetColors, setWidgetColors] = useState<Record<string, WidgetTheme>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_WIDGET_COLORS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_WIDGET_COLORS;
+  });
+
+  const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
+
+  const handleSelectColor = (widgetId: string, color: WidgetTheme, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = { ...widgetColors, [widgetId]: color };
+    setWidgetColors(updated);
+    localStorage.setItem(STORAGE_KEY_WIDGET_COLORS, JSON.stringify(updated));
+    setActiveColorPicker(null);
+  };
+
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(widgetOrder);
@@ -117,7 +189,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const handleResetOrder = () => {
     setWidgetOrder(DEFAULT_WIDGET_ORDER);
+    setWidgetColors(DEFAULT_WIDGET_COLORS);
     localStorage.removeItem(STORAGE_KEY_WIDGET_ORDER);
+    localStorage.removeItem(STORAGE_KEY_WIDGET_COLORS);
   };
 
   // Sélecteur de ville
@@ -140,7 +214,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const [, setShowWalkingRoute] = useState(false);
   const [parkingLoading, setParkingLoading] = useState(false);
-  const [parkingNotice, setParkingNotice] = useState<string | null>(null);
+  const [, setParkingNotice] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -159,7 +233,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const handleSaveParkingLocation = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!navigator.geolocation) {
-      setParkingNotice("La géolocalisation n'est pas supportée.");
+      setParkingNotice("Géolocalisation non supportée.");
       return;
     }
     setParkingLoading(true);
@@ -252,92 +326,143 @@ export const HomePage: React.FC<HomePageProps> = ({
   const activeWeatherData = weatherDataMap[activeCity] || currentWeather;
   const currentTemp = activeWeatherData ? Number(activeWeatherData.temperature ?? 20) : 20;
 
-  const [mainTrip] = useState<RouteTrip>(() => ({
-    id: 'default',
-    name: 'Travail',
-    origin: 'Kopstal, Luxembourg',
-    destination: 'Luxembourg, Stäreplatz / Étoile',
-    distance: '7.5 km',
-    carDuration: '15 min',
-    busDuration: '22 min'
-  }));
-
-  const originQuery = encodeURIComponent(mainTrip.origin);
-  const destQuery = encodeURIComponent(mainTrip.destination);
-
-  const mapEmbedUrl = parkedCar
-    ? `https://maps.google.com/maps?q=${parkedCar.lat},${parkedCar.lng}&z=16&output=embed&hl=fr`
-    : `https://maps.google.com/maps?f=d&saddr=${originQuery}&daddr=${destQuery}&dirflg=d&output=embed&hl=fr`;
+  const [mainTrip] = useState<RouteTrip>(() => {
+    const saved = localStorage.getItem('user_saved_trips_extended');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed[0];
+        }
+      } catch (e) {}
+    }
+    return {
+      id: 'default',
+      name: 'Domicile - Travail',
+      origin: 'Kopstal, Luxembourg',
+      destination: 'Luxembourg, Stäreplatz / Étoile',
+      distance: '7.5 km',
+      carDuration: '15 min',
+      busDuration: '22 min'
+    };
+  });
 
   const latestNews = articles.length > 0 ? articles[0] : null;
 
-  // --- RENDU DES DIVERS WIDGETS ---
+  // --- COMPOSANT PALETTE BOUTON ---
+  const ColorPickerButton = ({ widgetId }: { widgetId: string }) => {
+    const isPickerOpen = activeColorPicker === widgetId;
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setActiveColorPicker(isPickerOpen ? null : widgetId);
+          }}
+          title="Changer le thème du widget"
+          className="p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition-all cursor-pointer shadow-sm"
+        >
+          <Palette className="w-3.5 h-3.5" />
+        </button>
+
+        {isPickerOpen && (
+          <>
+            <div className="fixed inset-0 z-[999]" onClick={(e) => { e.stopPropagation(); setActiveColorPicker(null); }} />
+            <div className="absolute right-0 top-8 z-[1000] bg-slate-900 border border-slate-700/80 rounded-2xl p-2 shadow-2xl flex items-center gap-1.5 backdrop-blur-xl animate-fade-in">
+              {(Object.keys(THEME_STYLES) as WidgetTheme[]).map((themeKey) => (
+                <button
+                  key={themeKey}
+                  type="button"
+                  onClick={(e) => handleSelectColor(widgetId, themeKey, e)}
+                  className={`w-5 h-5 rounded-full ${THEME_STYLES[themeKey].dot} border-2 ${
+                    widgetColors[widgetId] === themeKey ? 'border-white scale-110 shadow-md' : 'border-transparent opacity-80 hover:opacity-100'
+                  } transition-all cursor-pointer`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // --- RENDU DES WIDGETS AVEC THÈME PERSONNALISABLE SUR CONTOUR + DÉGRADÉ ---
   const renderWidget = (id: string, dragHandleProps: any) => {
+    const currentThemeKey = widgetColors[id] || DEFAULT_WIDGET_COLORS[id] || 'purple';
+    const themeStyle = THEME_STYLES[currentThemeKey];
+
+    const cardBaseClass = `group relative bg-gradient-to-r ${themeStyle.gradient} border-2 ${themeStyle.border} ${themeStyle.glow} rounded-3xl p-3 shadow-xl transition-all duration-300 flex flex-col justify-between space-y-2 backdrop-blur-md h-full cursor-pointer`;
+
     switch (id) {
       case 'weather':
         return (
-          <div className="group relative bg-gradient-to-br from-sky-950/70 via-slate-900/90 to-slate-950/90 border border-sky-500/30 hover:border-sky-400/60 rounded-2xl p-3.5 shadow-xl transition-all duration-300 flex flex-col justify-between space-y-2.5 backdrop-blur-xl h-full">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 text-sky-400">
-                <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-sky-300">
+          <div className={cardBaseClass}>
+            <div className="flex items-center justify-between border-b border-slate-700/40 pb-1.5">
+              <div className="flex items-center space-x-1.5 text-sky-400">
+                <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-sky-300">
                   <GripVertical className="w-3.5 h-3.5" />
                 </div>
                 <Sun className="w-4 h-4 text-amber-400" />
-                <span className="text-[11px] font-semibold text-sky-200">Météo</span>
+                <span className="text-[11px] font-bold text-white">Météo</span>
               </div>
-              <button onClick={onViewWeatherDetail} title="Détails" className="text-slate-500 hover:text-sky-400 transition-colors">
-                <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-              </button>
+
+              <div className="flex items-center gap-1">
+                <ColorPickerButton widgetId="weather" />
+                <button onClick={onViewWeatherDetail} title="Détails" className="p-1 text-slate-400 hover:text-sky-300 transition-colors">
+                  <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                </button>
+              </div>
             </div>
 
-            <div onClick={onViewWeatherDetail} className="cursor-pointer space-y-1.5">
+            <div onClick={onViewWeatherDetail} className="space-y-1.5">
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-2xl font-bold text-white tracking-tight">{currentTemp}°</span>
                   <span className="text-xs text-sky-300 font-medium">C</span>
                 </div>
-                <span className="text-[9px] text-sky-300 bg-sky-950/80 px-1.5 py-0.5 rounded-full border border-sky-500/30">
+                <span className="text-[9px] text-sky-200 font-bold bg-slate-900/80 px-2 py-0.5 rounded-lg border border-slate-700/60">
                   {currentTemp - 3}° / {currentTemp + 4}°
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-0.5 text-center bg-sky-950/30 p-1 rounded-lg border border-sky-500/20">
+              <div className="grid grid-cols-3 gap-0.5 text-center bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/60">
                 <div>
-                  <span className="text-[8px] text-sky-300/70 block">Mat.</span>
-                  <span className="text-[9px] font-semibold text-slate-200">{currentTemp - 2}°</span>
+                  <span className="text-[8px] text-slate-400 block font-medium">Mat.</span>
+                  <span className="text-[9px] font-bold text-slate-200">{currentTemp - 2}°</span>
                 </div>
-                <div className="border-x border-sky-500/20">
-                  <span className="text-[8px] text-sky-300 block font-medium">Apr.</span>
-                  <span className="text-[9px] font-bold text-amber-300">{currentTemp + 3}°</span>
+                <div className="border-x border-slate-700/60">
+                  <span className="text-[8px] text-sky-300 block font-bold">Apr.</span>
+                  <span className="text-[9px] font-black text-amber-300">{currentTemp + 3}°</span>
                 </div>
                 <div>
-                  <span className="text-[8px] text-sky-300/70 block">Soir</span>
-                  <span className="text-[9px] font-semibold text-slate-200">{currentTemp - 1}°</span>
+                  <span className="text-[8px] text-slate-400 block font-medium">Soir</span>
+                  <span className="text-[9px] font-bold text-slate-200">{currentTemp - 1}°</span>
                 </div>
               </div>
             </div>
 
-            <div className="relative flex items-center justify-between pt-1 border-t border-sky-500/20 text-[10px]">
+            <div className="relative flex items-center justify-between pt-1 border-t border-slate-700/40 text-[10px]">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsCityDropdownOpen(!isCityDropdownOpen);
                 }}
-                className="flex items-center gap-1 bg-sky-950/80 hover:bg-sky-900/80 px-1.5 py-0.5 rounded-lg border border-sky-500/30 text-sky-300 font-medium transition-all"
+                className="flex items-center gap-1 bg-slate-900/90 hover:bg-slate-700/80 px-2 py-0.5 rounded-lg border border-slate-700/60 text-sky-200 font-semibold transition-all"
               >
                 <MapPin className="w-3 h-3 text-sky-400" />
-                <span className="capitalize truncate max-w-[60px]">{activeCity}</span>
+                <span className="capitalize truncate max-w-[55px]">{activeCity}</span>
                 <ChevronDown className={`w-3 h-3 text-sky-400 transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              <span onClick={onViewWeatherDetail} className="text-sky-400 font-medium cursor-pointer hover:underline text-[10px]">
+              <span onClick={onViewWeatherDetail} className="text-sky-300 font-semibold hover:text-white transition-colors text-[10px]">
                 Détails →
               </span>
 
               {isCityDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsCityDropdownOpen(false); }} />
-                  <div className="absolute left-0 bottom-8 z-50 w-36 bg-slate-900 border border-sky-500/30 rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                  <div className="absolute left-0 bottom-8 z-50 w-36 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-1.5 space-y-0.5">
                     <div className="text-[9px] font-mono text-slate-400 px-2 py-1 uppercase tracking-wider border-b border-slate-800">
                       Changer de ville
                     </div>
@@ -370,254 +495,227 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       case 'homepulse':
         return (
-          <div onClick={onViewHomePulse} className="group relative bg-gradient-to-br from-purple-950/70 via-slate-900/90 to-slate-950/90 border border-purple-500/30 hover:border-purple-400/60 rounded-2xl p-3.5 shadow-xl cursor-pointer transition-all duration-300 flex flex-col justify-between space-y-2.5 backdrop-blur-xl h-full">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 text-purple-400">
-                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-purple-300">
+          <div onClick={onViewHomePulse} className={cardBaseClass}>
+            <div className="flex items-center justify-between border-b border-slate-700/40 pb-1.5">
+              <div className="flex items-center space-x-1.5 text-purple-300">
+                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-purple-300">
                   <GripVertical className="w-3.5 h-3.5" />
                 </div>
-                <FileText className="w-4 h-4" />
-                <span className="text-[11px] font-semibold text-purple-200">HomePulse</span>
+                <FileText className="w-4 h-4 text-purple-300" />
+                <span className="text-[11px] font-bold text-white">HomePulse</span>
               </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+
+              <div className="flex items-center gap-1">
+                <ColorPickerButton widgetId="homepulse" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between p-1 bg-purple-950/40 rounded-lg border border-purple-500/30 text-[10px]">
-                <span className="font-medium text-purple-200 truncate flex items-center gap-1">
+            <div className="space-y-1 my-auto text-[10px]">
+              <div className="flex items-center justify-between p-1.5 bg-slate-900/80 rounded-xl border border-slate-700/60">
+                <span className="font-semibold text-slate-200 truncate flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"></span>
                   <span className="truncate">🛒 Courses</span>
                 </span>
-                <span className="text-[8px] text-purple-300 font-mono">3 art.</span>
+                <span className="text-[8px] text-purple-300 font-mono font-bold">3 art.</span>
               </div>
-              <div className="flex items-center justify-between p-1 bg-slate-950/40 rounded-lg border border-purple-500/20 text-[10px]">
-                <span className="font-medium text-purple-200/80 truncate flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500/50 flex-shrink-0"></span>
+              <div className="flex items-center justify-between p-1.5 bg-slate-900/80 rounded-xl border border-slate-700/60">
+                <span className="font-semibold text-slate-300 truncate flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"></span>
                   <span className="truncate">🔧 Chaudière</span>
                 </span>
-                <span className="text-[8px] text-purple-400/80 font-mono">Rappel</span>
+                <span className="text-[8px] text-teal-300 font-mono font-bold">Rappel</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-purple-500/20 text-[10px]">
-              <span className="text-purple-300 font-medium">2 mémos</span>
-              <span className="text-purple-400 group-hover:text-purple-200 transition-colors">Voir →</span>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-700/40 text-[10px]">
+              <span className="text-slate-300 font-medium">2 mémos</span>
+              <span className="text-purple-300 group-hover:text-white transition-colors font-semibold">Voir →</span>
             </div>
           </div>
         );
 
       case 'energy':
         return (
-          <div onClick={onViewEnergyComfort} className="group relative bg-gradient-to-br from-emerald-950/70 via-slate-900/90 to-slate-950/90 border border-emerald-500/30 hover:border-emerald-400/60 rounded-2xl p-3.5 shadow-xl cursor-pointer transition-all duration-300 flex flex-col justify-between space-y-2.5 backdrop-blur-xl h-full">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 text-emerald-400">
-                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-emerald-300">
+          <div onClick={onViewEnergyComfort} className={cardBaseClass}>
+            <div className="flex items-center justify-between border-b border-slate-700/40 pb-1.5">
+              <div className="flex items-center space-x-1.5 text-emerald-400">
+                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-emerald-300">
                   <GripVertical className="w-3.5 h-3.5" />
                 </div>
-                <Zap className="w-4 h-4" />
-                <span className="text-[11px] font-semibold text-emerald-200">Énergie</span>
+                <Zap className="w-4 h-4 text-emerald-300" />
+                <span className="text-[11px] font-bold text-white">Énergie</span>
               </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+
+              <div className="flex items-center gap-1">
+                <ColorPickerButton widgetId="energy" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 my-auto">
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-2xl font-bold text-white tracking-tight">20.5°</span>
                   <span className="text-xs text-emerald-300 font-medium">C</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[8px] text-emerald-300/70 block">Tendance +3h</span>
-                  <span className="text-[9px] font-semibold text-emerald-400">21.2°C ➔ 16h</span>
+                  <span className="text-[8px] text-slate-400 block font-medium">Tendance +3h</span>
+                  <span className="text-[9px] font-bold text-teal-300">↗ 21.2°C</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between p-1 bg-emerald-950/40 rounded-lg border border-emerald-500/30 text-[9px]">
-                <span className="text-emerald-200">Fenêtres : Fermées</span>
-                <span className="text-emerald-400 font-mono">Stores 100%</span>
+              <div className="flex items-center justify-between p-1.5 bg-slate-900/80 rounded-xl border border-slate-700/60 text-[9px]">
+                <span className="text-slate-200 font-medium">Fenêtres : Fermées</span>
+                <span className="text-emerald-300 font-mono font-bold">Stores 100%</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-emerald-500/20 text-[10px]">
-              <span className="text-emerald-300 font-medium flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mode Éco
+            <div className="flex items-center justify-between pt-1 border-t border-slate-700/40 text-[10px]">
+              <span className="text-teal-300 font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span> Mode Éco
               </span>
-              <span className="text-emerald-400 group-hover:text-emerald-200 transition-colors">Gérer →</span>
+              <span className="text-emerald-300 group-hover:text-white transition-colors font-semibold">Gérer →</span>
             </div>
           </div>
         );
 
       case 'shortcuts':
         return (
-          <div onClick={onViewShortcuts} className="group relative bg-gradient-to-br from-rose-950/70 via-slate-900/90 to-slate-950/90 border border-rose-500/30 hover:border-rose-400/60 rounded-2xl p-3.5 shadow-xl cursor-pointer transition-all duration-300 flex flex-col justify-between space-y-2.5 backdrop-blur-xl h-full">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 text-rose-400">
-                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-rose-300">
+          <div onClick={onViewShortcuts} className={cardBaseClass}>
+            <div className="flex items-center justify-between border-b border-slate-700/40 pb-1.5">
+              <div className="flex items-center space-x-1.5 text-rose-400">
+                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-rose-300">
                   <GripVertical className="w-3.5 h-3.5" />
                 </div>
-                <Bookmark className="w-4 h-4" />
-                <span className="text-[11px] font-semibold text-rose-200">Raccourcis</span>
+                <Bookmark className="w-4 h-4 text-rose-300" />
+                <span className="text-[11px] font-bold text-white">Raccourcis</span>
               </div>
-              <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-rose-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+
+              <div className="flex items-center gap-1">
+                <ColorPickerButton widgetId="shortcuts" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between p-1 bg-rose-950/40 rounded-lg border border-rose-500/30 text-[10px]">
-                <span className="font-medium text-rose-200 truncate flex items-center gap-1">
+            <div className="space-y-1 my-auto text-[10px]">
+              <div className="flex items-center justify-between p-1.5 bg-slate-900/80 rounded-xl border border-slate-700/60">
+                <span className="font-semibold text-slate-200 truncate flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-400 flex-shrink-0"></span>
                   petrol.lu
                 </span>
-                <span className="text-[8px] text-rose-300 font-mono">Carburants</span>
+                <span className="text-[8px] text-rose-300 font-mono font-bold">Carburants</span>
               </div>
-              <div className="flex items-center justify-between p-1 bg-slate-950/40 rounded-lg border border-rose-500/20 text-[10px]">
-                <span className="font-medium text-rose-200/80 truncate flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500/50 flex-shrink-0"></span>
+              <div className="flex items-center justify-between p-1.5 bg-slate-900/80 rounded-xl border border-slate-700/60">
+                <span className="font-semibold text-slate-300 truncate flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"></span>
                   mobiliteit.lu
                 </span>
-                <span className="text-[8px] text-rose-300/80 font-mono">Transports</span>
+                <span className="text-[8px] text-teal-300 font-mono font-bold">Transports</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-rose-500/20 text-[10px]">
-              <span className="text-rose-300 font-medium">Favoris Web</span>
-              <span className="text-rose-400 group-hover:text-rose-200 transition-colors">Explorer →</span>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-700/40 text-[10px]">
+              <span className="text-slate-300 font-medium">Favoris Web</span>
+              <span className="text-rose-300 group-hover:text-white transition-colors font-semibold">Explorer →</span>
             </div>
           </div>
         );
 
       case 'trips':
         return (
-          <div onClick={() => onViewTrips?.()} className="group bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-indigo-950/70 border border-blue-500/30 hover:border-blue-400/60 rounded-2xl p-4 shadow-2xl transition-all duration-300 space-y-3 cursor-pointer backdrop-blur-xl w-full">
-            <div className="flex items-center justify-between border-b border-blue-500/20 pb-2.5">
-              <div className="flex items-center space-x-2">
-                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-blue-300">
+          <div onClick={() => onViewTrips?.()} className={cardBaseClass}>
+            <div className="flex items-center justify-between border-b border-slate-700/40 pb-1.5">
+              <div className="flex items-center space-x-1.5 text-sky-400">
+                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-sky-300">
                   <GripVertical className="w-3.5 h-3.5" />
                 </div>
-                <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  <Car className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-white block">
-                    {parkedCar ? "Position Véhicule Garé" : "Navigation & Trajets"}
-                  </span>
-                  <span className="text-[10px] text-blue-300/80">
-                    {parkedCar ? "Coordonnées GPS enregistrées" : `${activeCity} ➔ Destination`}
-                  </span>
-                </div>
+                <Car className="w-4 h-4 text-sky-300 flex-shrink-0" />
+                <span className="text-[11px] font-bold text-white truncate max-w-[90px]" title={parkedCar ? "Position Garée" : mainTrip.name}>
+                  {parkedCar ? "Position Garée" : mainTrip.name}
+                </span>
               </div>
 
-              <button 
-                onClick={parkedCar ? handleClearParking : handleSaveParkingLocation}
-                disabled={parkingLoading}
-                className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-cyan-300 rounded-xl text-[10px] font-semibold border border-slate-700/80 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-              >
-                {parkedCar ? (
-                  <>
-                    <Trash2 className="w-3 h-3 text-rose-400" />
-                    <span>Effacer</span>
-                  </>
-                ) : (
-                  <>
-                    <Navigation className="w-3 h-3 text-cyan-400" />
-                    <span>{parkingLoading ? 'Localisation...' : 'Garer véhicule'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="flex items-stretch gap-3">
-              <div className="w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden border border-blue-500/30 relative shadow-inner">
-                <iframe
-                  title="Mini Carte Cockpit"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0, filter: 'invert(92%) hue-rotate(180deg) brightness(88%)' }}
-                  loading="lazy"
-                  src={mapEmbedUrl}
-                />
-              </div>
-
-              <div className="flex-1 flex flex-col justify-between py-0.5 space-y-1.5 text-[11px]">
-                {parkedCar ? (
-                  <div className="space-y-1.5 bg-blue-950/40 p-2 rounded-xl border border-blue-500/20">
-                    <div className="flex items-center gap-1.5 text-cyan-300 font-semibold">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                      Véhicule stationné
-                    </div>
-                    <p className="text-[10px] text-slate-400">
-                      Enregistré il y a {Math.max(1, Math.floor((Date.now() - parkedCar.timestamp) / 60000))} min
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1 bg-blue-950/40 p-2 rounded-xl border border-blue-500/20">
-                    <div className="text-slate-200 font-medium truncate">
-                      <span className="text-blue-400 font-semibold">De :</span> {mainTrip.origin}
-                    </div>
-                    <div className="text-slate-200 font-medium truncate">
-                      <span className="text-blue-400 font-semibold">À :</span> {mainTrip.destination}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                  <div className="flex items-center gap-1.5 bg-slate-950/50 p-1.5 rounded-lg border border-blue-500/20">
-                    <Car className="w-3 h-3 text-blue-400" />
-                    <div>
-                      <span className="text-slate-400 block text-[9px]">Voiture</span>
-                      <span className="text-white font-bold">{mainTrip.carDuration}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 bg-slate-950/50 p-1.5 rounded-lg border border-blue-500/20">
-                    <Bus className="w-3 h-3 text-emerald-400" />
-                    <div>
-                      <span className="text-slate-400 block text-[9px]">Bus</span>
-                      <span className="text-white font-bold">{mainTrip.busDuration}</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={parkedCar ? handleClearParking : handleSaveParkingLocation}
+                  disabled={parkingLoading}
+                  title={parkedCar ? "Effacer position garée" : "Enregistrer position garée"}
+                  className="p-1 bg-slate-900/80 hover:bg-slate-700 text-sky-300 rounded-lg text-[9px] border border-slate-700/60 flex items-center gap-1 transition-all cursor-pointer flex-shrink-0"
+                >
+                  {parkedCar ? <Trash2 className="w-3 h-3 text-rose-400" /> : <Navigation className="w-3 h-3 text-sky-400" />}
+                </button>
+                <ColorPickerButton widgetId="trips" />
               </div>
             </div>
 
-            {parkingNotice && (
-              <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-[10px] flex items-center gap-2">
-                <Info className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
-                <span>{parkingNotice}</span>
-              </div>
-            )}
+            <div className="space-y-1 my-auto text-[9px]">
+              {parkedCar ? (
+                <div className="bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/60 text-[9px]">
+                  <span className="text-sky-300 font-bold block flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                    Véhicule Garé
+                  </span>
+                  <span className="text-slate-400 text-[8px] block mt-0.5">
+                    Il y a {Math.max(1, Math.floor((Date.now() - parkedCar.timestamp) / 60000))} min
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/60">
+                    <span className="flex items-center gap-1 text-slate-300 font-medium">
+                      <Car className="w-3 h-3 text-sky-400" /> Voiture
+                    </span>
+                    <span className="text-white font-bold">{mainTrip.carDuration || '15 min'}</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/60">
+                    <span className="flex items-center gap-1 text-slate-300 font-medium">
+                      <Bus className="w-3 h-3 text-teal-400" /> Bus / TC
+                    </span>
+                    <span className="text-white font-bold">{mainTrip.busDuration || '22 min'}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-slate-700/40 text-[10px]">
+              <span className="text-sky-200/80 truncate text-[9px] max-w-[85px]" title={mainTrip.destination}>
+                ➔ {mainTrip.destination.split(',')[0]}
+              </span>
+              <span className="text-sky-300 group-hover:text-white transition-colors font-semibold">Carte →</span>
+            </div>
           </div>
         );
 
       case 'news':
         return latestNews ? (
-          <div onClick={onViewSourcesNews} className="group bg-gradient-to-r from-sky-950/60 via-slate-900/90 to-cyan-950/60 border border-sky-500/30 hover:border-sky-400/60 rounded-2xl p-4 shadow-2xl transition-all duration-300 space-y-2.5 cursor-pointer backdrop-blur-xl w-full">
-            <div className="flex items-center justify-between border-b border-sky-500/20 pb-2">
-              <div className="flex items-center space-x-2 text-sky-400">
-                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-500 hover:text-sky-300">
+          <div onClick={onViewSourcesNews} className={cardBaseClass}>
+            <div className="flex items-center justify-between border-b border-slate-700/40 pb-1.5">
+              <div className="flex items-center space-x-1.5 text-cyan-400">
+                <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-cyan-300">
                   <GripVertical className="w-3.5 h-3.5" />
                 </div>
-                <Newspaper className="w-4 h-4" />
-                <span className="text-xs font-semibold text-sky-200">Veille & Dépêches</span>
+                <Newspaper className="w-4 h-4 text-cyan-300" />
+                <span className="text-[11px] font-bold text-white">News</span>
               </div>
-              <span className="text-[10px] text-sky-400 font-medium group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                Toutes les actus →
-              </span>
+
+              <div className="flex items-center gap-1">
+                <ColorPickerButton widgetId="news" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+              </div>
             </div>
 
-            <div onClick={(e) => { e.stopPropagation(); onReadArticle(latestNews); }} className="flex items-center justify-between gap-3 pt-1 hover:bg-sky-950/40 p-2 rounded-xl transition-all">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-semibold px-2 py-0.5 rounded-md bg-sky-950 border border-sky-500/30 text-sky-300">
-                    {latestNews.source}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {latestNews.publishedAt}
-                  </span>
-                </div>
-                <p className="text-xs font-semibold text-white line-clamp-1 group-hover:text-sky-200 transition-colors">
-                  {latestNews.title}
-                </p>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-sky-400 flex-shrink-0 transition-colors" />
+            <div onClick={(e) => { e.stopPropagation(); onReadArticle(latestNews); }} className="space-y-1 my-auto">
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700/60 text-cyan-300 inline-block">
+                {latestNews.source}
+              </span>
+              <p className="text-[10px] font-semibold text-white line-clamp-2 leading-tight group-hover:text-cyan-200 transition-colors">
+                {latestNews.title}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-slate-700/40 text-[10px]">
+              <span className="text-slate-400 text-[9px]">{latestNews.publishedAt}</span>
+              <span className="text-cyan-300 group-hover:text-white transition-colors font-semibold">Dépêches →</span>
             </div>
           </div>
         ) : null;
@@ -627,29 +725,25 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
   };
 
-  // Séparation pour l'affichage en grille 2 colonnes
-  const gridWidgetIds = widgetOrder.filter(id => id !== 'trips' && id !== 'news');
-  const fullWidthWidgetIds = widgetOrder.filter(id => id === 'trips' || id === 'news');
-
   return (
     <div className="space-y-4 text-xs w-full max-w-2xl mx-auto overflow-x-hidden pb-36 relative text-slate-100 px-2 font-sans tracking-tight">
 
-      {/* 1. EN-TÊTE PROFESSIONNEL */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3">
+      {/* 1. EN-TÊTE HARMONISÉ */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-slate-700/60 rounded-3xl p-4 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
-          <div className="relative flex items-center justify-center p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+          <div className="relative flex items-center justify-center p-2 rounded-2xl bg-slate-800 border border-slate-700 text-sky-300">
             <Sparkles className="w-4 h-4" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-sky-400 animate-ping"></span>
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h1 className="text-sm font-bold text-white flex items-center gap-2">
               {getGreeting()}
-              <span className="text-[10px] font-mono text-slate-400 font-normal px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/50">
+              <span className="text-[10px] font-mono text-slate-300 font-normal px-2 py-0.5 rounded-full bg-slate-900/80 border border-slate-700/60">
                 v2.4 Active
               </span>
             </h1>
-            <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <p className="text-[11px] text-slate-300 font-medium flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
               Centre de contrôle • {activeCity}
             </p>
           </div>
@@ -658,8 +752,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="flex items-center space-x-2">
           <button
             onClick={handleResetOrder}
-            title="Réinitialiser l'organisation des widgets"
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-400 hover:text-white transition-all cursor-pointer"
+            title="Réinitialiser l'organisation et les couleurs"
+            className="p-2 rounded-2xl bg-slate-900/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -667,10 +761,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           {unreadCount !== null && unreadCount > 0 && (
             <button 
               onClick={handleOpenGmail} 
-              className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-200 transition-all cursor-pointer"
+              className="relative p-2 rounded-2xl bg-slate-900/80 hover:bg-slate-700/80 border border-slate-700/60 text-sky-300 transition-all cursor-pointer shadow-sm"
             >
-              <Mail className="w-4 h-4 text-cyan-400" />
-              <span className="absolute -top-1 -right-1 bg-cyan-500 text-slate-950 text-[9px] font-black px-1.5 rounded-full shadow-lg">
+              <Mail className="w-4 h-4 text-sky-400" />
+              <span className="absolute -top-1 -right-1 bg-sky-400 text-slate-950 text-[9px] font-black px-1.5 rounded-full shadow-lg">
                 {unreadCount}
               </span>
             </button>
@@ -679,65 +773,44 @@ export const HomePage: React.FC<HomePageProps> = ({
           {!isWorkspaceConnected ? (
             <button 
               onClick={handleGoogleLogin} 
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 transition-all cursor-pointer"
+              className="p-2 rounded-2xl bg-slate-900/80 hover:bg-slate-700/80 border border-slate-700/60 text-sky-300 transition-all cursor-pointer shadow-sm"
             >
-              <UserX className="w-4 h-4 text-indigo-400" />
+              <UserX className="w-4 h-4 text-sky-400" />
             </button>
           ) : (
-            <div className="p-1 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center">
+            <div className="p-1 rounded-2xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center">
               {currentUser?.photoURL ? (
-                <img src={currentUser.photoURL} alt="Avatar" className="w-5 h-5 rounded-full ring-1 ring-emerald-400/50" />
+                <img src={currentUser.photoURL} alt="Avatar" className="w-5 h-5 rounded-full ring-1 ring-teal-400" />
               ) : (
-                <UserCheck className="w-4 h-4 text-emerald-400" />
+                <UserCheck className="w-4 h-4 text-teal-300" />
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* 2. DRAG AND DROP DANS LA GRILLE 2 COLONNES + SECTION PLEINE LARGEUR */}
+      {/* 2. DRAG AND DROP - TOUS LES WIDGETS SUR 2 COLONNES AVEC COULEURS DYNAMIQUES */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="dashboard-widgets-grid">
           {(provided) => (
             <div 
               {...provided.droppableProps} 
               ref={provided.innerRef}
-              className="space-y-3"
+              className="grid grid-cols-2 gap-3"
             >
-              {/* GRILLE 2 COLONNES POUR LES PETITS WIDGETS */}
-              <div className="grid grid-cols-2 gap-3">
-                {gridWidgetIds.map((widgetId, index) => (
-                  <Draggable key={widgetId} draggableId={widgetId} index={index}>
-                    {(providedDraggable, snapshot) => (
-                      <div
-                        ref={providedDraggable.innerRef}
-                        {...providedDraggable.draggableProps}
-                        className={`h-full ${snapshot.isDragging ? 'z-50 shadow-2xl scale-[1.02]' : ''}`}
-                      >
-                        {renderWidget(widgetId, providedDraggable.dragHandleProps)}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-              </div>
-
-              {/* WIDGETS PLEINE LARGEUR (TRAJETS ET ACTUS) */}
-              <div className="space-y-3">
-                {fullWidthWidgetIds.map((widgetId, index) => (
-                  <Draggable key={widgetId} draggableId={widgetId} index={gridWidgetIds.length + index}>
-                    {(providedDraggable, snapshot) => (
-                      <div
-                        ref={providedDraggable.innerRef}
-                        {...providedDraggable.draggableProps}
-                        className={`w-full ${snapshot.isDragging ? 'z-50 shadow-2xl scale-[1.02]' : ''}`}
-                      >
-                        {renderWidget(widgetId, providedDraggable.dragHandleProps)}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-              </div>
-
+              {widgetOrder.map((widgetId, index) => (
+                <Draggable key={widgetId} draggableId={widgetId} index={index}>
+                  {(providedDraggable, snapshot) => (
+                    <div
+                      ref={providedDraggable.innerRef}
+                      {...providedDraggable.draggableProps}
+                      className={`h-full ${snapshot.isDragging ? 'z-50 shadow-2xl scale-[1.02]' : ''}`}
+                    >
+                      {renderWidget(widgetId, providedDraggable.dragHandleProps)}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
               {provided.placeholder}
             </div>
           )}

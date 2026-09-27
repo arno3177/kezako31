@@ -88,7 +88,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
 
   useEffect(() => { loadFuelPrices(); }, []);
 
-  // Fonction pour obtenir la position GPS actuelle (uniquement si l'utilisateur clique explicitement sur le bouton visée du départ/arrivée)
+  // Position GPS
   const handleGetGpsPosition = async (target: 'origin' | 'destination') => {
     if (target === 'origin') setIsLocatingOrigin(true); else setIsLocatingDestination(true);
     try {
@@ -119,7 +119,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
     }
   };
 
-  // Récupération des arrêts de bus en se basant EXCLUSIVEMENT sur la position/texte configurée dans le point de départ
+  // Arrêts de bus
   const handleFindNearbyBusStops = async () => {
     setIsLoadingBusStops(true);
     setBusStopError(null);
@@ -127,19 +127,16 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
       let lat: number;
       let lon: number;
 
-      // 1. Si le départ contient déjà des coordonnées précises (ex: "49.6116,6.1319")
       if (flyOriginCoords) {
         const parts = flyOriginCoords.split(',');
         lat = parseFloat(parts[0]);
         lon = parseFloat(parts[1]);
       } else {
-        // 2. Vérifie si le texte du départ commence par des coordonnées
         const coordsMatch = flyOrigin.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
         if (coordsMatch) {
           lat = parseFloat(coordsMatch[1]);
           lon = parseFloat(coordsMatch[2]);
         } else if (flyOrigin && flyOrigin.trim().length > 3) {
-          // 3. Sinon, géocode l'adresse textuelle du point de départ via OpenStreetMap Nominatim
           const queryAddress = flyOrigin.toLowerCase().includes('luxembourg') ? flyOrigin : `${flyOrigin}, Luxembourg`;
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryAddress)}&limit=1`);
           const data = await res.json();
@@ -179,7 +176,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
     if (activeMode === 'bus') handleFindNearbyBusStops(); else loadFuelPrices();
   }, [activeMode, flyOrigin]);
 
-  // Autocomplétion départ à la volée
+  // Autocomplétion départ
   useEffect(() => {
     const query = flyOrigin.trim();
     if (!isUsingFlyMode || query.length < 3 || flyOriginCoords) { setFlyOriginSuggestions([]); return; }
@@ -197,7 +194,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
     return () => clearTimeout(timer);
   }, [flyOrigin, isUsingFlyMode, flyOriginCoords]);
 
-  // Autocomplétion arrivée à la volée
+  // Autocomplétion arrivée
   useEffect(() => {
     const query = flyDestination.trim();
     if (!isUsingFlyMode || query.length < 3 || flyDestinationCoords) { setFlyDestinationSuggestions([]); return; }
@@ -443,8 +440,8 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
         </button>
       </div>
 
-      {/* 3. SÉLECTEUR DE MODE & TEMPS ESTIMÉ (HARMONISÉ) */}
-      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3.5 backdrop-blur-md">
+      {/* 3. SÉLECTEUR DE MODE, TEMPS ESTIMÉ & CARBURANTS INTÉGRÉS */}
+      <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-slate-900/80 p-1.5 rounded-2xl border border-sky-400/30 flex-1 shadow-inner">
             <button
@@ -477,15 +474,45 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
           </button>
         </div>
 
+        {/* Temps estimé */}
         <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-slate-900/60 border border-sky-400/30 text-[11px] shadow-sm">
           <span className="text-slate-300 font-medium">Temps estimé ({activeMode === 'car' ? 'Voiture' : 'Transports'})</span>
           <span className="font-semibold text-sky-300 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" /> ~28 min
           </span>
         </div>
+
+        {/* Prix du carburant sous le temps estimé (mode voiture) */}
+        {activeMode === 'car' && (
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-2xl bg-slate-950/50 border border-sky-400/20 text-[10px] shadow-inner">
+            <div className="flex items-center gap-2 text-slate-400 font-medium">
+              <Fuel className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+              <span className="text-[9px] uppercase font-bold tracking-wide text-slate-400">ACL :</span>
+              <div className="flex items-center gap-1.5 font-mono">
+                <span className="bg-slate-900/90 px-1.5 py-0.5 rounded-md border border-slate-700/60 text-slate-300">
+                  <span className="text-slate-400 text-[8px] font-bold mr-1">95</span>{fuelPrices.super95}
+                </span>
+                <span className="bg-slate-900/90 px-1.5 py-0.5 rounded-md border border-slate-700/60 text-slate-300">
+                  <span className="text-slate-400 text-[8px] font-bold mr-1">98</span>{fuelPrices.super98}
+                </span>
+                <span className="bg-slate-900/90 px-1.5 py-0.5 rounded-md border border-slate-700/60 text-slate-300">
+                  <span className="text-slate-400 text-[8px] font-bold mr-1">GO</span>{fuelPrices.diesel}
+                </span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={loadFuelPrices} 
+              title="Rafraîchir les prix" 
+              className="p-1 hover:text-white text-slate-400 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshingFuel ? 'animate-spin text-sky-400' : ''}`} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* 4. CARTE DE TRAJET À LA VOLÉE (HARMONISÉ) */}
+      {/* 4. CARTE DE TRAJET À LA VOLÉE */}
       <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-4 backdrop-blur-md">
         <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
           <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
@@ -594,7 +621,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
           </button>
         </div>
 
-        {/* Encart d'erreur technique détaillé pour l'API Bus */}
+        {/* Encart d'erreur technique pour l'API Bus */}
         {busStopError && activeMode === 'bus' && (
           <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-[10px] font-mono flex items-center justify-between shadow-lg">
             <span className="break-all">⚠️ {busStopError}</span>
@@ -658,33 +685,9 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
             </div>
           </div>
         )}
-
-        {/* Section Carburants en mode voiture */}
-        {activeMode === 'car' && (
-          <div className="pt-3 space-y-2.5 border-t border-sky-400/30">
-            <div className="flex items-center justify-between text-[10px] text-slate-300 font-bold uppercase tracking-wider">
-              <span className="flex items-center gap-1 text-sky-300"><Fuel className="w-3.5 h-3.5" /> Prix Carburants (ACL)</span>
-              <button onClick={loadFuelPrices} className="hover:text-white flex items-center gap-1 cursor-pointer"><RefreshCw className={`w-3 h-3 ${isRefreshingFuel ? 'animate-spin' : ''}`} /></button>
-            </div>
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="p-2.5 rounded-2xl bg-slate-900/90 border border-sky-400/40 text-center shadow-inner">
-                <span className="text-[9px] text-slate-400 font-bold block">SUPER 95</span>
-                <span className="text-xs font-semibold text-white mt-1 block">{fuelPrices.super95}</span>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-slate-900/90 border border-sky-400/40 text-center shadow-inner">
-                <span className="text-[9px] text-slate-400 font-bold block">SUPER 98</span>
-                <span className="text-xs font-semibold text-white mt-1 block">{fuelPrices.super98}</span>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-slate-900/90 border border-sky-400/40 text-center shadow-inner">
-                <span className="text-[9px] text-slate-400 font-bold block">DIESEL</span>
-                <span className="text-xs font-semibold text-white mt-1 block">{fuelPrices.diesel}</span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* 5. CARTE & NAVIGATION (HARMONISÉ) */}
+      {/* 5. CARTE & NAVIGATION */}
       <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-3 backdrop-blur-md">
         <a
           href={
@@ -719,7 +722,7 @@ export const TripsPage: React.FC<TripsPageProps> = ({ currentWeather }) => {
         </div>
       </div>
 
-      {/* 6. TRAFIC & DIAGNOSTIC (HARMONISÉ) */}
+      {/* 6. TRAFIC & DIAGNOSTIC */}
       <div className="bg-gradient-to-r from-sky-900/60 via-slate-800 to-sky-900/60 border border-sky-400/40 rounded-3xl p-5 shadow-xl space-y-2 text-xs backdrop-blur-md">
         <div className="flex items-center justify-between border-b border-sky-400/30 pb-3">
           <span className="font-black uppercase tracking-wider text-white flex items-center gap-2">
